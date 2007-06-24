@@ -1,0 +1,9 @@
+netrek-client-pygame (0.1-1) unstable; urgency=low
+
+  * test
+
+ -- James Cameron <quozl@us.netrek.org>  Sun, 24 Jun 2007 13:39:23 +1000
+
+Local variables:
+mode: debian-changelog
+End:
