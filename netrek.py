@@ -1947,6 +1947,13 @@ class MetaClient:
         if text[0] == 's': self.version_s(text, address)
         elif text[0] == 'r': self.version_r(text)
 
+    def filter(self, server):
+        # FIXME: client currently lacks necessary hockey support
+        if server['type'] == 'H': return False
+        # FIXME: client currently lacks necessary sturgeon support
+        if server['type'] == 'S': return False
+        return True
+        
     def version_s(self, text, address):
         unpack = text.split(',')
         server = {}
@@ -1959,8 +1966,9 @@ class MetaClient:
         server['status'] = 2
         if server['type'] == 'unknown': server['status'] = 3
         server['age'] = 0
-        self.servers[server['name']] = server
-        if self.callback: self.callback(server['name'])
+        if self.filter(server):
+            self.servers[server['name']] = server
+            if self.callback: self.callback(server['name'])
 
     def version_r(self, text):
         lines = text.split('\n')
@@ -1972,8 +1980,10 @@ class MetaClient:
             server['age'] = int(age)
             server['players'] = int(players)
             server['queue'] = int(queue)
-            self.servers[server['name']] = server
-            if self.callback: self.callback(server['name'])
+            server['comment'] = ''
+            if self.filter(server):
+                self.servers[server['name']] = server
+                if self.callback: self.callback(server['name'])
 
 class Client:
     """ Netrek TCP Client
@@ -2178,11 +2188,11 @@ class PhaseServers(Phase):
         # FIXME: icon per server type?
         # FIXME: icon better than this one
         # IMAGERY: netrek.png
-        cs = ic.get("netrek.png")
+        cs = ic.get("torp-me.png")
         cr = cs.get_rect(left=50, centery=y)
         r.append(screen.blit(cs, cr))
         # server name
-        ss = self.fn.render(name, 1, (255, 255, 255))
+        ss = self.fn.render(name + ' ' + server['comment'], 1, (255, 255, 255))
         sr = ss.get_rect(left=100, centery=y)
         r.append(screen.blit(ss, sr))
         # per player icon
