@@ -136,6 +136,14 @@ cp `grep IMAGERY try.py|grep -v grep|cut -f2 -d:|sort|uniq` /tmp/netrek-client-p
 """
 import sys, time, socket, select, struct, pygame, math
 
+print "Netrek Client Pygame"
+print "Copyright (C) 2007 James Cameron <quozl@us.netrek.org>"
+print ""
+print "This program comes with ABSOLUTELY NO WARRANTY; for details see source."
+print "This is free software, and you are welcome to redistribute it under certain"
+print "conditions; see source for details."
+print ""
+
 from optparse import OptionParser
 parser= OptionParser()
 parser.add_option("-s", "--server", "--host", dest="server",
@@ -427,11 +435,9 @@ class Ship:
         global me
         if not me:
             me = self
-            print "SP_YOU me is set"
         else:
             if me != self:
                 me = self
-                print "SP_YOU me has changed"
 
     def sp_pl_login(self, rank, name, monitor, login):
         self.rank = rank
@@ -2051,11 +2057,11 @@ class Phase:
             pygame.display.update(r1)
             self.warning_on = False
         
-    def background(self):
+    def background(self, name="stars.png"):
         # tile a background image onto the screen
         screen.fill((0,0,0))
         # IMAGERY: stars.png
-        background = ic.get("stars.png")
+        background = ic.get(name)
         bh = background.get_height()
         bw = background.get_width()
         for y in range(screen.get_height() / bh + 1):
@@ -2067,7 +2073,28 @@ class Phase:
         ts = font.render(text, 1, colour)
         tr = ts.get_rect(center=(x, y))
         screen.blit(ts, tr)
+
+    def blame(self):
+        self.text("software by quozl@us.netrek.org, backgrounds by hubble, ships by pascal", screen.get_width()/2, screen.get_height()-30, 18)
         
+    def license(self):
+        font = fc.get(None, 24)
+        lines = [
+"Netrek Client Pygame",
+        "Copyright (C) 2007 James Cameron <quozl@us.netrek.org>", 
+        "", 
+        "This program comes with ABSOLUTELY NO WARRANTY; for details see source.", 
+        "This is free software, and you are welcome to redistribute it under certain", 
+        "conditions; see source for details."
+        ]
+        x = 200
+        y = 800
+        for line in lines:
+            ts = font.render(line, 1, (255, 255, 255))
+            tr = ts.get_rect(left=x, top=y)
+            y = tr.bottom
+            screen.blit(ts, tr)
+
     def network_sink(self):
         # FIXME: select for *either* pygame events or network events.
         # Currently the code is suboptimal because it waits on network
@@ -2118,18 +2145,20 @@ class Phase:
 class PhaseSplash(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
-        self.background()
+        self.background("hubble-helix.jpg")
         self.text("netrek", screen.get_width()/2, screen.get_height()/2, 144)
+        self.license()
         pygame.display.flip()
-        pygame.time.wait(250)
+        pygame.time.wait(1000)
         # FIXME: add neat animation
 
 class PhaseServers(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
-        self.background()
+        self.background("hubble-orion.jpg")
         self.text('netrek', 500, 100, 144)
         self.text('server list', 500, 175, 72)
+        self.license()
         pygame.display.flip()
 
         self.fn = fc.get(None, 36)
@@ -2192,9 +2221,10 @@ class Field:
         self.sw = sw = screen.get_width()
         self.sh = sh = screen.get_height()
         # place prompt on screen
-        self.ps = ps = fn.render(prompt, 1, (127, 127, 127))
+        self.ps = ps = fn.render(prompt, 1, (255, 255, 255))
         self.pc = pc = (x, y)
         self.pr = pr = ps.get_rect(topright=pc)
+        self.pg = screen.subsurface(self.pr).copy()
         r1 = screen.blit(ps, pr)
         # highlight entry area
         self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 300, pr.height)
@@ -2214,6 +2244,9 @@ class Field:
         ar.left = self.pr.right
         return screen.blit(as, ar)
         
+    def undraw(self):
+        return screen.blit(self.pg, self.pr)
+
     def redraw(self):
         r1 = self.highlight()
         r2 = self.draw()
@@ -2245,12 +2278,13 @@ class Field:
 class PhaseLogin(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
-        self.background()
+        self.background("hubble-crab.jpg")
         self.text('netrek', 500, 100, 144)
         self.text(opt.server, 500, 185, 72)
+        self.blame()
         pygame.display.flip()
         # FIXME: display MOTD below name in smaller text
-        self.name = Field("Type a name ? ", "", 500, 750)
+        self.name = Field("type a name ? ", "", 500, 750)
         self.focused = self.name
         self.password = None
         self.run = True
@@ -2264,7 +2298,7 @@ class PhaseLogin(Phase):
             self.chuck_cp_login()
         elif self.focused == self.name:
             if self.password == None:
-                self.password = Field("Password ? ", "", 500, 800)
+                self.password = Field("password ? ", "", 500, 800)
                 # FIXME: password prompt appears momentarily if guest selected
                 # FIXME: force no echo for password
             else:
@@ -2272,6 +2306,7 @@ class PhaseLogin(Phase):
             self.focused = self.password
             if self.name.value == 'guest' or self.name.value == 'Guest':
                 self.password.leave()
+                self.password.undraw()
                 self.password.value = ''
                 self.chuck_cp_login()
             else:
@@ -2355,11 +2390,11 @@ class PhaseOutfit(Phase):
         
     def do(self):
         self.run = True
-        self.background()
-        pygame.display.flip()
+        self.background("hubble-spire.jpg")
         self.text('netrek', 500, 100, 144)
         self.text(opt.server, 500, 185, 72)
         self.text('ship and race', 500, 255, 72)
+        self.blame()
         pygame.display.flip()
         box_l = 212
         box_t = 300
@@ -2662,7 +2697,6 @@ pending_outfit = False
 
 ph_splash = PhaseSplash(screen)
 
-print opt
 if opt.server == None:
     ph_servers = PhaseServers(screen)
     # FIXME: discover servers from a cache
