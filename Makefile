@@ -34,7 +34,7 @@ package:
 upload:
 	mv ../$(PACKAGE)_$(VERSION)*{.dsc,.changes,.tar.gz,.deb} ~/public_html/external/mine/netrek-client-pygame/
 	cp doc/index.phtml ~/public_html/external/mine/netrek-client-pygame/
-	cp doc/*.png ~/public_html/external/mine/netrek-client-pygame/
+	cp doc/*.{jpg,png,gif} ~/public_html/external/mine/netrek-client-pygame/
 
 update:
 	(cd ~/public_html/external/mine/netrek-client-pygame/;rm -f db;make)

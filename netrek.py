@@ -165,6 +165,9 @@ parser.add_option("--dump-server",
 parser.add_option("--dump-client",
                   action="store_true", dest="cp", default=False,
                   help="dump client packet stream")
+parser.add_option("--screenshots",
+                  action="store_true", dest="screenshots", default=False,
+                  help="generate publicity screenshots")
 (opt, args) = parser.parse_args()
 # FIXME: [--theme name] [--metaserver] [host]
 
@@ -2160,6 +2163,8 @@ class PhaseSplash(Phase):
         self.license()
         pygame.display.flip()
         pygame.time.wait(1000)
+        if opt.screenshots:
+            pygame.image.save(screen, "netrek-client-pygame-splash.tga")
         # FIXME: add neat animation
 
 class PhaseServers(Phase):
@@ -2223,6 +2228,8 @@ class PhaseServers(Phase):
                 chosen = v['name']
         self.chosen = chosen
         self.run = False
+        if opt.screenshots:
+            pygame.image.save(screen, "netrek-client-pygame-servers.tga")
         
 class Field:
     def __init__(self, prompt, value, x, y):
@@ -2299,6 +2306,8 @@ class PhaseLogin(Phase):
         self.password = None
         self.run = True
         self.warning('connected to server')
+        if opt.screenshots:
+            pygame.image.save(screen, "netrek-client-pygame-login.tga")
         self.cycle()
 
     def tab(self):
@@ -2440,6 +2449,8 @@ class PhaseOutfit(Phase):
         self.warning("in netrek all races are equal")
         pygame.display.update(r)
         sp_mask.catch(self.mask)
+        if opt.screenshots:
+            pygame.image.save(screen, "netrek-client-pygame-outfit.tga")
         self.cycle()
         sp_mask.uncatch()
 
