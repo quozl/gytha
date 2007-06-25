@@ -2105,17 +2105,18 @@ class Phase:
         screen.blit(ts, tr)
 
     def blame(self):
-        self.text("software by quozl@us.netrek.org, backgrounds by hubble, ships by pascal", screen.get_width()/2, screen.get_height()-30, 18)
+        self.text("software by quozl@us.netrek.org and stephen@thorne.id.au", screen.get_width()/2, screen.get_height()-30, 22)
+        self.text("backgrounds by hubble, ships by pascal", screen.get_width()/2, screen.get_height()-15, 22)
         
     def license(self):
         font = fc.get(None, 24)
         lines = [
 "Netrek Client Pygame",
-        "Copyright (C) 2007 James Cameron <quozl@us.netrek.org>", 
-        "", 
-        "This program comes with ABSOLUTELY NO WARRANTY; for details see source.", 
-        "This is free software, and you are welcome to redistribute it under certain", 
-        "conditions; see source for details."
+"Copyright (C) 2007 James Cameron <quozl@us.netrek.org>",
+"",
+"This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
+"This is free software, and you are welcome to redistribute it under certain",
+"conditions; see source for details."
         ]
         x = 200
         y = 800
