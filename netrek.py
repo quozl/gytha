@@ -168,7 +168,8 @@ parser.add_option("--dump-client",
 parser.add_option("--screenshots",
                   action="store_true", dest="screenshots", default=False,
                   help="generate publicity screenshots")
-parser.add_option("--metaserver", action="store", default='metaserver.netrek.org',
+parser.add_option("--metaserver", action="store",
+                  default='metaserver.netrek.org',
                   help="metaserver to query for games.")
 (opt, args) = parser.parse_args()
 # FIXME: [--theme name] [host]
@@ -1964,9 +1965,13 @@ class MetaClient:
             return False
 
         # FIXME: client currently lacks necessary hockey support
-        if server['type'] == 'H': return False
+        if server['type'] == 'H':
+            return False
+
         # FIXME: client currently lacks necessary sturgeon support
-        if server['type'] == 'S': return False
+        if server['type'] == 'S':
+            return False
+
         return True
         
     def version_s(self, text, address):
