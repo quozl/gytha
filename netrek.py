@@ -325,6 +325,30 @@ PHHIT =0x01 # ship
 PHMISS=0x02 # whiff
 PHHIT2=0x04 # plasma
 
+MVALID = 0x01
+MGOD   = 0x10
+
+MINDIV = 0x02
+MCONFIG = 0x40
+
+MTEAM  = 0x04
+MTAKE  = 0x20
+MDEST  = 0x40
+MBOMB  = 0x60
+MCOUP1 = 0x80
+MCOUP2 = 0xA0
+MDISTR = 0xC0
+
+MALL   = 0x08
+MGENO  = 0x20
+MCONQ  = 0x20
+MKILLA = 0x40
+MKILLP = 0x60
+MKILL  = 0x80
+MLEAVE = 0xA0
+MJOIN  = 0xC0
+MGHOST = 0xE0
+
 def strnul(input):
     """ convert a NUL terminated string to a normal string
     """
@@ -1515,6 +1539,18 @@ class CP_SCAN(CP):
 
 cp_scan = CP_SCAN()
 
+class CP_FEATURE(CP):
+    def __init__(self):
+        self.code = 60
+        self.format = "!bcbbi80s"
+        self.tabulate(self.code, self.format)
+
+    def data(self, type, arg1, arg2, value, name):
+        if opt.cp: print "CP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",name
+        return struct.pack(self.format, self.code, type, arg1, arg2, value, name)
+
+cp_feature = CP_FEATURE()
+
 """ server originated packets
 """
 
@@ -1890,7 +1926,54 @@ class SP_MESSAGE(SP):
     def handler(self, data):
         (ignored, m_flags, m_recpt, m_from, mesg) = struct.unpack(self.format, data)
         if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",strnul(mesg)
-        print strnul(mesg)
+        # FIXME: this is temporary processing of distress messages,
+        # depending on the type of message it should be portrayed.
+        if m_flags == (MVALID | MTEAM | MDISTR):
+            ( distypenflag, fuelp, dam, shld,
+              etmp, wtmp, arms, sts,
+              close_pl, close_en, tclose_pl, tclose_en,
+              tclose_j, close_j, tclose_fr, close_fr ) = \
+              struct.unpack('16B', mesg[10:26])
+            distype = distypenflag & 0x1f
+            fuelp = fuelp & 0x7f
+            dam = dam & 0x7f
+            shld  = shld & 0x7f
+            etmp = etmp & 0x7f
+            wtmp = wtmp & 0x7f
+            arms = arms & 0x7f
+            sts  = sts & 0x7f
+            close_pl = close_pl & 0x7f
+            close_en = close_en & 0x7f
+            tclose_pl = tclose_pl & 0x7f
+            tclose_en  = tclose_en & 0x7f
+            tclose_j = tclose_j & 0x7f
+            close_j = close_j & 0x7f
+            tclose_fr = tclose_fr & 0x7f
+            close_fr  = close_fr & 0x7f
+
+            print "RCD distype=", distype, \
+                  "fuelp=", fuelp, \
+                  "dam=", dam, \
+                  "shld=", shld, \
+                  "etmp=", etmp, \
+                  "wtmp=", wtmp, \
+                  "arms=", arms, \
+                  "sts=", sts, \
+                  "close_pl=", close_pl, \
+                  "close_en=", close_en, \
+                  "tclose_pl=", tclose_pl, \
+                  "tclose_en=", tclose_en, \
+                  "tclose_j=", tclose_j, \
+                  "close_j=", close_j, \
+                  "tclose_fr=", tclose_fr, \
+                  "close_fr=", close_fr
+            # (and all this info is sent by the other client
+            # automatically on every distress signal, like control/t,
+            # it is magnificent in its borgishness -- Quozl)
+
+            # FIXME: send control/t ;-)
+        else:
+            print strnul(mesg)
         # FIXME: display the message
 
 sp_message = SP_MESSAGE()
@@ -1924,12 +2007,16 @@ sp_warning = SP_WARNING()
 class SP_FEATURE(SP):
     def __init__(self):
         self.code = 60
-        self.format = "!bbbbi80s"
+        self.format = "!bcbbi80s"
         self.tabulate(self.code, self.format, self)
 
     def handler(self, data):
         (ignored, type, arg1, arg2, value, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",name
+        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",strnul(name)
+        if (type, arg1, arg2, value, strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
+            # send client features
+            nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
+
         # FIXME: process the packet
 
 sp_feature = SP_FEATURE()
@@ -2874,6 +2961,7 @@ else:
     nt.connect(opt.server, opt.port)
 
 nt.send(cp_socket.data())
+nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
 
 # PhaseQueue?
 # FIXME: if an SP_QUEUE packet is received, present this phase
