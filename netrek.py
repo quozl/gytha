@@ -532,10 +532,10 @@ class Torp:
 
     def sp_torp_info(self, war, status):
         old = self.status
-        
+
         self.war = war
         self.status = status
-        
+
         try:
             if old == TFREE:
                 if status != TFREE:
@@ -595,10 +595,10 @@ class Phaser:
     def undraw(self):
         self.have = False
         return pygame.draw.line(screen, (0, 0, 0), self.fxfy, self.txty)
-        
+
     def sp_phaser(self, status, dir, x, y, target):
         old = self.status
-        
+
         self.status = status
         self.dir = dir
         self.x = x
@@ -609,13 +609,51 @@ class Phaser:
             if self.status != PHFREE: self.want = True
         else:
             if self.status == PHFREE: self.want = False
-        
+
+class Plasma:
+    """ netrek plasma torps
+        each netrek ship has one netrek plasma torp
+        instances created as packets about the plasma torps are received
+        instances are listed in a dictionary in the galaxy instance
+    """
+    def __init__(self, n):
+        self.n = n
+        self.ship = galaxy.ship(n)
+        self.status = TFREE
+        self.sp_plasma_info(0, self.status)
+        self.sp_plasma(0, 0)
+        # self.tactical = PlasmaTacticalSprite(self)
+
+    def sp_plasma_info(self, war, status):
+        old = self.status
+
+        self.war = war
+        self.status = status
+
+        # FIXME: this code is the same for torps, factorise it
+        try:
+            if old == TFREE:
+                if status != TFREE:
+                    self.tactical.show()
+            else:
+                if status == TFREE:
+                    self.tactical.hide()
+                elif status == TEXPLODE:
+                    self.explode = nt.time + 2
+        except:
+            pass
+
+    def sp_plasma(self, x, y):
+        self.x = x
+        self.y = y
+
 class Galaxy:
     def __init__(self):
         self.planets = {}
         self.ships = {}
         self.torps = {}
         self.phasers = {}
+        self.plasmas = {}
         self.motd = MOTD()
 
     def planet(self, n):
@@ -651,6 +689,11 @@ class Galaxy:
             if phaser.want: r.append(phaser.draw())
         return r
     
+    def plasma(self, n):
+        if not self.plasmas.has_key(n):
+            self.plasmas[n] = Plasma(n)
+        return self.plasmas[n]
+
     def nearest(self, x, y, things):
         """ return the nearest thing to input screen coordinates
         """
@@ -1778,6 +1821,8 @@ class SP_PLASMA_INFO(SP):
     def handler(self, data):
         (ignored, war, status, pnum) = struct.unpack(self.format, data)
         if opt.sp: print "SP_PLASMA_INFO war=",team_decode(war),"status=",status,"pnum=",pnum
+        plasma = galaxy.plasma(pnum)
+        plasma.sp_plasma_info(war, status)
 
 sp_plasma_info = SP_PLASMA_INFO()
 
@@ -1790,6 +1835,8 @@ class SP_PLASMA(SP):
     def handler(self, data):
         (ignored, pnum, x, y) = struct.unpack(self.format, data)
         if opt.sp: print "SP_PLASMA pnum=",pnum,"x=",x,"y=",y
+        plasma = galaxy.plasma(pnum)
+        plasma.sp_plasma(x, y)
 
 sp_plasma = SP_PLASMA()
 
