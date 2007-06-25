@@ -399,6 +399,7 @@ class MOTD:
         # FIXME: SP_MOTD has a separator between human text and server
         # generated defaults, and the separator looks odd when
         # displayed.
+        # \t@@@
 
     def get(self):
         return self.list
@@ -1502,6 +1503,7 @@ class SP_MOTD(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
+        if opt.sp: print "SP_MOTD message=", message
         galaxy.motd.add(strnul(message))
 
 sp_motd = SP_MOTD()
@@ -2084,12 +2086,13 @@ class Phase:
     def __init__(self):
         self.warning_on = False
         self.screenshot = 0
+        self.run = False
 
     def warning(self, message):
         font = fc.get(None, 36)
         text = font.render(message, 1, (255, 127, 127))
         self.warning_br = text.get_rect(center=(screen.get_width()/2,
-                                                screen.get_height()-100))
+                                                screen.get_height()-90))
         self.warning_bg = screen.subsurface(self.warning_br).copy()
         r1 = screen.blit(text, self.warning_br)
         pygame.display.update(r1)
@@ -2171,7 +2174,10 @@ class Phase:
         # FIXME: watch for MOUSEMOTION and update object information panes
         # for planets or ships (on tactical or galactic)
         pass
-    
+
+    def mb(self, event):
+        pass
+
     def kb(self, event):
         if event.key == pygame.K_q:
             screen.fill((0, 0, 0))
@@ -2250,6 +2256,7 @@ class PhaseServers(Phase):
         self.mc.recv()
 
     def mb(self, event):
+        self.unwarning()
         if event.button != 1: return
         y = event.pos[1]
         distance = screen.get_height()
@@ -2259,10 +2266,19 @@ class PhaseServers(Phase):
             if dy < distance:
                 distance = dy
                 chosen = v['name']
-        self.chosen = chosen
-        self.run = False
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
+        self.warning('connecting, standby')
+        opt.server = chosen
+        try:
+            # FIXME: do not block and hang during connect, do it asynchronously
+            nt.connect(opt.server, opt.port)
+            self.run = False
+        except:
+            # FIXME: handle connection failure more gracefully by
+            # explaining what went wrong, rather than be this obtuse
+            self.unwarning()
+            self.warning('connection failure')
 
 class Text(pygame.sprite.Sprite):
     def __init__(self, text, x, y, size=18):
@@ -2294,7 +2310,7 @@ class Texts:
     def _new(self, text):
         sprite = Text(text, self.left, self.y, self.size)
         self.y = sprite.rect.bottom
-        sprite.add(self.group)
+        self.group.add(sprite)
         return sprite
 
     def draw(self):
@@ -2374,9 +2390,13 @@ class PhaseLogin(Phase):
         self.text('netrek', 500, 100, 144)
         self.text(opt.server, 500, 185, 72)
         self.blame()
+        self.warning('connected, waiting for slot, standby')
+        pygame.display.flip()
         # pause until SP_YOU is received, which marks end of SP_MOTD
         while me == None:
             nt.recv()
+        self.unwarning()
+        self.warning('connected, as slot %d, ready to login' % me.n)
         self.texts = Texts(galaxy.motd.get(), 200, 250, 24, 22)
         pygame.display.flip()
         # FIXME: display MOTD in a monospaced font
@@ -2384,7 +2404,6 @@ class PhaseLogin(Phase):
         self.focused = self.name
         self.password = None
         self.run = True
-        self.warning('connected to server')
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-login.tga")
         self.cycle()
@@ -2620,6 +2639,9 @@ class PhaseFlight(Phase):
             self.update()
             if me.status == POUTFIT: break
 
+    def update(self):
+        raise NotImplemented
+
     def mb(self, event):
         """ mouse button down event handler
         position is a list of (x, y) screen coordinates
@@ -2797,20 +2819,16 @@ pending_outfit = False
 
 ph_splash = PhaseSplash(screen)
 
-if opt.server == None:
-    ph_servers = PhaseServers(screen)
-    # FIXME: discover servers from a cache
-    opt.server = ph_servers.chosen
-
-# PhaseConnect
-# FIXME: do not block and hang during connect, do it asynchronously
-# FIXME: handle connection failure gracefully
-# FIXME: place connection attempt inside a PhaseConnect
 nt = Client()
-nt.connect(opt.server, opt.port)
+if opt.server == None:
+    # FIXME: discover servers from a cache
+    ph_servers = PhaseServers(screen)
+else:
+    nt.connect(opt.server, opt.port)
+
 nt.send(cp_socket.data())
 
-# PhaseQueue
+# PhaseQueue?
 # FIXME: if an SP_QUEUE packet is received, present this phase
 # FIXME: allow play on another server even while queued? [grin]
 
