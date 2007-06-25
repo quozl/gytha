@@ -168,8 +168,10 @@ parser.add_option("--dump-client",
 parser.add_option("--screenshots",
                   action="store_true", dest="screenshots", default=False,
                   help="generate publicity screenshots")
+parser.add_option("--metaserver", action="store", default='metaserver.netrek.org',
+                  help="metaserver to query for games.")
 (opt, args) = parser.parse_args()
-# FIXME: [--theme name] [--metaserver] [host]
+# FIXME: [--theme name] [host]
 
 # artwork specifications
 
@@ -1925,15 +1927,19 @@ class MetaClient:
         self.socket = None
         self.callback = callback
         self.servers = {}
+
+    def query(self, metaserver):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        metaservers = ("127.0.0.1", "224.0.0.1", "metaserver.netrek.org")
-        for x in metaservers:
-            try:
-                self.socket.sendto('?', (x, 3521))
-            except:
-                print x, "bad"
-                pass
-        # FIXME: iterate through the IPs against metaserver.netrek.org
+        metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
+        for hostname in metaservers:
+            addresses = socket.getaddrinfo(
+                    hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
+            for family, socktype, proto, canonname, sockaddr in addresses:
+                try:
+                    self.socket.sendto('?', sockaddr)
+                except:
+                    print x, "bad"
+                    pass
     
     def recv(self):
         while 1:
@@ -1951,6 +1957,10 @@ class MetaClient:
         elif text[0] == 'r': self.version_r(text)
 
     def filter(self, server):
+        # filter out duplicates
+        if server['name'] in self.servers:
+            return False
+
         # FIXME: client currently lacks necessary hockey support
         if server['type'] == 'H': return False
         # FIXME: client currently lacks necessary sturgeon support
@@ -2181,6 +2191,7 @@ class PhaseServers(Phase):
         self.n = 0 # number of servers shown so far
         self.mc = MetaClient(self.add)
         self.run = True
+        self.mc.query(opt.metaserver)
         self.cycle()
         
     def add(self, name):
@@ -2210,7 +2221,7 @@ class PhaseServers(Phase):
             r.append(screen.blit(ps, pr))
                      
         self.mc.servers[name]['y'] = y
-        self.n = self.n + 1
+        self.n += 1
         pygame.display.update(r)
     
     def network_sink(self):
