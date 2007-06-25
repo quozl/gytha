@@ -32,7 +32,7 @@ package:
 	fakeroot dpkg-buildpackage -us -uc
 
 upload:
-	mv ../$(PACKAGE)_$(VERSION)*{.dsc,.changes,.tar.gz,.deb} ~/public_html/external/mine/netrek-client-pygame/
+	mv ../$(PACKAGE)_$(VERSION)*.deb ~/public_html/external/mine/netrek-client-pygame/
 	cp doc/index.phtml ~/public_html/external/mine/netrek-client-pygame/
 	cp doc/*.{jpg,png,gif} ~/public_html/external/mine/netrek-client-pygame/
 
