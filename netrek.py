@@ -1937,9 +1937,8 @@ class MetaClient:
             for family, socktype, proto, canonname, sockaddr in addresses:
                 try:
                     self.socket.sendto('?', sockaddr)
-                except:
-                    print x, "bad"
-                    pass
+                except socket.error:
+                    print sockaddr, "bad"
     
     def recv(self):
         while 1:
