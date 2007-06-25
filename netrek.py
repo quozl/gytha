@@ -2396,7 +2396,7 @@ class PhaseLogin(Phase):
         else:
             return Phase.kb(self, event)
         
-    def mb(self):
+    def mb(self, event):
         pass
     
 class PhaseOutfit(Phase):
