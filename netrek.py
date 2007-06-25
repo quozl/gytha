@@ -389,6 +389,20 @@ def race_decode(input):
     elif input == 3: return 'O'
     return 'I'
 
+class MOTD:
+    """ message of the day """
+    def __init__(self):
+        self.list = []
+
+    def add(self, text):
+        self.list.append(text)
+        # FIXME: SP_MOTD has a separator between human text and server
+        # generated defaults, and the separator looks odd when
+        # displayed.
+
+    def get(self):
+        return self.list
+
 class Planet:
     """ netrek planets
         each server has a number of planets
@@ -601,6 +615,7 @@ class Galaxy:
         self.ships = {}
         self.torps = {}
         self.phasers = {}
+        self.motd = MOTD()
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -1487,8 +1502,7 @@ class SP_MOTD(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
-        print strnul(message)
-        # FIXME: present MOTD on pygame screen
+        galaxy.motd.add(strnul(message))
 
 sp_motd = SP_MOTD()
 
@@ -2249,7 +2263,49 @@ class PhaseServers(Phase):
         self.run = False
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
+
+class Text(pygame.sprite.Sprite):
+    def __init__(self, text, x, y, size=18):
+        font = fc.get(None, size)
+        self.image = font.render(text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect(left=x, top=y)
+        pygame.sprite.Sprite.__init__(self)
+        self.background = screen.subsurface(self.rect).copy()
+
+    def clear(self):
+        screen.blit(self.background, self.rect)
+
+    def draw(self):
+        screen.blit(self.image, self.rect)
         
+class Texts:
+    def __init__(self, texts, x, y, lines=24, size=18):
+        self.group = pygame.sprite.OrderedUpdates()
+        self.left = x
+        self.top = self.y = y
+        self.lines = lines
+        self.size = size
+        for row in texts:
+            self._new(row)
+            self.lines -= 1
+            if self.lines < 1: break
+        self.draw()
+
+    def _new(self, text):
+        sprite = Text(text, self.left, self.y, self.size)
+        self.y = sprite.rect.bottom
+        sprite.add(self.group)
+        return sprite
+
+    def draw(self):
+        self.rects = self.group.draw(screen)
+
+    def add(self, text):
+        if self.lines < 1: return None
+        sprite = self._new(text)
+        sprite.draw()
+        return sprite
+
 class Field:
     def __init__(self, prompt, value, x, y):
         self.value = value
@@ -2318,8 +2374,12 @@ class PhaseLogin(Phase):
         self.text('netrek', 500, 100, 144)
         self.text(opt.server, 500, 185, 72)
         self.blame()
+        # pause until SP_YOU is received, which marks end of SP_MOTD
+        while me == None:
+            nt.recv()
+        self.texts = Texts(galaxy.motd.get(), 200, 250, 24, 22)
         pygame.display.flip()
-        # FIXME: display MOTD below name in smaller text
+        # FIXME: display MOTD in a monospaced font
         self.name = Field("type a name ? ", "", 500, 750)
         self.focused = self.name
         self.password = None
