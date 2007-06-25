@@ -1472,6 +1472,9 @@ class SP:
             return (1, self)
         return sp_table[number]
 
+    def handler(self, data):
+        raise NotImplemented
+
 sp_table = {}
 sp = SP()
 
