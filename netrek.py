@@ -478,8 +478,18 @@ class Ship:
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
-        # FIXME: handle other arguments
+        self.hostile = hostile
+        self.swar = swar
+        self.armies = armies
+        self.tractor = tractor
         self.flags = flags
+        self.damage = damage
+        self.shield = shield
+        self.fuel = fuel
+        self.etemp = etemp
+        self.wtemp = wtemp
+        self.whydead = whydead
+        self.whodead = whodead
         self.sp_you_cumulative_flags |= flags
         global me
         if not me:
@@ -725,10 +735,10 @@ class Galaxy:
     def nearest(self, x, y, things):
         """ return the nearest thing to input screen coordinates
         """
-        x, y = descale(x, y)
         nearest = None
         minimum = GWIDTH**2
         for n, thing in things.iteritems():
+            if thing == me: continue
             distance = (thing.x - x)**2 + (thing.y - y)**2
             if distance < minimum:
                 nearest = thing
@@ -738,12 +748,34 @@ class Galaxy:
     def nearest_planet(self, x, y):
         """ return the nearest planet to input screen coordinates
         """
+        x, y = descale(x, y)
         return self.nearest(x, y, self.planets)
 
     def nearest_ship(self, x, y):
         """ return the nearest ship to input screen coordinates
         """
+        x, y = descale(x, y)
         return self.nearest(x, y, self.ships)
+
+    def closest_planet(self, x, y):
+        """ return the number of the nearest planet to me
+        """
+        planet = self.nearest(x, y, self.planets)
+        return planet.n
+
+    def closest_enemy(self, x, y):
+        """ return the number of the nearest hostile player to me
+        """
+        nearest = me
+        minimum = GWIDTH**2
+        for n, thing in galaxy.ships.iteritems():
+            if thing == me: continue
+            if thing.team == me.team: continue
+            distance = (thing.x - x)**2 + (thing.y - y)**2
+            if distance < minimum:
+                nearest = thing
+                minimum = distance
+        return nearest.n
 
 galaxy = Galaxy()
 me = None
@@ -1946,14 +1978,14 @@ class SP_MESSAGE(SP):
             wtmp = wtmp & 0x7f
             arms = arms & 0x7f
             sts  = sts & 0x7f
-            close_pl = close_pl & 0x7f
-            close_en = close_en & 0x7f
-            tclose_pl = tclose_pl & 0x7f
-            tclose_en  = tclose_en & 0x7f
-            tclose_j = tclose_j & 0x7f
-            close_j = close_j & 0x7f
-            tclose_fr = tclose_fr & 0x7f
-            close_fr  = close_fr & 0x7f
+            close_pl = close_pl & 0x7f # closest planet to me
+            close_en = close_en & 0x7f # closest enemy to me
+            tclose_pl = tclose_pl & 0x7f # closest planet to cursor
+            tclose_en  = tclose_en & 0x7f # closest enemy to cursor
+            tclose_j = tclose_j & 0x7f # closest player to cursor
+            close_j = close_j & 0x7f # closest player to me
+            tclose_fr = tclose_fr & 0x7f # closest friend to cursor
+            close_fr  = close_fr & 0x7f # closest friend to me
 
             print "RCD distype=", distype, \
                   "fuelp=", fuelp, \
@@ -2815,6 +2847,9 @@ class PhaseFlight(Phase):
         shift = (event.mod == pygame.KMOD_SHIFT or
                  event.mod == pygame.KMOD_LSHIFT or
                  event.mod == pygame.KMOD_RSHIFT)
+        control = (event.mod == pygame.KMOD_CTRL or
+                   event.mod == pygame.KMOD_LCTRL or
+                   event.mod == pygame.KMOD_RCTRL)
         # FIXME: use a lookup table
         if event.key == pygame.K_LSHIFT: pass
         elif event.key == pygame.K_8 and shift: nt.send(cp_practr.data())
@@ -2879,6 +2914,32 @@ class PhaseFlight(Phase):
                     nt.send(cp_repress.data(0, nearest.n))
                 else:
                     nt.send(cp_repress.data(1, nearest.n))
+        elif event.key == pygame.K_t and control:
+            x, y = pygame.mouse.get_pos()
+            nearest = galaxy.nearest_planet(x, y)
+            if nearest != None:
+                group = 0xc4
+                indiv = 0x01
+                mesg = struct.pack('16B', 1, me.fuel & 0xff | 0x80, # FIXME: normalise
+                                   me.damage & 0xff | 0x80, # FIXME: normalise
+                                   me.shield & 0xff | 0x80, # FIXME: normalise
+                                   me.etemp & 0xff | 0x80, # FIXME: normalise
+                                   
+                                   me.wtemp & 0xff | 0x80, # FIXME: normalise
+                                   me.armies & 0xff | 0x80,
+                                   me.flags & 0xff | 0x80,
+                                   galaxy.closest_planet(me.x, me.y) | 0x80, # closest planet to me
+                                   
+                                   galaxy.closest_enemy(me.x, me.y) | 0x80, # closest enemy to me
+                                   galaxy.nearest_planet(x, y).n | 0x80, # closest planet to cursor
+                                   0 | 0x80, # FIXME: closest enemy to cursor
+                                   galaxy.nearest_ship(x, y).n | 0x80, # closest player to cursor
+                                   
+                                   0 | 0x80, # FIXME: closest player to me
+                                   0 | 0x80, # FIXME: closest friend to cursor
+                                   0 | 0x80  # FIXME: closest friend to me
+                                   )
+                nt.send(cp_message.data(group, indiv, mesg))
         # FIXME: some of this looks repetitive
         elif event.key == pygame.K_o: nt.send(cp_orbit.data(1))
         else:
