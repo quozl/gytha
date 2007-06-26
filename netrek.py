@@ -156,6 +156,10 @@ parser.add_option("--password", dest="password", default="",
                   help="password for character name")
 parser.add_option("--login", dest="login", default="pynt",
                   help="username to show on player list")
+parser.add_option("--team", dest="team",
+                  help="team to join")
+parser.add_option("--ship", dest="ship",
+                  help="ship class to request")
 parser.add_option("--updates",
                   type="int", dest="updates", default="5",
                   help="updates per second from server, default 5")
@@ -2683,6 +2687,7 @@ class PhaseOutfit(Phase):
         sp_mask.catch(self.mask)
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-outfit.tga")
+        self.auto()
         self.cycle()
         sp_mask.uncatch()
 
@@ -2690,7 +2695,20 @@ class PhaseOutfit(Phase):
         # FIXME: if mask changes, update available races
         pass
 
-    def team(self, team, ship=CRUISER):
+    def auto(self):
+        # attempt auto-refit if command line arguments are supplied
+        if opt.team != None and opt.ship != None:
+            while me == None:
+                nt.recv()
+            for team, name in teams_long.iteritems():
+                if opt.team == name[:len(opt.team)]:
+                    for ship, name in ships.iteritems():
+                        if opt.ship == name[:len(opt.ship)]:
+                            self.team(teams_numeric[team], ship)
+                            break
+                    break
+
+    def team(self, team, ship):
         self.last_team = team;
         self.last_ship = ship;
         sp_pickok.catch(self.sp_pickok)
