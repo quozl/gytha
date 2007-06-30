@@ -2114,12 +2114,11 @@ class MetaClient:
         metaserver/*.c client/parsemeta.c
     """
     def __init__(self, callback=None):
-        self.socket = None
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.callback = callback
         self.servers = {}
 
     def query(self, metaserver):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
         for hostname in metaservers:
             addresses = socket.getaddrinfo(
@@ -2145,21 +2144,6 @@ class MetaClient:
         if text[0] == 's': self.version_s(text, address)
         elif text[0] == 'r': self.version_r(text)
 
-    def filter(self, server):
-        # filter out duplicates
-        if server['name'] in self.servers:
-            return False
-
-        # FIXME: client currently lacks necessary hockey support
-        if server['type'] == 'H':
-            return False
-
-        # FIXME: client currently lacks necessary sturgeon support
-        if server['type'] == 'S':
-            return False
-
-        return True
-        
     def version_s(self, text, address):
         unpack = text.split(',')
         server = {}
@@ -2172,9 +2156,7 @@ class MetaClient:
         server['status'] = 2
         if server['type'] == 'unknown': server['status'] = 3
         server['age'] = 0
-        if self.filter(server):
-            self.servers[server['name']] = server
-            if self.callback: self.callback(server['name'])
+        self.update(server)
 
     def version_r(self, text):
         lines = text.split('\n')
@@ -2187,10 +2169,27 @@ class MetaClient:
             server['players'] = int(players)
             server['queue'] = int(queue)
             server['comment'] = ''
-            if self.filter(server):
-                self.servers[server['name']] = server
-                if self.callback: self.callback(server['name'])
+            self.update(server)
 
+    def update(self, server):
+        # FIXME: client currently lacks necessary hockey support
+        if server['type'] == 'H':
+            return
+
+        # FIXME: client currently lacks necessary sturgeon support
+        if server['type'] == 'S':
+            return
+
+        name = server['name']
+        if not name in self.servers:
+            self.servers[name] = server
+        else:
+            self.servers[name]['players'] = server['players']
+            self.servers[name]['queue'] = server['queue']
+            
+        if self.callback:
+            self.callback(name)
+        
 class Client:
     """ Netrek TCP Client
         for connection to a server to play or observe the game.
@@ -2248,6 +2247,129 @@ class Client:
         # FIXME: packet almalgamation may occur, s.recv second time may
         # return something less than the expected number of bytes, so we
         # have to wait for them.
+
+""" assorted sprites
+"""
+
+class SpriteBacked(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.background = screen.subsurface(self.rect).copy()
+
+    def clear(self):
+        return screen.blit(self.background, self.rect)
+
+    def draw(self):
+        return screen.blit(self.image, self.rect)
+        
+class Icon(SpriteBacked):
+    def __init__(self, name, x, y):
+        self.image = ic.get(name)
+        self.rect = self.image.get_rect(left=x, centery=y)
+        SpriteBacked.__init__(self)
+        
+class Text(SpriteBacked):
+    def __init__(self, text, x, y, size=18):
+        font = fc.get(None, size)
+        self.image = font.render(text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect(left=x, centery=y)
+        SpriteBacked.__init__(self)
+        
+class TextsLine(SpriteBacked):
+    def __init__(self, text, x, y, size=18):
+        font = fc.get(None, size)
+        self.image = font.render(text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect(left=x, top=y)
+        SpriteBacked.__init__(self)
+        
+class Texts:
+    def __init__(self, texts, x, y, lines=24, size=18):
+        self.group = pygame.sprite.OrderedUpdates()
+        self.left = x
+        self.top = self.y = y
+        self.lines = lines
+        self.size = size
+        for row in texts:
+            self._new(row)
+            self.lines -= 1
+            if self.lines < 1: break
+        self.draw()
+
+    def _new(self, text):
+        sprite = TextsLine(text, self.left, self.y, self.size)
+        self.y = sprite.rect.bottom
+        self.group.add(sprite)
+        return sprite
+
+    def draw(self):
+        self.rects = self.group.draw(screen)
+
+    def add(self, text):
+        if self.lines < 1: return None
+        sprite = self._new(text)
+        sprite.draw()
+        return sprite
+
+class Field:
+    def __init__(self, prompt, value, x, y):
+        self.value = value
+        self.fn = fn = fc.get(None, 36)
+        self.sw = sw = screen.get_width()
+        self.sh = sh = screen.get_height()
+        # place prompt on screen
+        self.ps = ps = fn.render(prompt, 1, (255, 255, 255))
+        self.pc = pc = (x, y)
+        self.pr = pr = ps.get_rect(topright=pc)
+        self.pg = screen.subsurface(self.pr).copy()
+        r1 = screen.blit(ps, pr)
+        # highlight entry area
+        self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 300, pr.height)
+        self.bg = screen.subsurface(self.br).copy()
+        pygame.display.update(r1)
+        self.enter()
+        
+    def highlight(self):
+        return screen.fill((0,127,0), self.br)
+
+    def unhighlight(self):
+        return screen.blit(self.bg, self.br)
+
+    def draw(self):
+        as = self.fn.render(self.value, 1, (255, 255, 255))
+        ar = as.get_rect(topleft=self.pc)
+        ar.left = self.pr.right
+        return screen.blit(as, ar)
+        
+    def undraw(self):
+        return screen.blit(self.pg, self.pr)
+
+    def redraw(self):
+        r1 = self.highlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
+
+    def leave(self):
+        r1 = self.unhighlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
+        
+    def enter(self):
+        r1 = self.highlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
+        
+    def append(self, char):
+        self.value = self.value + char
+        r1 = self.draw()
+        pygame.display.update(r1)
+        
+    def backspace(self):
+        self.value = self.value[:-1]
+        self.redraw()
+
+    def delete(self):
+        self.value = ""
+        self.redraw()
 
 """ user interface display phases
 """
@@ -2384,58 +2506,72 @@ class PhaseServers(Phase):
         self.license()
         pygame.display.flip()
 
-        self.fn = fc.get(None, 36)
         self.dy = 40 # vertical spacing
         self.n = 0 # number of servers shown so far
-        self.mc = MetaClient(self.add)
         self.run = True
+        self.mc = MetaClient(self.update)
         self.mc.query(opt.metaserver)
+        self.refresh = 100
         self.cycle()
         
-    def add(self, name):
-        """ called by MetaClient for each server listed
+    def update(self, name):
+        """ called by MetaClient for each server for which a packet is received
         """
         server = self.mc.servers[name]
-        y = 300 + self.dy * self.n
-        r = []
+        if not server.has_key('y'):
+            y = 300 + self.dy * self.n
+            self.n += 1
+        else:
+            y = server['y']
+            for sprite in server['sprites']:
+                sprite.clear()
+        s = []
         # per server icon
         # FIXME: icon per server type?
         # FIXME: icon better than this one
         # IMAGERY: netrek.png
-        cs = ic.get("torp-me.png")
-        cr = cs.get_rect(left=50, centery=y)
-        r.append(screen.blit(cs, cr))
+        s.append(Icon('torp-me.png', 50, y))
         # server name
-        ss = self.fn.render(name + ' ' + server['comment'], 1, (255, 255, 255))
-        sr = ss.get_rect(left=100, centery=y)
-        r.append(screen.blit(ss, sr))
+        s.append(Text(name + ' ' + server['comment'], 100, y, 36))
         # per player icon
         # FIXME: icon better than this one
         # FIXME: icon should not convey team
         for x in range(server['players']):
             # IMAGERY: netrek.png
-            ps = ic.get("netrek.png") # per player icon
-            pr = ps.get_rect(left=500+(x*36), centery=y)
-            r.append(screen.blit(ps, pr))
+            # per player icon
+            s.append(Icon('netrek.png', 500+(x*36), y))
                      
         self.mc.servers[name]['y'] = y
-        self.n += 1
+        self.mc.servers[name]['sprites'] = s
+        
+        r = []
+        for sprite in s:
+            r.append(sprite.draw())
         pygame.display.update(r)
     
     def network_sink(self):
         self.mc.recv()
+        self.refresh -= 1
+        if self.refresh < 0:
+            self.mc.query(opt.metaserver)
+            self.refresh = 600
 
     def mb(self, event):
         self.unwarning()
-        if event.button != 1: return
+        if event.button != 1:
+            self.warning('not that button (%d) mate' % event.button)
+            return
         y = event.pos[1]
-        distance = screen.get_height()
+        distance = self.dy
         chosen = None
         for k, v in self.mc.servers.iteritems():
             dy = abs(v['y'] - y)
             if dy < distance:
                 distance = dy
                 chosen = v['name']
+        if chosen == None:
+            self.warning('click on a server, mate')
+            return
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
         self.warning('connecting, standby')
@@ -2449,109 +2585,6 @@ class PhaseServers(Phase):
             # explaining what went wrong, rather than be this obtuse
             self.unwarning()
             self.warning('connection failure')
-
-class Text(pygame.sprite.Sprite):
-    def __init__(self, text, x, y, size=18):
-        font = fc.get(None, size)
-        self.image = font.render(text, 1, (255, 255, 255))
-        self.rect = self.image.get_rect(left=x, top=y)
-        pygame.sprite.Sprite.__init__(self)
-        self.background = screen.subsurface(self.rect).copy()
-
-    def clear(self):
-        screen.blit(self.background, self.rect)
-
-    def draw(self):
-        screen.blit(self.image, self.rect)
-        
-class Texts:
-    def __init__(self, texts, x, y, lines=24, size=18):
-        self.group = pygame.sprite.OrderedUpdates()
-        self.left = x
-        self.top = self.y = y
-        self.lines = lines
-        self.size = size
-        for row in texts:
-            self._new(row)
-            self.lines -= 1
-            if self.lines < 1: break
-        self.draw()
-
-    def _new(self, text):
-        sprite = Text(text, self.left, self.y, self.size)
-        self.y = sprite.rect.bottom
-        self.group.add(sprite)
-        return sprite
-
-    def draw(self):
-        self.rects = self.group.draw(screen)
-
-    def add(self, text):
-        if self.lines < 1: return None
-        sprite = self._new(text)
-        sprite.draw()
-        return sprite
-
-class Field:
-    def __init__(self, prompt, value, x, y):
-        self.value = value
-        self.fn = fn = fc.get(None, 36)
-        self.sw = sw = screen.get_width()
-        self.sh = sh = screen.get_height()
-        # place prompt on screen
-        self.ps = ps = fn.render(prompt, 1, (255, 255, 255))
-        self.pc = pc = (x, y)
-        self.pr = pr = ps.get_rect(topright=pc)
-        self.pg = screen.subsurface(self.pr).copy()
-        r1 = screen.blit(ps, pr)
-        # highlight entry area
-        self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 300, pr.height)
-        self.bg = screen.subsurface(self.br).copy()
-        pygame.display.update(r1)
-        self.enter()
-        
-    def highlight(self):
-        return screen.fill((0,127,0), self.br)
-
-    def unhighlight(self):
-        return screen.blit(self.bg, self.br)
-
-    def draw(self):
-        as = self.fn.render(self.value, 1, (255, 255, 255))
-        ar = as.get_rect(topleft=self.pc)
-        ar.left = self.pr.right
-        return screen.blit(as, ar)
-        
-    def undraw(self):
-        return screen.blit(self.pg, self.pr)
-
-    def redraw(self):
-        r1 = self.highlight()
-        r2 = self.draw()
-        pygame.display.update([r1, r2])
-
-    def leave(self):
-        r1 = self.unhighlight()
-        r2 = self.draw()
-        pygame.display.update([r1, r2])
-        
-    def enter(self):
-        r1 = self.highlight()
-        r2 = self.draw()
-        pygame.display.update([r1, r2])
-        
-    def append(self, char):
-        self.value = self.value + char
-        r1 = self.draw()
-        pygame.display.update(r1)
-        
-    def backspace(self):
-        self.value = self.value[:-1]
-        self.redraw()
-
-    def delete(self):
-        self.value = ""
-        self.redraw()
 
 class PhaseLogin(Phase):
     def __init__(self, screen):
