@@ -175,6 +175,9 @@ parser.add_option("--screenshots",
 parser.add_option("--metaserver", action="store",
                   default='metaserver.netrek.org',
                   help="metaserver to query for games.")
+parser.add_option("--metaserver-refresh-interval",
+                  type="int", dest="metaserver_refresh_interval", default="30",
+                  help="how many seconds between metaserver queries, default 30")
 (opt, args) = parser.parse_args()
 # FIXME: [--theme name] [host]
 
@@ -2254,14 +2257,18 @@ class Client:
 class SpriteBacked(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.background = screen.subsurface(self.rect).copy()
 
     def clear(self):
         return screen.blit(self.background, self.rect)
 
     def draw(self):
+        self.background = screen.subsurface(self.rect).copy()
         return screen.blit(self.image, self.rect)
-        
+
+    def move(self, x, y):
+        self.rect.x = x
+        self.rect.y = y
+
 class Icon(SpriteBacked):
     def __init__(self, name, x, y):
         self.image = ic.get(name)
@@ -2504,6 +2511,10 @@ class PhaseServers(Phase):
         self.text('netrek', 500, 100, 144)
         self.text('server list', 500, 175, 72)
         self.license()
+        self.bouncer_l = Icon('torp-me.png', 500, 250)
+        self.bouncer_l.draw()
+        self.bouncer_r = Icon('torp-me.png', 500, 250)
+        self.bouncer_r.draw()
         pygame.display.flip()
 
         self.dy = 40 # vertical spacing
@@ -2511,7 +2522,8 @@ class PhaseServers(Phase):
         self.run = True
         self.mc = MetaClient(self.update)
         self.mc.query(opt.metaserver)
-        self.refresh = 100
+        self.refresh_interval = opt.metaserver_refresh_interval * 10
+        self.refresh = self.refresh_interval / 2
         self.cycle()
         
     def update(self, name):
@@ -2551,10 +2563,22 @@ class PhaseServers(Phase):
     
     def network_sink(self):
         self.mc.recv()
+
+        r = []
+        r.append(self.bouncer_l.clear())
+        r.append(self.bouncer_r.clear())
+        x = 400 * math.sin(self.refresh * math.pi / self.refresh_interval)
+        y =  20 * math.cos(self.refresh * math.pi / self.refresh_interval)
+        self.bouncer_l.move(500 - x, 250 - y)
+        self.bouncer_r.move(500 + x, 250 + y)
+        r.append(self.bouncer_l.draw())
+        r.append(self.bouncer_r.draw())
+        pygame.display.update(r)
+
         self.refresh -= 1
         if self.refresh < 0:
             self.mc.query(opt.metaserver)
-            self.refresh = 600
+            self.refresh = self.refresh_interval
 
     def mb(self, event):
         self.unwarning()
