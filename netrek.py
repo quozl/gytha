@@ -1590,6 +1590,18 @@ class CP_FEATURE(CP):
 
 cp_feature = CP_FEATURE()
 
+class CP_PING_RESPONSE(CP):
+    def __init__(self):
+        self.code = 42
+        self.format = "!bBbxll"
+        self.tabulate(self.code, self.format)
+
+    def data(self, number, pingme, cp_sent, cp_recv):
+        if opt.cp: print "CP_PING_RESPONSE pingme=", pingme
+        return struct.pack(self.format, self.code, number, pingme, cp_sent, cp_recv)
+
+cp_ping_response = CP_PING_RESPONSE()
+
 """ server originated packets
 """
 
@@ -1791,6 +1803,8 @@ class SP_LOGIN(SP):
         if self.callback:
             self.callback(accept, flags, keymap)
             self.uncatch()
+        if accept == 1:
+            nt.send(cp_ping_response.data(0, 1, 0, 0))
 
 sp_login = SP_LOGIN()
 
@@ -1853,9 +1867,11 @@ class SP_RESERVED(SP):
 
     def handler(self, data):
         (ignored, data) = struct.unpack(self.format, data)
-        data = struct.unpack('16b', data)
-        if opt.sp: print "SP_RESERVED data=",data
-        # FIXME: handle the request by returning a CP_RESERVED
+        text = struct.unpack('16b', data)
+        if opt.sp: print "SP_RESERVED data=",text
+        resp = data
+        # FIXME: generate correct response data
+        nt.send(cp_reserved.data(data, resp))
 
 sp_reserved = SP_RESERVED()
 
@@ -2081,6 +2097,8 @@ class SP_PING(SP):
 
     def handler(self, data):
         (ignored, number, lag, tloss_sc, tloss_cs, iloss_sc, iloss_cs) = struct.unpack(self.format, data)
+        if opt.sp: print "SP_PING"
+        nt.send(cp_ping_response.data(0, 1, 0, 0))
 
 sp_ping = SP_PING()
 
@@ -2583,7 +2601,7 @@ class PhaseServers(Phase):
     def mb(self, event):
         self.unwarning()
         if event.button != 1:
-            self.warning('not that button (%d) mate' % event.button)
+            self.warning('not that button, mate')
             return
         y = event.pos[1]
         distance = self.dy
