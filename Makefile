@@ -25,6 +25,8 @@ install:
 	mkdir -p $(DESTDIR)/usr/share/netrek-client-pygame/images
 	cp -p images/*.png $(DESTDIR)/usr/share/netrek-client-pygame/images/
 	chmod +r $(DESTDIR)/usr/share/netrek-client-pygame/images/*.png
+	cp -p images/*.jpg $(DESTDIR)/usr/share/netrek-client-pygame/images/
+	chmod +r $(DESTDIR)/usr/share/netrek-client-pygame/images/*.jpg
 	mkdir -p $(DESTDIR)/usr/share/doc/netrek-client-pygame
 	cp ChangeLog $(DESTDIR)/usr/share/doc/netrek-client-pygame
 
