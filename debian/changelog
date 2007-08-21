@@ -1,3 +1,9 @@
+netrek-client-pygame (0.3-0) unstable; urgency=low
+
+  * kick after release
+
+ -- James Cameron <quozl@us.netrek.org>  Tue, 21 Aug 2007 16:12:06 +1000
+
 netrek-client-pygame (0.2-1) unstable; urgency=low
 
   * test
