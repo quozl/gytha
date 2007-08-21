@@ -3,7 +3,7 @@ Maintainer: James Cameron <quozl@us.netrek.org>
 Section: unknown
 Priority: optional
 Standards-Version: 3.1.1
-Build-Depends: gcc
+Build-Depends: 
 
 Package: netrek-client-pygame
 Architecture: any
