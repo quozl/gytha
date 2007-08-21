@@ -1395,6 +1395,11 @@ class CP_QUIT(CP):
     def data(self):
         if opt.cp: print "CP_QUIT"
         return struct.pack(self.format, self.code)
+        # FIXME: #1187683550 <Gerdesas> Quozl: quit still does not
+        # properly quit out of the game.  I have a busted ship still
+        # in the game after hitting q/Q
+        # <Quozl> perhaps cp_quit is not being called, but is this a
+        # client or server problem?
 
 cp_quit = CP_QUIT()
 
@@ -1831,7 +1836,7 @@ class SP_MASK(SP):
         if self.callback:
             self.callback(mask)
         # FIXME: note protocol phase change
-        # FIXME: update team selection icons
+        # FIXME: #1187683470 update team selection icons in response to SP_MASK
 
 sp_mask = SP_MASK()
 
@@ -2668,7 +2673,7 @@ class PhaseLogin(Phase):
             if self.password == None:
                 self.password = Field("password ? ", "", 500, 800)
                 # FIXME: password prompt appears momentarily if guest selected
-                # FIXME: force no echo for password
+                # FIXME: #1187683521 force no echo for password
             else:
                 self.password.enter()
             self.focused = self.password
