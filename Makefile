@@ -35,9 +35,11 @@ install:
 package:
 	fakeroot dpkg-buildpackage -us -uc
 
-# FIXME: debian package is distribution versionless
+# FIXME: debian package is without debian distribution version
+# FIXME: documentation needs updating on each release
 
 upload:
+	cp $(PACKAGE)-$(VERSION).tar.gz ~/public_html/external/mine/netrek-client-pygame/
 	mv ../$(PACKAGE)_$(VERSION)*.deb ~/public_html/external/mine/netrek-client-pygame/
 	cp doc/index.phtml ~/public_html/external/mine/netrek-client-pygame/
 	cp doc/*.{jpg,png,gif} ~/public_html/external/mine/netrek-client-pygame/
@@ -45,4 +47,4 @@ upload:
 update:
 	(cd ~/public_html/external/mine/netrek-client-pygame/;rm -f db;make)
 
-release: package upload update
+release: dist package upload update
