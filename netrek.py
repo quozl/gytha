@@ -2259,7 +2259,13 @@ class Client:
             print "\n#### FIXME: UnknownPacketType ", number, "####\n"
             raise "UnknownPacketType, a packet was received from the server that is not known to this program, and since packet lengths are determined by packet types there is no reasonably way to continue operation"
             return
-        rest = self.socket.recv(size-1, socket.MSG_WAITALL)
+        rest = ''
+        while len(rest) < (size-1):
+            new = self.socket.recv((size-1) - len(rest))
+            if new == '':
+                break # eof
+            rest += new
+
         if len(rest) != (size-1):
             print "### asked for %d and got %d bytes" % ((size-1), len(rest))
         self.time = time.time()
