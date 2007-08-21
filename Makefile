@@ -16,7 +16,7 @@ dist:
 	mkdir $(PACKAGE)-$(VERSION)/images
 	cp -p netrek.py Makefile COPYING $(PACKAGE)-$(VERSION)/
 	cp -p ChangeLog $(PACKAGE)-$(VERSION)/
-	cp -p images/*.png $(PACKAGE)-$(VERSION)/images/
+	cp -p images/*.png images/*.jpg $(PACKAGE)-$(VERSION)/images/
 	GZIP=--best tar cfz $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
 	rm -rf $(PACKAGE)-$(VERSION)
 
