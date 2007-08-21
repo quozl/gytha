@@ -3100,6 +3100,8 @@ pygame.init()
 
 size = width, height = 1000, 1000
 screen = pygame.display.set_mode(size)
+# FIXME: #1187736407 support screen resolutions below 1000x1000
+# FIXME: #1187736408 support a full screen mode
 
 t_planets = pygame.sprite.OrderedUpdates(())
 t_players = pygame.sprite.OrderedUpdates(())
