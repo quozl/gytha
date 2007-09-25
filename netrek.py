@@ -2580,7 +2580,7 @@ class PhaseServers(Phase):
         for x in range(server['players']):
             # IMAGERY: netrek.png
             # per player icon
-            s.append(Icon('netrek.png', 500+(x*36), y))
+            s.append(Icon('netrek.png', 500+(x*32), y))
                      
         self.mc.servers[name]['y'] = y
         self.mc.servers[name]['sprites'] = s

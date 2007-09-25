@@ -1,3 +1,9 @@
+Tue Sep 25 16:11:15 2007  James Cameron  <quozl@us.netrek.org>
+
+	* netrek.py (PhaseServers.update): fix crash reported by Dar1us on
+	IRC channel #netrek caused by 16 players on pickled.  Fix was to
+	reduce the X coordinate a bit.
+
 Sun Jun 24 13:38:17 2007  James Cameron  <quozl@us.netrek.org>
 
 	* netrek-client-pygame-0.1: release
