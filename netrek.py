@@ -137,7 +137,7 @@ cp `grep IMAGERY try.py|grep -v grep|cut -f2 -d:|sort|uniq` /tmp/netrek-client-p
 import sys, time, socket, select, struct, pygame, math
 from Cache import *
 from Constants import *
-from pygame.locals import * #need this for 'FULLSCREEN' 
+from pygame.locals import *
 
 print "Netrek Client Pygame"
 print "Copyright (C) 2007 James Cameron <quozl@us.netrek.org>"
@@ -150,7 +150,7 @@ print ""
 from optparse import OptionParser
 parser= OptionParser()
 parser.add_option("-F", "--fullscreen", dest="fullscreen",
-                  help="forces client into fullscreen mode")
+                  help="force fullscreen mode")
 parser.add_option("-s", "--server", "--host", dest="server",
                   help="netrek server to connect to")
 parser.add_option("-p", "--port", type="int", dest="port", default="2592",
@@ -2885,11 +2885,10 @@ class PhaseFlightTactical(PhaseFlight):
 pygame.init()
 size = width, height = 1000, 1000
 screen = pygame.display.set_mode(size)
-# FIXME: #1187736408 support a full screen mode that's variable depending on the
-# environment
+# FIXME: #1187736408 support a full screen mode that's variable
+# depending on the environment
 if opt.fullscreen :
     pygame.display.set_mode(size, FULLSCREEN)
-    
 
 # FIXME: #1187736407 support screen resolutions below 1000x1000
 
