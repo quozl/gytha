@@ -134,7 +134,7 @@ cp -p try.py /tmp/netrek-client-pygame/netrek
 cp `grep IMAGERY try.py|grep -v grep|cut -f2 -d:|sort|uniq` /tmp/netrek-client-pygame
 
 """
-import sys, time, socket, select, struct, pygame, math
+import sys, time, socket, errno, select, struct, pygame, math
 from Cache import *
 from Constants import *
 from pygame.locals import *
@@ -183,6 +183,9 @@ parser.add_option("--metaserver", action="store",
 parser.add_option("--metaserver-refresh-interval",
                   type="int", dest="metaserver_refresh_interval", default="30",
                   help="how many seconds between metaserver queries, default 30")
+parser.add_option("--splash-time",
+                  type="int", dest="splashtime", default="1000",
+                  help="viewing delay for splash screen in milliseconds")
 (opt, args) = parser.parse_args()
 # FIXME: [--theme name] [host]
 
@@ -1371,6 +1374,18 @@ class CP_SCAN(CP):
 
 cp_scan = CP_SCAN()
 
+class CP_UDP_REQ(CP):
+    def __init__(self):
+        self.code = 35
+        self.format = '!bbbxi'
+        self.tabulate(self.code, self.format)
+
+    def data(self, request, connmode, port):
+        if opt.cp: print "CP_UDP_REQ request=%d connmode=%d port=%d" % (request, connmode, port)
+        return struct.pack(self.format, self.code, request, connmode, port)
+
+cp_udp_req = CP_UDP_REQ()
+
 class CP_FEATURE(CP):
     def __init__(self):
         self.code = 60
@@ -1644,6 +1659,7 @@ class SP_PICKOK(SP):
     def handler(self, data):
         (ignored, state) = struct.unpack(self.format, data)
         if opt.sp: print "SP_PICKOK state=",state
+        nt.sp_pickok()
         if self.callback:
             self.callback(state)
             self.uncatch()
@@ -1846,7 +1862,7 @@ class SP_WARNING(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_WARNING message=",message
+        if opt.sp: print "SP_WARNING message=", strnul(message)
         print strnul(message)
         # FIXME: display the warning
 
@@ -1894,6 +1910,31 @@ class SP_PING(SP):
         nt.send(cp_ping_response.data(0, 1, 0, 0))
 
 sp_ping = SP_PING()
+
+class SP_UDP_REPLY(SP):
+    def __init__(self):
+        self.code = 28
+        self.format = "!bbxxi" 
+        self.tabulate(self.code, self.format, self)
+
+    def handler(self, data):
+        (ignored, reply, port) = struct.unpack(self.format, data)
+        if opt.sp: print "SP_UDP_REPLY reply=%d port=%d" % (reply, port)
+        nt.sp_udp_reply(reply, port)
+
+sp_udp_reply = SP_UDP_REPLY()
+
+class SP_SEQUENCE(SP):
+    def __init__(self):
+        self.code = 29
+        self.format = "!bBH" 
+        self.tabulate(self.code, self.format, self)
+
+    def handler(self, data):
+        (ignored, flag, sequence) = struct.unpack(self.format, data)
+        if opt.sp: print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
+
+sp_sequence = SP_SEQUENCE()
 
 ## end of server packets
 
@@ -2005,21 +2046,120 @@ class MetaClient:
             self.callback(name)
         
 class Client:
-    """ Netrek TCP Client
+    """ Netrek TCP & UDP Client
         for connection to a server to play or observe the game.
     """
     # FIXME: add UDP client
     def __init__(self):
-        self.socket = None
+        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.time = time.time()
+        self.tcp_connected = 0
+        self.mode = None
         
     def connect(self, host, port):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((host, port))
-        
-    def send(self, data):
-        self.socket.send(data)
+        # iterate through the addresses of the server host until one connects
+        addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        for family, socktype, proto, canonname, sockaddr in addresses:
+            try:
+                self.sockaddr = sockaddr
+                self.tcp.connect(sockaddr)
+                self.tcp_connected = 1
+                break
+            except socket.error, (reason, explanation):
+                if reason == errno.ECONNREFUSED:
+                    print host, sockaddr, "is not listening"
+                else:
+                    print host, sockaddr, reason, explanation
+                continue
 
+        if not self.tcp_connected:
+            return False
+
+        self.mode = COMM_TCP
+        
+	# test that the socket is connected
+        self.tcp_peername = self.tcp.getpeername()
+        print "tcp peer name ", self.tcp_peername
+        (self.tcp_peerhost, self.tcp_peerport) = self.tcp_peername
+	
+        self.tcp_sockname = self.tcp.getsockname()
+        print "tcp sock name ", self.tcp_sockname
+        
+	# try binding the UDP socket to the same port number
+	# (rationale: ease of packet trace analysis)
+        try:
+            self.udp.bind(self.tcp_sockname)
+        except socket.error:
+	    # otherwise use any free port number
+	    (udp_host, udp_port) = self.sockaddr
+            self.udp.bind((udp_host, 0))
+
+	self.udp_sockname = self.udp.getsockname()
+        print "udp sock name ", self.udp_sockname
+        (self.udp_sockhost, self.udp_sockport) = self.udp_sockname
+
+        # our UDP connection will eventually be to the same host as the TCP
+        self.udp_peerhost = self.tcp_peerhost
+        self.udp_peerport = None
+
+        return True
+
+    def sp_pickok(self):
+    	""" switch to udp mode """
+        if self.mode == COMM_TCP:
+            self.tcp.send(cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
+        
+    def sp_udp_reply(self, reply, port):
+        """ server acknowledges switch to udp mode """
+        if reply == SWITCH_UDP_OK:
+            self.udp_peerport = port
+            self.udp.connect((self.udp_peerhost, self.udp_peerport))
+            self.udp.send(cp_udp_req.data(COMM_VERIFY, 0, 0))
+            self.mode = COMM_UDP
+    
+    def send(self, data):
+        if self.mode == COMM_UDP:
+            self.udp.send(data)
+        else:
+            self.tcp.send(data)
+
+    def shutdown(self):
+        self.tcp.shutdown(socket.SHUT_RDWR)
+
+    def tcp_readable(self):
+        try:
+            byte = self.tcp.recv(1)
+        except:
+            print "recv failure"
+            sys.exit(1)
+        if len(byte) == 1:
+            self.recv_packet(byte, self.tcp)
+        else:
+            # FIXME: when server closes connection, offer to reconnect
+            # FIXME: ghostbust occurs if player is inactive, must ping
+            print "server disconnection"
+            sys.exit(1)
+                    
+    def udp_readable(self):
+        try:
+            # FIXME: check this packet size limit
+            packet = self.udp.recv(2048)
+        except:
+            print "udp recv failure"
+            sys.exit(1)
+        self.time = time.time()
+        offset = 0
+        length = len(packet)
+        while offset < length:
+            number = struct.unpack_from('b', packet, offset)[0]
+            (size, instance) = sp.find(number)
+            if size == 1:
+                print "bad udp drop type=%d bytes=%d" % (number, length-offset)
+                return
+            instance.handler(packet[offset:offset+size])
+            offset = offset + size
+                    
     def recv(self):
         # FIXME: a network update may cost more local time in
         # processing than the time between updates from the server,
@@ -2028,34 +2168,25 @@ class Client:
         # ... this could be detected and CP_UPDATES negotiation made
         # to reduce the update rate.
         while 1:
-            is_readable = [self.socket]
+            is_readable = [self.tcp, self.udp]
             is_writable = []
             is_error = []
             r, w, e = select.select(is_readable, is_writable, is_error, 0.04)
             if not r: return
-            try:
-                byte = self.socket.recv(1)
-            except:
-                print "recv failure"
-                sys.exit()
-            if len(byte) == 1:
-                self.recv_packet(byte)
-            else:
-                # FIXME: when server closes connection, offer to reconnect
-                # FIXME: ghostbust occurs if player is inactive, must ping
-                print "server disconnection"
-                sys.exit()
+            if self.udp in r:
+                self.udp_readable()
+            if self.tcp in r:
+                self.tcp_readable()
 
-    def recv_packet(self, byte):
+    def recv_packet(self, byte, sock):
         number = struct.unpack('b', byte[0])[0]
         (size, instance) = sp.find(number)
         if size == 1:
-            print "\n#### FIXME: UnknownPacketType ", number, "####\n"
-            raise "UnknownPacketType, a packet was received from the server that is not known to this program, and since packet lengths are determined by packet types there is no reasonably way to continue operation"
+            raise "Unknown packet type %d, a packet was received from the server that is not known to this program, and since packet lengths are determined by packet types there is no reasonable way to continue operation" % (number)
             return
         rest = ''
         while len(rest) < (size-1):
-            new = self.socket.recv((size-1) - len(rest))
+            new = sock.recv((size-1) - len(rest))
             if new == '':
                 break # eof
             rest += new
@@ -2275,7 +2406,7 @@ class Phase:
             self.kb(event)
         elif event.type == pygame.QUIT:
             nt.send(cp_bye.data())
-            sys.exit()
+            sys.exit(0)
         elif event.type == pygame.MOUSEMOTION:
             self.mm(event)
         
@@ -2297,9 +2428,12 @@ class Phase:
 
     def kb(self, event):
         if event.key == pygame.K_q:
-            screen.fill((0, 0, 0))
-            pygame.display.flip()
-            sys.exit()
+            if nt.tcp_connected:
+                nt.send(cp_quit.data())
+            else:
+                screen.fill((0, 0, 0))
+                pygame.display.flip()
+                sys.exit(0)
         elif event.key == pygame.K_ESCAPE:
             pygame.image.save(screen, "netrek-client-pygame-%04d.tga" % self.screenshot)
             print "snapshot taken"
@@ -2317,7 +2451,7 @@ class PhaseSplash(Phase):
         self.text("netrek", screen.get_width()/2, screen.get_height()/2, 144)
         self.license()
         pygame.display.flip()
-        pygame.time.wait(1000)
+        pygame.time.wait(opt.splashtime)
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-splash.tga")
         # FIXME: add neat animation
@@ -2418,15 +2552,14 @@ class PhaseServers(Phase):
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
         self.warning('connecting, standby')
         opt.server = chosen
-        try:
-            # FIXME: do not block and hang during connect, do it asynchronously
-            nt.connect(opt.server, opt.port)
-            self.run = False
-        except:
+        # FIXME: do not block and hang during connect, do it asynchronously
+        if not nt.connect(opt.server, opt.port):
             # FIXME: handle connection failure more gracefully by
             # explaining what went wrong, rather than be this obtuse
             self.unwarning()
             self.warning('connection failure')
+            return
+        self.run = False
 
 class PhaseLogin(Phase):
     def __init__(self, screen):
@@ -2444,7 +2577,7 @@ class PhaseLogin(Phase):
         self.warning('connected, as slot %d, ready to login' % me.n)
         self.texts = Texts(galaxy.motd.get(), 200, 250, 24, 22)
         pygame.display.flip()
-        # FIXME: display MOTD in a monospaced font
+        # FIXME: #1213251822 display MOTD in a monospaced font
         self.name = Field("type a name ? ", "", 500, 750)
         self.focused = self.name
         self.password = None
@@ -2525,7 +2658,7 @@ class PhaseLogin(Phase):
         elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
         elif event.key == pygame.K_d and control:
             nt.send(cp_bye.data())
-            sys.exit()
+            sys.exit(0)
         elif event.key == pygame.K_w and control:
             self.focused.delete()
         elif event.key == pygame.K_TAB and shift:
@@ -2672,10 +2805,13 @@ class PhaseOutfit(Phase):
         elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
         elif event.key == pygame.K_d and control:
             nt.send(cp_bye.data())
-            sys.exit()
+            sys.exit(0)
         elif event.key == pygame.K_q:
+            nt.send(cp_quit.data())
             nt.send(cp_bye.data())
-            sys.exit()
+            nt.shutdown()
+            print "quit"
+            sys.exit(0)
         elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
             if self.last_team != None:
                 self.team(self.last_team, self.last_ship)
@@ -2917,7 +3053,9 @@ if opt.server == None:
     # FIXME: discover servers from a cache
     ph_servers = PhaseServers(screen)
 else:
-    nt.connect(opt.server, opt.port)
+    if not nt.connect(opt.server, opt.port):
+        print "connection failed"
+        sys.exit(1)
 
 nt.send(cp_socket.data())
 nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
@@ -2951,5 +3089,9 @@ while 1:
 # FIXME: planets to be partial alpha in tactical view as ships close in?
 
 # socket http://docs.python.org/lib/socket-objects.html
+# select http://docs.python.org/lib/module-select.html
 # struct http://docs.python.org/lib/module-struct.html
 # built-ins http://docs.python.org/lib/built-in-funcs.html
+
+# FIXME: add quit button to team selection window?
+# FIXME: add fast quit, which answers SP_PICKOK with -1 and then CP_QUIT
