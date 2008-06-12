@@ -322,6 +322,7 @@ class Ship:
         self.fuel = fuel
         self.etemp = etemp
         self.wtemp = wtemp
+        # FIXME: display this data
         self.whydead = whydead
         self.whodead = whodead
         self.sp_you_cumulative_flags |= flags
@@ -358,6 +359,7 @@ class Ship:
         self.speed = speed
         self.x = x
         self.y = y
+        # FIXME: display galactic border
         # FIXME: display speed
 
     def sp_flags(self, tractor, flags):
@@ -2006,6 +2008,7 @@ class Client:
     """ Netrek TCP Client
         for connection to a server to play or observe the game.
     """
+    # FIXME: add UDP client
     def __init__(self):
         self.socket = None
         self.time = time.time()
