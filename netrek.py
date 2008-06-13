@@ -138,6 +138,7 @@ import sys, time, socket, errno, select, struct, pygame, math
 from Cache import *
 from Constants import *
 import Util
+import MetaClient
 from pygame.locals import *
 
 print "Netrek Client Pygame"
@@ -1958,89 +1959,6 @@ sp_sequence = SP_SEQUENCE()
 ##             handle_event(event)
 ##             return
 
-class MetaClient:
-    """ Netrek UDP MetaClient
-        for connection to metaservers to obtain list of games in play
-        References: server/ntserv/solicit.c server/tools/players.c
-        metaserver/*.c client/parsemeta.c
-    """
-    def __init__(self, callback=None):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.callback = callback
-        self.servers = {}
-
-    def query(self, metaserver):
-        metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
-        for hostname in metaservers:
-            addresses = socket.getaddrinfo(
-                    hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
-            for family, socktype, proto, canonname, sockaddr in addresses:
-                try:
-                    self.socket.sendto('?', sockaddr)
-                except socket.error:
-                    print sockaddr, "bad"
-    
-    def recv(self):
-        while 1:
-            is_readable = [self.socket]
-            is_writable = []
-            is_error = []
-            r, w, e = select.select(is_readable, is_writable, is_error, 0.1)
-            if not r: return
-            try:
-                (text, address) = self.socket.recvfrom(2048)
-                break
-            except:
-                return
-        if text[0] == 's': self.version_s(text, address)
-        elif text[0] == 'r': self.version_r(text)
-
-    def version_s(self, text, address):
-        unpack = text.split(',')
-        server = {}
-        server['name'] = address[0]
-        server['type'] = unpack[1]
-        server['comment'] = unpack[2]
-        server['port'] = int(unpack[4])
-        server['players'] = int(unpack[5])
-        server['queue'] = int(unpack[6].strip())
-        server['status'] = 2
-        if server['type'] == 'unknown': server['status'] = 3
-        server['age'] = 0
-        self.update(server)
-
-    def version_r(self, text):
-        lines = text.split('\n')
-        (version, n) = lines[0].split(',')
-        for x in range(int(n)):
-            server = {}
-            (server['name'], port, server['status'], age, players, queue, server['type']) = lines[x+1].split(',')
-            server['port'] = int(port)
-            server['age'] = int(age)
-            server['players'] = int(players)
-            server['queue'] = int(queue)
-            server['comment'] = ''
-            self.update(server)
-
-    def update(self, server):
-        # FIXME: client currently lacks necessary hockey support
-        if server['type'] == 'H':
-            return
-
-        # FIXME: client currently lacks necessary sturgeon support
-        if server['type'] == 'S':
-            return
-
-        name = server['name']
-        if not name in self.servers:
-            self.servers[name] = server
-        else:
-            self.servers[name]['players'] = server['players']
-            self.servers[name]['queue'] = server['queue']
-            
-        if self.callback:
-            self.callback(name)
-        
 class Client:
     """ Netrek TCP & UDP Client
         for connection to a server to play or observe the game.
@@ -2441,6 +2359,7 @@ class Phase:
             self.display_sink()
     
 class PhaseSplash(Phase):
+    """ splash screen, shows license for a short time """
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
@@ -2453,7 +2372,7 @@ class PhaseSplash(Phase):
         # FIXME: add neat animation
 
 class PhaseServers(Phase):
-    def __init__(self, screen):
+    def __init__(self, screen, mc):
         Phase.__init__(self)
         self.background("hubble-orion.jpg")
         self.text('netrek', 500, 100, 144)
@@ -2468,8 +2387,8 @@ class PhaseServers(Phase):
         self.dy = 40 # vertical spacing
         self.n = 0 # number of servers shown so far
         self.run = True
-        self.mc = MetaClient(self.update)
-        self.mc.query(opt.metaserver)
+        self.mc = mc
+        self.mc.uncork(self.update)
         self.refresh_interval = opt.metaserver_refresh_interval * 10
         self.refresh = self.refresh_interval / 2
         self.cycle()
@@ -3017,6 +2936,11 @@ class PhaseFlightTactical(PhaseFlight):
 """ Main Program
 """
 
+# query metaserver early, to make good use of pygame startup and splash delay
+if opt.server == None:
+    mc = MetaClient.MetaClient()
+    mc.query(opt.metaserver)
+
 pygame.init()
 size = width, height = 1000, 1000
 screen = pygame.display.set_mode(size)
@@ -3042,13 +2966,13 @@ pygame.display.flip()
 
 pending_outfit = False
 
-ph_splash = PhaseSplash(screen)
-
 nt = Client()
 if opt.server == None:
+    ph_splash = PhaseSplash(screen)
     # FIXME: discover servers from a cache
-    ph_servers = PhaseServers(screen)
+    ph_servers = PhaseServers(screen, mc)
 else:
+    ph_splash = PhaseSplash(screen)
     if not nt.connect(opt.server, opt.port):
         print "connection failed"
         sys.exit(1)
