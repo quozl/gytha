@@ -170,6 +170,9 @@ parser.add_option("--ship", dest="ship",
 parser.add_option("--updates",
                   type="int", dest="updates", default="5",
                   help="updates per second from server, default 5")
+parser.add_option("--tcp-only",
+                  action="store_true", dest="tcp_only", default=False,
+                  help="only use TCP, avoid UDP")
 parser.add_option("--dump-server",
                   action="store_true", dest="sp", default=False,
                   help="dump server packet stream")
@@ -1966,6 +1969,7 @@ class Client:
     # FIXME: add UDP client
     def __init__(self):
         self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.time = time.time()
         self.tcp_connected = 0
@@ -2021,6 +2025,8 @@ class Client:
 
     def sp_pickok(self):
     	""" switch to udp mode """
+        if opt.tcp_only:
+            return
         if self.mode == COMM_TCP:
             self.tcp.send(cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
         
