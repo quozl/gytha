@@ -137,6 +137,7 @@ cp `grep IMAGERY try.py|grep -v grep|cut -f2 -d:|sort|uniq` /tmp/netrek-client-p
 import sys, time, socket, errno, select, struct, pygame, math
 from Cache import *
 from Constants import *
+import Util
 from pygame.locals import *
 
 print "Netrek Client Pygame"
@@ -189,11 +190,6 @@ parser.add_option("--splash-time",
 (opt, args) = parser.parse_args()
 # FIXME: [--theme name] [host]
 
-
-def strnul(input):
-    """ convert a NUL terminated string to a normal string
-    """
-    return input.split('\000')[0]
 
 def galactic_scale(x, y):
     """ temporary coordinate scaling, galactic to screen
@@ -1442,7 +1438,7 @@ class SP_MOTD(SP):
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
         if opt.sp: print "SP_MOTD message=", message
-        galaxy.motd.add(strnul(message))
+        galaxy.motd.add(Util.strnul(message))
 
 sp_motd = SP_MOTD()
 
@@ -1488,7 +1484,7 @@ class SP_PL_LOGIN(SP):
     def handler(self, data):
         (ignored, pnum, rank, name, monitor,
          login) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PL_LOGIN pnum=",pnum,"rank=",rank,"name=",strnul(name),"monitor=",strnul(monitor),"login=",strnul(login)
+        if opt.sp: print "SP_PL_LOGIN pnum=",pnum,"rank=",rank,"name=",Util.strnul(name),"monitor=",Util.strnul(monitor),"login=",Util.strnul(login)
         ship = galaxy.ship(pnum)
         ship.sp_pl_login(rank, name, monitor, login)
 
@@ -1586,7 +1582,7 @@ class SP_PLANET_LOC(SP):
 
     def handler(self, data):
         (ignored, pnum, x, y, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLANET_LOC pnum=",pnum,"x=",x,"y=",y,"name=",strnul(name)
+        if opt.sp: print "SP_PLANET_LOC pnum=",pnum,"x=",x,"y=",y,"name=",Util.strnul(name)
         planet = galaxy.planet(pnum)
         planet.sp_planet_loc(x, y, name)
 
@@ -1789,7 +1785,7 @@ class SP_MESSAGE(SP):
 
     def handler(self, data):
         (ignored, m_flags, m_recpt, m_from, mesg) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",strnul(mesg)
+        if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",Util.strnul(mesg)
         # FIXME: this is temporary processing of distress messages,
         # depending on the type of message it should be portrayed.
         if m_flags == (MVALID | MTEAM | MDISTR):
@@ -1837,7 +1833,7 @@ class SP_MESSAGE(SP):
 
             # FIXME: send control/t ;-)
         else:
-            print strnul(mesg)
+            print Util.strnul(mesg)
         # FIXME: display the message
 
 sp_message = SP_MESSAGE()
@@ -1862,8 +1858,8 @@ class SP_WARNING(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_WARNING message=", strnul(message)
-        print strnul(message)
+        if opt.sp: print "SP_WARNING message=", Util.strnul(message)
+        print Util.strnul(message)
         # FIXME: display the warning
 
 sp_warning = SP_WARNING()
@@ -1876,8 +1872,8 @@ class SP_FEATURE(SP):
 
     def handler(self, data):
         (ignored, type, arg1, arg2, value, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",strnul(name)
-        if (type, arg1, arg2, value, strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
+        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",Util.strnul(name)
+        if (type, arg1, arg2, value, Util.strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
             # send client features
             nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
 
