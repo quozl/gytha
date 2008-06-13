@@ -139,6 +139,7 @@ from Cache import *
 from Constants import *
 import Util
 import MetaClient
+import Client
 from pygame.locals import *
 
 print "Netrek Client Pygame"
@@ -1420,7 +1421,7 @@ class SP:
 
     def find(self, number):
         """ given a packet type return a tuple consisting of
-            (size, instance)
+            (size, instance), or (1, self) if type not known
         """
         global sp_table
         if not sp_table.has_key(number):
@@ -1961,164 +1962,6 @@ sp_sequence = SP_SEQUENCE()
 ##             event = root.display.next_event()
 ##             handle_event(event)
 ##             return
-
-class Client:
-    """ Netrek TCP & UDP Client
-        for connection to a server to play or observe the game.
-    """
-    # FIXME: add UDP client
-    def __init__(self):
-        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.time = time.time()
-        self.tcp_connected = 0
-        self.mode = None
-        
-    def connect(self, host, port):
-        # iterate through the addresses of the server host until one connects
-        addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-        for family, socktype, proto, canonname, sockaddr in addresses:
-            try:
-                self.sockaddr = sockaddr
-                self.tcp.connect(sockaddr)
-                self.tcp_connected = 1
-                break
-            except socket.error, (reason, explanation):
-                if reason == errno.ECONNREFUSED:
-                    print host, sockaddr, "is not listening"
-                else:
-                    print host, sockaddr, reason, explanation
-                continue
-
-        if not self.tcp_connected:
-            return False
-
-        self.mode = COMM_TCP
-        
-	# test that the socket is connected
-        self.tcp_peername = self.tcp.getpeername()
-        print "tcp peer name ", self.tcp_peername
-        (self.tcp_peerhost, self.tcp_peerport) = self.tcp_peername
-	
-        self.tcp_sockname = self.tcp.getsockname()
-        print "tcp sock name ", self.tcp_sockname
-        
-	# try binding the UDP socket to the same port number
-	# (rationale: ease of packet trace analysis)
-        try:
-            self.udp.bind(self.tcp_sockname)
-        except socket.error:
-	    # otherwise use any free port number
-	    (udp_host, udp_port) = self.sockaddr
-            self.udp.bind((udp_host, 0))
-
-	self.udp_sockname = self.udp.getsockname()
-        print "udp sock name ", self.udp_sockname
-        (self.udp_sockhost, self.udp_sockport) = self.udp_sockname
-
-        # our UDP connection will eventually be to the same host as the TCP
-        self.udp_peerhost = self.tcp_peerhost
-        self.udp_peerport = None
-
-        return True
-
-    def sp_pickok(self):
-    	""" switch to udp mode """
-        if opt.tcp_only:
-            return
-        if self.mode == COMM_TCP:
-            self.tcp.send(cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
-        
-    def sp_udp_reply(self, reply, port):
-        """ server acknowledges switch to udp mode """
-        if reply == SWITCH_UDP_OK:
-            self.udp_peerport = port
-            self.udp.connect((self.udp_peerhost, self.udp_peerport))
-            self.udp.send(cp_udp_req.data(COMM_VERIFY, 0, 0))
-            self.mode = COMM_UDP
-    
-    def send(self, data):
-        if self.mode == COMM_UDP:
-            self.udp.send(data)
-        else:
-            self.tcp.send(data)
-
-    def shutdown(self):
-        self.tcp.shutdown(socket.SHUT_RDWR)
-
-    def tcp_readable(self):
-        try:
-            byte = self.tcp.recv(1)
-        except:
-            print "recv failure"
-            sys.exit(1)
-        if len(byte) == 1:
-            self.recv_packet(byte, self.tcp)
-        else:
-            # FIXME: when server closes connection, offer to reconnect
-            # FIXME: ghostbust occurs if player is inactive, must ping
-            print "server disconnection"
-            sys.exit(1)
-                    
-    def udp_readable(self):
-        try:
-            # FIXME: check this packet size limit
-            packet = self.udp.recv(2048)
-        except:
-            print "udp recv failure"
-            sys.exit(1)
-        self.time = time.time()
-        offset = 0
-        length = len(packet)
-        while offset < length:
-            number = struct.unpack_from('b', packet, offset)[0]
-            (size, instance) = sp.find(number)
-            if size == 1:
-                print "bad udp drop type=%d bytes=%d" % (number, length-offset)
-                return
-            instance.handler(packet[offset:offset+size])
-            offset = offset + size
-                    
-    def recv(self):
-        # FIXME: a network update may cost more local time in
-        # processing than the time between updates from the server,
-        # which results in a pause to display updates since this
-        # function does not return until the network queue is empty
-        # ... this could be detected and CP_UPDATES negotiation made
-        # to reduce the update rate.
-        while 1:
-            is_readable = [self.tcp, self.udp]
-            is_writable = []
-            is_error = []
-            r, w, e = select.select(is_readable, is_writable, is_error, 0.04)
-            if not r: return
-            if self.udp in r:
-                self.udp_readable()
-            if self.tcp in r:
-                self.tcp_readable()
-
-    def recv_packet(self, byte, sock):
-        number = struct.unpack('b', byte[0])[0]
-        (size, instance) = sp.find(number)
-        if size == 1:
-            raise "Unknown packet type %d, a packet was received from the server that is not known to this program, and since packet lengths are determined by packet types there is no reasonable way to continue operation" % (number)
-            return
-        rest = ''
-        while len(rest) < (size-1):
-            new = sock.recv((size-1) - len(rest))
-            if new == '':
-                break # eof
-            rest += new
-
-        if len(rest) != (size-1):
-            print "### asked for %d and got %d bytes" % ((size-1), len(rest))
-        self.time = time.time()
-        # handle the prefix byte and the rest of the packet as a whole
-        instance.handler(byte + rest)
-        # FIXME: packet almalgamation may occur, s.recv second time may
-        # return something less than the expected number of bytes, so we
-        # have to wait for them.
 
 """ assorted sprites
 """
@@ -2972,7 +2815,7 @@ pygame.display.flip()
 
 pending_outfit = False
 
-nt = Client()
+nt = Client.Client(sp)
 if opt.server == None:
     ph_splash = PhaseSplash(screen)
     # FIXME: discover servers from a cache
@@ -2983,6 +2826,8 @@ else:
         print "connection failed"
         sys.exit(1)
 
+if opt.tcp_only:
+    nt.mode_requested = COMM_TCP
 nt.send(cp_socket.data())
 nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
 
