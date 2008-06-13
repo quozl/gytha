@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """
     pygame netrek
-    Copyright (C) 2007  James Cameron (quozl@us.netrek.org)
+    Copyright (C) 2008  James Cameron (quozl@us.netrek.org)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -142,7 +142,7 @@ import MetaClient
 from pygame.locals import *
 
 print "Netrek Client Pygame"
-print "Copyright (C) 2007 James Cameron <quozl@us.netrek.org>"
+print "Copyright (C) 2008 James Cameron <quozl@us.netrek.org>"
 print ""
 print "This program comes with ABSOLUTELY NO WARRANTY; for details see source."
 print "This is free software, and you are welcome to redistribute it under certain"
@@ -2291,7 +2291,7 @@ class Phase:
         font = fc.get(None, 24)
         lines = [
 "Netrek Client Pygame",
-"Copyright (C) 2007 James Cameron <quozl@us.netrek.org>",
+"Copyright (C) 2008 James Cameron <quozl@us.netrek.org>",
 "",
 "This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
 "This is free software, and you are welcome to redistribute it under certain",
