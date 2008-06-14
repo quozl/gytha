@@ -1918,7 +1918,7 @@ class Text(SpriteBacked):
         
 class TextsLine(SpriteBacked):
     def __init__(self, text, x, y, size=18):
-        font = fc.get(None, size)
+        font = fc.get('DejaVuSansMono.ttf', size)
         self.image = font.render(text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(left=x, top=y)
         SpriteBacked.__init__(self)
@@ -2062,7 +2062,7 @@ class Phase:
         self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 22)
         
     def license(self):
-        font = fc.get(None, 24)
+        font = fc.get('DejaVuSansMono.ttf', 14)
         lines = [
 "Netrek Client Pygame",
 "Copyright (C) 2008 James Cameron <quozl@us.netrek.org>",
@@ -2279,9 +2279,8 @@ class PhaseLogin(Phase):
             nt.recv()
         self.unwarning()
         self.warning('connected, as slot %s, ready to login' % Util.slot_decode(me.n))
-        self.texts = Texts(galaxy.motd.get(), 200, 250, 24, 22)
+        self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
         pygame.display.flip()
-        # FIXME: #1213251822 display MOTD in a monospaced font
         self.name = Field("type a name ? ", "", 500, 750)
         self.focused = self.name
         self.password = None

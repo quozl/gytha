@@ -34,8 +34,13 @@ class FC:
         self.cache = {}
 
     def read(self, name, size):
-        font = pygame.font.Font(name, size)
-        return font
+        if name == None:
+            return pygame.font.Font(None, size)
+        path = '/usr/share/fonts/truetype/ttf-dejavu/'
+        try:
+            return pygame.font.Font(path + name, size)
+        except:
+            return pygame.font.Font(None, size)
 
     def get(self, name, size):
         key = (name, size)

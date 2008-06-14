@@ -7,7 +7,7 @@ Build-Depends:
 
 Package: netrek-client-pygame
 Architecture: any
-Depends: python-pygame
+Depends: python-pygame, ttf-dejavu-core
 Description: Netrek Game Client
  This is a client for the multi-player game of Netrek, implemented in
  Python and Pygame.
