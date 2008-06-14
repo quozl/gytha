@@ -596,11 +596,21 @@ class PlanetGalacticSprite(PlanetSprite):
         galactic.add(self)
 
     def pick(self):
+        self.mi_begin()
         # IMAGERY: planet-???-30x30.png
-        self.image = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
-        self.rect = self.image.get_rect()
-        # FIXME: render planet name on screen
+        image = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
+        self.mi_add_image(image)
+        
         # FIXME: render planet owner, flags and armies on screen
+        
+        image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
+        font = fc.get('DejaVuSans.ttf', 8)
+        message = "%s" % (self.planet.name)
+        text = font.render(message, 1, (128, 128, 128))
+        rect = text.get_rect(centerx=60, bottom=90)
+        image.blit(text, rect)
+        self.mi_add_image(image)
+        self.mi_commit()
 
     def update(self):
         if self.planet.owner != self.old_owner:
@@ -639,10 +649,11 @@ class PlanetTacticalSprite(PlanetSprite):
         # FIXME: cache the static flags surfaces here, they will rarely change
 
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
-        font = fc.get(None, 24)
+        font = fc.get('DejaVuSans.ttf', 18)
         message = "%s" % (self.planet.name)
         text = font.render(message, 1, (92, 92, 92))
         rect = text.get_rect(centerx=60, bottom=120)
+        # FIXME: name may not fit within surface
         # FIXME: cache this surface here, it will rarely change
         image.blit(text, rect)
         self.mi_add_image(image)
@@ -749,8 +760,8 @@ class ShipTacticalSprite(ShipSprite):
         
         # ship number
         image = pygame.Surface((40, 40), pygame.SRCALPHA, 32)
-        font = fc.get(None, 24)
-        message = "%d" % (self.ship.n)
+        font = fc.get('DejaVuSans.ttf', 24)
+        message = Util.slot_decode(self.ship.n)
         text = font.render(message, 1, (255, 255, 255))
         rect = text.get_rect(center=(20, 20))
         # FIXME: cache this surface here, it will never change
@@ -1114,6 +1125,9 @@ class CP_QUIT(CP):
         # in the game after hitting q/Q
         # <Quozl> perhaps cp_quit is not being called, but is this a
         # client or server problem?
+
+        # FIXME: on quit, no teams available for selection, should
+        # drop out rather than show outfit window.
 
 cp_quit = CP_QUIT()
 
@@ -1911,7 +1925,7 @@ class Icon(SpriteBacked):
         
 class Text(SpriteBacked):
     def __init__(self, text, x, y, size=18, colour=(255, 255, 255)):
-        font = fc.get(None, size)
+        font = fc.get('DejaVuSans.ttf', size)
         self.image = font.render(text, 1, colour)
         self.rect = self.image.get_rect(left=x, centery=y)
         SpriteBacked.__init__(self)
@@ -1954,7 +1968,7 @@ class Texts:
 class Field:
     def __init__(self, prompt, value, x, y):
         self.value = value
-        self.fn = fn = fc.get(None, 36)
+        self.fn = fn = fc.get('DejaVuSans.ttf', 36)
         self.sw = sw = screen.get_width()
         self.sh = sh = screen.get_height()
         # place prompt on screen
@@ -2022,7 +2036,7 @@ class Phase:
         self.run = False
 
     def warning(self, message):
-        font = fc.get(None, 36)
+        font = fc.get('DejaVuSans.ttf', 32)
         text = font.render(message, 1, (255, 127, 127))
         self.warning_br = text.get_rect(center=(screen.get_width()/2,
                                                 screen.get_height()-90))
@@ -2050,16 +2064,16 @@ class Phase:
                 screen.blit(background, (x*bw, y*bh))
 
     def text(self, text, x, y, size=72, colour=(255, 255, 255)):
-        font = fc.get(None, size)
+        font = fc.get('DejaVuSans.ttf', size)
         ts = font.render(text, 1, colour)
         tr = ts.get_rect(center=(x, y))
         screen.blit(ts, tr)
 
     def blame(self):
-        self.text("software by quozl@us.netrek.org and stephen@thorne.id.au", screen.get_width()/2, screen.get_height()-30, 22)
+        self.text("software by quozl@us.netrek.org and stephen@thorne.id.au", screen.get_width()/2, screen.get_height()-30, 16)
         more = ""
         if not opt.no_backgrounds: more = "backgrounds by hubble, "
-        self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 22)
+        self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 16)
         
     def license(self):
         font = fc.get('DejaVuSansMono.ttf', 14)
@@ -2150,8 +2164,8 @@ class PhaseServers(Phase):
     def __init__(self, screen, mc):
         Phase.__init__(self)
         self.background("hubble-orion.jpg")
-        self.text('netrek', 500, 100, 144)
-        self.text('server list', 500, 175, 72)
+        self.text('netrek', 500, 100, 92)
+        self.text('server list', 500, 175, 64)
         self.license()
         pygame.display.flip()
         self.bouncer_y = 240
@@ -2193,7 +2207,7 @@ class PhaseServers(Phase):
         if age < 300: colour = 192
         if age < 180: colour = 255
         colour = (colour, colour, colour)
-        s.append(Text(name + ' ' + server['comment'], 100, y, 36, colour))
+        s.append(Text(name + ' ' + server['comment'], 100, y, 26, colour))
         # per player icon
         gx = 500
         for x in range(min(server['players'], 16)):
@@ -2269,8 +2283,8 @@ class PhaseLogin(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
-        self.text('netrek', 500, 100, 144)
-        self.text(opt.chosen, 500, 185, 72)
+        self.text('netrek', 500, 100, 92)
+        self.text(opt.chosen, 500, 185, 64)
         self.blame()
         self.warning('connected, waiting for slot, standby')
         pygame.display.flip()
@@ -2287,9 +2301,18 @@ class PhaseLogin(Phase):
         self.run = True
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-login.tga")
+        self.quit = False
         self.cycle()
 
+    def exit(self):
+        print "PhaseLogin exit"
+        nt.send(cp_bye.data())
+        nt.shutdown()
+        self.run = False
+        self.quit = True
+        
     def tab(self):
+        # FIXME: just press enter for guest
         """ move to next field """
         self.focused.leave()
         if self.focused == self.password:
@@ -2360,8 +2383,7 @@ class PhaseLogin(Phase):
         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: pass
         elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
         elif event.key == pygame.K_d and control:
-            nt.send(cp_bye.data())
-            sys.exit(0)
+            self.exit()
         elif event.key == pygame.K_w and control:
             self.focused.delete()
         elif event.key == pygame.K_TAB and shift:
@@ -2376,6 +2398,7 @@ class PhaseLogin(Phase):
             return Phase.kb(self, event)
         
     def mb(self, event):
+        # FIXME: add a BACK button to return to metaserver list
         pass
     
 class PhaseOutfit(Phase):
@@ -2389,9 +2412,9 @@ class PhaseOutfit(Phase):
     def do(self):
         self.run = True
         self.background("hubble-spire.jpg")
-        self.text('netrek', 500, 100, 144)
-        self.text(opt.chosen, 500, 185, 72)
-        self.text('ship and race', 500, 255, 72)
+        self.text('netrek', 500, 100, 92)
+        self.text(opt.chosen, 500, 185, 64)
+        self.text('ship and race', 500, 255, 64)
         self.blame()
         pygame.display.flip()
         box_l = 212
@@ -2725,10 +2748,10 @@ class PhaseDisconnected(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
-        self.text('netrek', 500, 100, 144)
-        self.text(opt.chosen, 500, 185, 72)
-        self.text('disconnected', 500, 255, 72)
-        self.texts = Texts(['Connection was closed by the server.', '','You may have been idle for too long.','You may have a network problem.','You may have been ejected by vote.','You may have been freed by the captain in a clue game.','You may have been disconnected by the server owner.','','Please click.','','Technical data: read(2) returned zero on', nt.diagnostics()], 50, 455, 12, 32)
+        self.text('netrek', 500, 100, 92)
+        self.text(opt.chosen, 500, 185, 64)
+        self.text('disconnected', 500, 255, 64)
+        self.texts = Texts(['Connection was closed by the server.', '','You may have been idle for too long.','You may have a network problem.','You may have been ejected by vote.','You may have been freed by the captain in a clue game.','You may have been disconnected by the server owner.','','Please click.','','Technical data: read(2) returned zero on', nt.diagnostics()], 50, 455, 12, 18)
         pygame.display.flip()
         self.run = True
         self.cycle()
@@ -2795,6 +2818,12 @@ while True:
         # FIXME: allow play on another server even while queued? [grin]
         if opt.name == '':
             ph_login = PhaseLogin(screen)
+            if ph_login.quit:
+                # return to metaserver list
+                mc.query(opt.metaserver)
+                ph_servers = PhaseServers(screen, mc)
+                continue
+                
         ph_outfit = PhaseOutfit(screen)
         ph_galactic = PhaseFlightGalactic()
         ph_tactical = PhaseFlightTactical()
@@ -2831,3 +2860,8 @@ sys.exit(1)
 
 # FIXME: add quit button to team selection window?
 # FIXME: add fast quit, which answers SP_PICKOK with -1 and then CP_QUIT
+
+# FIXME: quit from logon prompt should return to metaserver list
+# FIXME: quit from outfit should return to metaserver list
+
+# FIXME: add graphic indicator of connection status
