@@ -2725,12 +2725,10 @@ if opt.fullscreen :
 t_planets = pygame.sprite.OrderedUpdates(())
 t_players = pygame.sprite.OrderedUpdates(())
 t_weapons = pygame.sprite.OrderedUpdates(())
-
 galactic = pygame.sprite.OrderedUpdates(())
 
 background = screen.copy()
 background.fill((0, 0, 0))
-#background.fill((255, 255, 255))
 screen.blit(background, (0, 0))
 # FIXME: allow user to select graphics theme, default on XO is to be white with oysters, otherwise use stars, planets, and ships.
 pygame.display.flip()
