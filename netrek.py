@@ -684,6 +684,8 @@ class PlanetTacticalSprite(PlanetSprite):
         # for all planets happening.  it may prove worthwhile to only
         # include planets on the tactical sprite list if they are
         # nearby.
+        # 2008-06-14 shows up on pstat results as the most significant
+        # reference within this file
             
 class ShipSprite(MultipleImageSprite):
     def __init__(self, ship):
@@ -1569,10 +1571,6 @@ class SP_MASK(SP):
     def handler(self, data):
         (ignored, mask) = struct.unpack(self.format, data)
         if opt.sp: print "SP_MASK mask=",Util.team_decode(mask)
-        global pending_outfit
-        if pending_outfit:
-            nt.send(cp_outfit.data(0))
-            pending_outfit = False
         if self.callback:
             self.callback(mask)
         # FIXME: note protocol phase change
@@ -2762,94 +2760,115 @@ class PhaseDisconnected(Phase):
 """ Main Program
 """
 
-# query metaserver early, to make good use of pygame startup and splash delay
-if opt.server == None:
+def mc_init():
     mc = MetaClient.MetaClient()
+    # query metaserver early,
+    # to make good use of pygame startup and splash delay
     mc.query(opt.metaserver)
+    return mc
 
-nt = Client.Client(sp)
-if opt.tcp_only:
-    nt.mode_requested = COMM_TCP
-nt.cp_udp_req = cp_udp_req
+def nt_init():
+    nt = Client.Client(sp)
+    if opt.tcp_only:
+        nt.mode_requested = COMM_TCP
+    nt.cp_udp_req = cp_udp_req
+    return nt
 
-if opt.server != None:
-    opt.chosen = opt.server
-    if not nt.connect(opt.chosen, opt.port):
-        print "connection failed"
-        # server was requested on command line, but not available
-        sys.exit(1)
-
-pygame.init()
-size = width, height = 1000, 1000
-screen = pygame.display.set_mode(size)
-# FIXME: #1187736408 support a full screen mode that's variable
-# depending on the environment
-if opt.fullscreen :
-    pygame.display.set_mode(size, FULLSCREEN)
-
-# FIXME: #1187736407 support screen resolutions below 1000x1000
-
-t_planets = pygame.sprite.OrderedUpdates(())
-t_players = pygame.sprite.OrderedUpdates(())
-t_weapons = pygame.sprite.OrderedUpdates(())
-galactic = pygame.sprite.OrderedUpdates(())
-
-background = screen.copy()
-background.fill((0, 0, 0))
-screen.blit(background, (0, 0))
-# FIXME: allow user to select graphics theme, default on XO is to be white with oysters, otherwise use stars, planets, and ships.
-pygame.display.flip()
-
-pending_outfit = False
-
-if opt.server == None:
-    ph_splash = PhaseSplash(screen)
-    # FIXME: discover servers from a cache
-    ph_servers = PhaseServers(screen, mc)
-    del ph_servers
-
-while True:
-
-    try:
-        nt.send(cp_socket.data())
-        nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
-        # PhaseQueue?
-        # FIXME: if an SP_QUEUE packet is received, present this phase
-        # FIXME: allow play on another server even while queued? [grin]
-        if opt.name == '':
-            ph_login = PhaseLogin(screen)
-            if ph_login.quit:
-                # return to metaserver list
-                mc.query(opt.metaserver)
-                ph_servers = PhaseServers(screen, mc)
-                continue
-                
-        ph_outfit = PhaseOutfit(screen)
-        ph_galactic = PhaseFlightGalactic()
-        ph_tactical = PhaseFlightTactical()
-
-        while True:
-            ph_outfit.do()
-            while me.status == POUTFIT: nt.recv()
-            ph_flight = ph_tactical
-            while True:
-                screen.blit(background, (0, 0))
-                pygame.display.flip()
-                ph_flight.do()
-                if me.status == POUTFIT: break
-
-    except Client.ServerDisconnectedError:
-        PhaseDisconnected(screen)
+def pg_init():
+    global t_planets, t_players, t_weapons, galactic, background
     
-    if opt.server != None:
-        break
+    pygame.init()
+    size = width, height = 1000, 1000
+    screen = pygame.display.set_mode(size)
+    # FIXME: #1187736408 support a full screen mode that's variable
+    # depending on the environment
+    if opt.fullscreen :
+        pygame.display.set_mode(size, FULLSCREEN)
 
-    # return to metaserver list
-    mc.query(opt.metaserver)
+    # FIXME: #1187736407 support screen resolutions below 1000x1000
+
+    t_planets = pygame.sprite.OrderedUpdates(())
+    t_players = pygame.sprite.OrderedUpdates(())
+    t_weapons = pygame.sprite.OrderedUpdates(())
+    galactic = pygame.sprite.OrderedUpdates(())
+
+    background = screen.copy()
+    background.fill((0, 0, 0))
+    screen.blit(background, (0, 0))
+    # FIXME: allow user to select graphics theme, default on XO is to be white with oysters, otherwise use stars, planets, and ships.
+    pygame.display.flip()
+    return screen
+
+def mc_prompt():
+    ph_splash = PhaseSplash(screen)
     ph_servers = PhaseServers(screen, mc)
 
-print "exit"
-sys.exit(1)
+def mc_reprompt():
+    mc.query(opt.metaserver)
+    ph_servers = PhaseServers(screen, mc)
+    
+def nt_play():
+    global ph_flight, ph_galactic, ph_tactical
+    
+    while True:
+        try:
+            nt.send(cp_socket.data())
+            nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
+            # PhaseQueue?
+            # FIXME: if an SP_QUEUE packet is received, present this phase
+            # FIXME: allow play on another server even while queued? [grin]
+            if opt.name == '':
+                ph_login = PhaseLogin(screen)
+                if ph_login.quit:
+                    # return to metaserver list
+                    mc_reprompt()
+                    break
+
+            ph_outfit = PhaseOutfit(screen)
+            ph_galactic = PhaseFlightGalactic()
+            ph_tactical = PhaseFlightTactical()
+
+            while True:
+                ph_outfit.do()
+                while me.status == POUTFIT: nt.recv()
+                ph_flight = ph_tactical
+                while True:
+                    screen.blit(background, (0, 0))
+                    pygame.display.flip()
+                    ph_flight.do()
+                    if me.status == POUTFIT: break
+
+        except Client.ServerDisconnectedError:
+            PhaseDisconnected(screen)
+
+        if opt.server != None:
+            break
+
+        # return to metaserver list
+        mc.query(opt.metaserver)
+        ph_servers = PhaseServers(screen, mc)
+
+def main(args=[]):
+    global screen, mc, nt
+
+    if opt.server == None: mc = mc_init()
+    nt = nt_init()
+    if opt.server != None:
+        opt.chosen = opt.server
+        if not nt.connect(opt.chosen, opt.port):
+            print "connection failed"
+            # server was requested on command line, but not available
+            sys.exit(1)
+    screen = pg_init()
+
+    if opt.server == None: mc_prompt()
+    nt_play()
+    print "exit"
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
+
 # FIXME: very little reason for outfit phase, default to automatically re-enter
 # FIXME: planets to be partial alpha in tactical view as ships close in?
 
@@ -2865,3 +2884,4 @@ sys.exit(1)
 # FIXME: quit from outfit should return to metaserver list
 
 # FIXME: add graphic indicator of connection status
+# FIXME: discover servers from a cache
