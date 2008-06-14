@@ -1910,9 +1910,9 @@ class Icon(SpriteBacked):
         SpriteBacked.__init__(self)
         
 class Text(SpriteBacked):
-    def __init__(self, text, x, y, size=18):
+    def __init__(self, text, x, y, size=18, colour=(255, 255, 255)):
         font = fc.get(None, size)
-        self.image = font.render(text, 1, (255, 255, 255))
+        self.image = font.render(text, 1, colour)
         self.rect = self.image.get_rect(left=x, centery=y)
         SpriteBacked.__init__(self)
         
@@ -2040,6 +2040,7 @@ class Phase:
     def background(self, name="stars.png"):
         # tile a background image onto the screen
         screen.fill((0,0,0))
+        if opt.no_backgrounds: return
         # IMAGERY: stars.png
         background = ic.get(name)
         bh = background.get_height()
@@ -2056,7 +2057,9 @@ class Phase:
 
     def blame(self):
         self.text("software by quozl@us.netrek.org and stephen@thorne.id.au", screen.get_width()/2, screen.get_height()-30, 22)
-        self.text("backgrounds by hubble, ships by pascal", screen.get_width()/2, screen.get_height()-15, 22)
+        more = ""
+        if not opt.no_backgrounds: more = "backgrounds by hubble, "
+        self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 22)
         
     def license(self):
         font = fc.get(None, 24)
@@ -2069,7 +2072,7 @@ class Phase:
 "conditions; see source for details."
         ]
         x = 200
-        y = 800
+        y = 790
         for line in lines:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
@@ -2113,7 +2116,7 @@ class Phase:
 
     def kb(self, event):
         if event.key == pygame.K_q:
-            if nt.tcp_connected:
+            if nt.mode != None:
                 nt.send(cp_quit.data())
             else:
                 screen.fill((0, 0, 0))
@@ -2141,6 +2144,7 @@ class PhaseSplash(Phase):
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-splash.tga")
         # FIXME: add neat animation
+        # FIXME: allow click-through (click to cancel wait)
 
 class PhaseServers(Phase):
     def __init__(self, screen, mc):
@@ -2149,11 +2153,12 @@ class PhaseServers(Phase):
         self.text('netrek', 500, 100, 144)
         self.text('server list', 500, 175, 72)
         self.license()
-        self.bouncer_l = Icon('torp-me.png', 500, 250)
-        self.bouncer_l.draw()
-        self.bouncer_r = Icon('torp-me.png', 500, 250)
-        self.bouncer_r.draw()
         pygame.display.flip()
+        self.bouncer_y = 240
+        self.bouncer_l = Icon('torp-me.png', 550, self.bouncer_y)
+        self.bouncer_l.draw()
+        self.bouncer_r = Icon('torp-me.png', 450, self.bouncer_y)
+        self.bouncer_r.draw()
 
         self.dy = 40 # vertical spacing
         self.n = 0 # number of servers shown so far
@@ -2179,17 +2184,27 @@ class PhaseServers(Phase):
         # per server icon
         # FIXME: icon per server type?
         # FIXME: icon better than this one
-        # IMAGERY: netrek.png
-        s.append(Icon('torp-me.png', 50, y))
-        # server name
-        s.append(Text(name + ' ' + server['comment'], 100, y, 36))
+        # IMAGERY: servers-icon.png
+        s.append(Icon('servers-icon.png', 50, y))
+        # server name, shade by age
+        colour = 64
+        age = server['age']
+        if age < 3000: colour = 128
+        if age < 300: colour = 192
+        if age < 180: colour = 255
+        colour = (colour, colour, colour)
+        s.append(Text(name + ' ' + server['comment'], 100, y, 36, colour))
         # per player icon
-        # FIXME: icon better than this one
-        # FIXME: icon should not convey team
-        for x in range(server['players']):
-            # IMAGERY: netrek.png
+        gx = 500
+        for x in range(min(server['players'], 16)):
             # per player icon
-            s.append(Icon('netrek.png', 500+(x*32), y))
+            # IMAGERY: servers-player.png
+            s.append(Icon('servers-player.png', gx, y))
+            # space them out for visual counting
+            if (x % 4) == 3:
+                gx = gx + 35
+            else:
+                gx = gx + 30
                      
         self.mc.servers[name]['y'] = y
         self.mc.servers[name]['sprites'] = s
@@ -2205,10 +2220,10 @@ class PhaseServers(Phase):
         r = []
         r.append(self.bouncer_l.clear())
         r.append(self.bouncer_r.clear())
-        x = 400 * math.sin(self.refresh * math.pi / self.refresh_interval)
+        x = 225 * math.sin(self.refresh * math.pi / self.refresh_interval)
         y =  20 * math.cos(self.refresh * math.pi / self.refresh_interval)
-        self.bouncer_l.move(500 - x, 250 - y)
-        self.bouncer_r.move(500 + x, 250 + y)
+        self.bouncer_l.move(500 - x, self.bouncer_y - y)
+        self.bouncer_r.move(500 + x, self.bouncer_y + y)
         r.append(self.bouncer_l.draw())
         r.append(self.bouncer_r.draw())
         pygame.display.update(r)
@@ -2224,6 +2239,9 @@ class PhaseServers(Phase):
             self.warning('not that button, mate')
             return
         y = event.pos[1]
+        if abs(self.bouncer_y - y) < 50:
+            self.warning('that is the metaserver query refresh timer, mate')
+            return
         distance = self.dy
         chosen = None
         for k, v in self.mc.servers.iteritems():
@@ -2237,9 +2255,9 @@ class PhaseServers(Phase):
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
         self.warning('connecting, standby')
-        opt.server = chosen
+        opt.chosen = chosen
         # FIXME: do not block and hang during connect, do it asynchronously
-        if not nt.connect(opt.server, opt.port):
+        if not nt.connect(opt.chosen, opt.port):
             # FIXME: handle connection failure more gracefully by
             # explaining what went wrong, rather than be this obtuse
             self.unwarning()
@@ -2252,7 +2270,7 @@ class PhaseLogin(Phase):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
         self.text('netrek', 500, 100, 144)
-        self.text(opt.server, 500, 185, 72)
+        self.text(opt.chosen, 500, 185, 72)
         self.blame()
         self.warning('connected, waiting for slot, standby')
         pygame.display.flip()
@@ -2260,7 +2278,7 @@ class PhaseLogin(Phase):
         while me == None:
             nt.recv()
         self.unwarning()
-        self.warning('connected, as slot %d, ready to login' % me.n)
+        self.warning('connected, as slot %s, ready to login' % Util.slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 200, 250, 24, 22)
         pygame.display.flip()
         # FIXME: #1213251822 display MOTD in a monospaced font
@@ -2373,7 +2391,7 @@ class PhaseOutfit(Phase):
         self.run = True
         self.background("hubble-spire.jpg")
         self.text('netrek', 500, 100, 144)
-        self.text(opt.server, 500, 185, 72)
+        self.text(opt.chosen, 500, 185, 72)
         self.text('ship and race', 500, 255, 72)
         self.blame()
         pygame.display.flip()
@@ -2704,6 +2722,21 @@ class PhaseFlightTactical(PhaseFlight):
         r_phasers = galaxy.phasers_draw()
         pygame.display.update(o_phasers+r_planets+r_players+r_weapons+r_phasers)
 
+class PhaseDisconnected(Phase):
+    def __init__(self, screen):
+        Phase.__init__(self)
+        self.background("hubble-helix.jpg")
+        self.text('netrek', 500, 100, 144)
+        self.text(opt.chosen, 500, 185, 72)
+        self.text('disconnected', 500, 255, 72)
+        self.texts = Texts(['Connection was closed by the server.', '','You may have been idle for too long.','You may have a network problem.','You may have been ejected by vote.','You may have been freed by the captain in a clue game.','You may have been disconnected by the server owner.','','Please click.','','Technical data: read(2) returned zero on', nt.diagnostics()], 50, 455, 12, 32)
+        pygame.display.flip()
+        self.run = True
+        self.cycle()
+
+    def mb(self, event):
+        self.run = False
+
 """ Main Program
 """
 
@@ -2711,6 +2744,18 @@ class PhaseFlightTactical(PhaseFlight):
 if opt.server == None:
     mc = MetaClient.MetaClient()
     mc.query(opt.metaserver)
+
+nt = Client.Client(sp)
+if opt.tcp_only:
+    nt.mode_requested = COMM_TCP
+nt.cp_udp_req = cp_udp_req
+
+if opt.server != None:
+    opt.chosen = opt.server
+    if not nt.connect(opt.chosen, opt.port):
+        print "connection failed"
+        # server was requested on command line, but not available
+        sys.exit(1)
 
 pygame.init()
 size = width, height = 1000, 1000
@@ -2735,48 +2780,48 @@ pygame.display.flip()
 
 pending_outfit = False
 
-nt = Client.Client(sp)
 if opt.server == None:
     ph_splash = PhaseSplash(screen)
     # FIXME: discover servers from a cache
     ph_servers = PhaseServers(screen, mc)
-else:
-    ph_splash = PhaseSplash(screen)
-    if not nt.connect(opt.server, opt.port):
-        print "connection failed"
-        sys.exit(1)
+    del ph_servers
 
-if opt.tcp_only:
-    nt.mode_requested = COMM_TCP
-nt.cp_udp_req = cp_udp_req
-nt.send(cp_socket.data())
-nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
+while True:
 
-# PhaseQueue?
-# FIXME: if an SP_QUEUE packet is received, present this phase
-# FIXME: allow play on another server even while queued? [grin]
+    try:
+        nt.send(cp_socket.data())
+        nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
+        # PhaseQueue?
+        # FIXME: if an SP_QUEUE packet is received, present this phase
+        # FIXME: allow play on another server even while queued? [grin]
+        if opt.name == '':
+            ph_login = PhaseLogin(screen)
+        ph_outfit = PhaseOutfit(screen)
+        ph_galactic = PhaseFlightGalactic()
+        ph_tactical = PhaseFlightTactical()
 
-if opt.name == '':
-    ph_login = PhaseLogin(screen)
+        while True:
+            ph_outfit.do()
+            while me.status == POUTFIT: nt.recv()
+            ph_flight = ph_tactical
+            while True:
+                screen.blit(background, (0, 0))
+                pygame.display.flip()
+                ph_flight.do()
+                if me.status == POUTFIT: break
 
-ph_outfit = PhaseOutfit(screen)
-ph_galactic = PhaseFlightGalactic()
-ph_tactical = PhaseFlightTactical()
+    except Client.ServerDisconnectedError:
+        PhaseDisconnected(screen)
+    
+    if opt.server != None:
+        break
 
-while 1:
-    ph_outfit.do()
-    while me.status == POUTFIT: nt.recv()
-    ph_flight = ph_tactical
-    while 1:
-        screen.blit(background, (0, 0))
-        pygame.display.flip()
-        ph_flight.do()
-        if me.status == POUTFIT: break
-    # debugging
-    if opt.sp:
-        for n, ship in galaxy.ships.iteritems():
-            if ship == me or ship.sp_flags_cumulative_flags != 0: print "ship %d sp_flags %s sp_you %s" % (ship.n, hex(ship.sp_flags_cumulative_flags), hex(ship.sp_you_cumulative_flags))
+    # return to metaserver list
+    mc.query(opt.metaserver)
+    ph_servers = PhaseServers(screen, mc)
 
+print "exit"
+sys.exit(1)
 # FIXME: very little reason for outfit phase, default to automatically re-enter
 # FIXME: planets to be partial alpha in tactical view as ships close in?
 

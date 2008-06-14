@@ -22,3 +22,5 @@ def race_decode(input):
     elif input == 3: return 'O'
     return 'I'
 
+def slot_decode(input):
+    return '0123456789abcdefghijklmnopqrstuvwxyz'[input]

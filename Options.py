@@ -40,5 +40,8 @@ parser.add_option("--metaserver-refresh-interval",
 parser.add_option("--splash-time",
                   type="int", dest="splashtime", default="1000",
                   help="viewing delay for splash screen in milliseconds")
+parser.add_option("--no-backgrounds",
+                  action="store_true", dest="no_backgrounds", default=False,
+                  help="turn off the background images")
 (opt, args) = parser.parse_args()
 # FIXME: [--theme name] [host]

@@ -1,6 +1,12 @@
 import sys, socket, select, errno, time, struct
 from Constants import *
 
+class Error(Exception):
+    pass
+
+class ServerDisconnectedError(Error):
+    pass
+
 class Client:
     """ Netrek TCP & UDP Client
         for connection to a server to play or observe the game.
@@ -9,26 +15,28 @@ class Client:
     def __init__(self, sp):
         self.sp = sp
         self.bufsiz = 1024
-        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tcp.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.bufsiz)
         self.time = time.time()
-        self.tcp_connected = 0
         self.mode_requested = COMM_UDP
         self.mode = None
+        self.read = []
 
     def connect(self, host, port):
         """ connect via TCP to a game server, and prepare the UDP
         socket, returns True on success """
 
+        self.tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tcp.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.bufsiz)
+        
         # iterate through the addresses of the server host until one connects
         addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
         for family, socktype, proto, canonname, sockaddr in addresses:
             try:
                 self.sockaddr = sockaddr
                 self.tcp.connect(sockaddr)
-                self.tcp_connected = 1
+                self.mode = COMM_TCP
+                self.read = [self.tcp]
                 break
             except socket.error, (reason, explanation):
                 if reason == errno.ECONNREFUSED:
@@ -37,10 +45,8 @@ class Client:
                     print host, sockaddr, reason, explanation
                 continue
 
-        if not self.tcp_connected:
+        if self.mode == None:
             return False
-
-        self.mode = COMM_TCP
         
 	# test that the socket is connected
         self.tcp_peername = self.tcp.getpeername()
@@ -62,6 +68,7 @@ class Client:
         # our UDP connection will eventually be to the same host as the TCP
         self.udp_peerhost = self.tcp_peerhost
         self.udp_peerport = None
+        self.read.append(self.udp)
         return True
 
     def tcp_send(self, data):
@@ -85,9 +92,8 @@ class Client:
         # ... this could be detected and CP_UPDATES negotiation made
         # to reduce the update rate.
         while 1:
-            is_readable = [self.tcp, self.udp]
-            is_writable = []
-            is_error = []
+            is_readable = self.read
+            is_writable = is_error = []
             r, w, e = select.select(is_readable, is_writable, is_error, 0.04)
             if not r: return
             if self.udp in r:
@@ -108,7 +114,8 @@ class Client:
             # recv returned zero, indicating connection closure
             # FIXME: when server closes connection, offer to reconnect
             print "server disconnection"
-            sys.exit(1)
+            self.shutdown()
+            raise ServerDisconnectedError
         except socket.error, (reason, explanation):
             if reason == errno.EINTR: return
             print "tcp recv", reason, explanation
@@ -199,4 +206,11 @@ class Client:
     
     def shutdown(self):
         self.tcp.shutdown(socket.SHUT_RDWR)
+        self.tcp.close()
+        self.udp.close()
+        self.read = []
+        self.mode = None
 
+    def diagnostics(self):
+        (self.tcp_sockhost, self.tcp_sockport) = self.tcp_sockname
+        return "TCP: %s:%s -> %s:%s, UDP: %s -> %s" % (self.tcp_sockhost, self.tcp_sockport, self.tcp_peerhost, self.tcp_peerport, self.udp_sockport, self.udp_peerport)
