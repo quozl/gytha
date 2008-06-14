@@ -140,6 +140,7 @@ from Constants import *
 import Util
 import MetaClient
 import Client
+import MOTD
 from pygame.locals import *
 from Options import opt
 
@@ -191,40 +192,6 @@ def xy_to_dir(x, y):
     else:
         return int((math.atan2(x - 500, 500 - y) / math.pi * 128.0 + 0.5))
             
-def team_decode(input):
-    """ convert a team mask to a list
-    """
-    x = []
-    if input & FED: x.append(teams[FED])
-    if input & ROM: x.append(teams[ROM])
-    if input & KLI: x.append(teams[KLI])
-    if input & ORI: x.append(teams[ORI])
-    return x
-
-def race_decode(input):
-    """ convert a race number to letter
-    """
-    if input == 0: return 'F'
-    elif input == 1: return 'R'
-    elif input == 2: return 'K'
-    elif input == 3: return 'O'
-    return 'I'
-
-class MOTD:
-    """ message of the day """
-    def __init__(self):
-        self.list = []
-
-    def add(self, text):
-        self.list.append(text)
-        # FIXME: SP_MOTD has a separator between human text and server
-        # generated defaults, and the separator looks odd when
-        # displayed.
-        # \t@@@
-
-    def get(self):
-        return self.list
-
 class Planet:
     """ netrek planets
         each server has a number of planets
@@ -487,7 +454,7 @@ class Galaxy:
         self.torps = {}
         self.phasers = {}
         self.plasmas = {}
-        self.motd = MOTD()
+        self.motd = MOTD.MOTD()
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -960,7 +927,7 @@ class CP_OUTFIT(CP):
         self.tabulate(self.code, self.format)
 
     def data(self, race, ship=ASSAULT):
-        if opt.cp: print "CP_OUTFIT team=",race_decode(race),"ship=",ship
+        if opt.cp: print "CP_OUTFIT team=",Util.race_decode(race),"ship=",ship
         return struct.pack(self.format, self.code, race, ship)
 
 cp_outfit = CP_OUTFIT()
@@ -1412,7 +1379,7 @@ class SP_YOU(SP):
         global opt
         (ignored, pnum, hostile, swar, armies, tractor, flags, damage,
          shield, fuel, etemp, wtemp, whydead, whodead) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",team_decode(hostile),"swar=",team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
+        if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",Util.team_decode(hostile),"swar=",Util.team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
         ship = galaxy.ship(pnum)
         ship.sp_you(hostile, swar, armies, tractor, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
         if opt.name:
@@ -1458,7 +1425,7 @@ class SP_HOSTILE(SP):
 
     def handler(self, data):
         (ignored, pnum, war, hostile) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_HOSTILE pnum=",pnum,"war=",team_decode(war),"hostile=",team_decode(hostile)
+        if opt.sp: print "SP_HOSTILE pnum=",pnum,"war=",Util.team_decode(war),"hostile=",Util.team_decode(hostile)
         ship = galaxy.ship(pnum)
         ship.sp_hostile(war, hostile)
 
@@ -1472,7 +1439,7 @@ class SP_PLAYER_INFO(SP):
 
     def handler(self, data):
         (ignored, pnum, shiptype, team) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLAYER_INFO pnum=",pnum,"shiptype=",shiptype,"team=",team_decode(team)
+        if opt.sp: print "SP_PLAYER_INFO pnum=",pnum,"shiptype=",shiptype,"team=",Util.team_decode(team)
         ship = galaxy.ship(pnum)
         ship.sp_player_info(shiptype, team)
 
@@ -1587,7 +1554,7 @@ class SP_MASK(SP):
 
     def handler(self, data):
         (ignored, mask) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_MASK mask=",team_decode(mask)
+        if opt.sp: print "SP_MASK mask=",Util.team_decode(mask)
         global pending_outfit
         if pending_outfit:
             nt.send(cp_outfit.data(0))
@@ -1648,7 +1615,7 @@ class SP_TORP_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, tnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_TORP_INFO war=",team_decode(war),"status=",status,"tnum=",tnum
+        if opt.sp: print "SP_TORP_INFO war=",Util.team_decode(war),"status=",status,"tnum=",tnum
         torp = galaxy.torp(tnum)
         torp.sp_torp_info(war, status)
 
@@ -1676,7 +1643,7 @@ class SP_PLASMA_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, pnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLASMA_INFO war=",team_decode(war),"status=",status,"pnum=",pnum
+        if opt.sp: print "SP_PLASMA_INFO war=",Util.team_decode(war),"status=",status,"pnum=",pnum
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma_info(war, status)
 
