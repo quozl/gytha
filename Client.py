@@ -1,4 +1,4 @@
-import socket, select, errno, time, struct
+import sys, socket, select, errno, time, struct
 from Constants import *
 
 class Client:
@@ -180,14 +180,14 @@ class Client:
         if self.mode_requested != COMM_UDP:
             return
         if self.mode != COMM_UDP:
-            self.tcp.send(cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
+            self.tcp.send(self.cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
         
     def sp_udp_reply(self, reply, port):
         """ server acknowledged CP_UDP_REQ switch to udp mode """
         if reply == SWITCH_UDP_OK:
             self.udp_peerport = port
             self.udp.connect((self.udp_peerhost, self.udp_peerport))
-            self.udp.send(cp_udp_req.data(COMM_VERIFY, 0, 0))
+            self.udp.send(self.cp_udp_req.data(COMM_VERIFY, 0, 0))
             self.mode = COMM_UDP
         if reply == SWITCH_TCP_OK:
             self.mode = COMM_TCP
@@ -195,7 +195,7 @@ class Client:
     def udp_failure(self):
         # FIXME: test, when UDP connection severed, reset to TCP
         self.mode = COMM_TCP
-        self.tcp.send(cp_udp_req.data(COMM_TCP, 0, 0))
+        self.tcp.send(self.cp_udp_req.data(COMM_TCP, 0, 0))
     
     def shutdown(self):
         self.tcp.shutdown(socket.SHUT_RDWR)

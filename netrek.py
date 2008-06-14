@@ -2748,6 +2748,7 @@ else:
 
 if opt.tcp_only:
     nt.mode_requested = COMM_TCP
+nt.cp_udp_req = cp_udp_req
 nt.send(cp_socket.data())
 nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
 
