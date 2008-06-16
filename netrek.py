@@ -134,7 +134,7 @@ cp -p try.py /tmp/netrek-client-pygame/netrek
 cp `grep IMAGERY try.py|grep -v grep|cut -f2 -d:|sort|uniq` /tmp/netrek-client-pygame
 
 """
-import sys, time, socket, errno, select, struct, pygame, math
+import sys, time, socket, errno, select, struct, pygame, math, ctypes
 from Cache import *
 from Constants import *
 import Util
@@ -191,7 +191,7 @@ def xy_to_dir(x, y):
         return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
     else:
         return int((math.atan2(x - 500, 500 - y) / math.pi * 128.0 + 0.5))
-            
+
 class Planet:
     """ netrek planets
         each server has a number of planets
@@ -200,14 +200,24 @@ class Planet:
     """
     def __init__(self, n):
         self.n = n
+        self.x = -10001
+        self.y = -10001
         self.sp_planet_loc(-10000, -10000, '')
         self.sp_planet(0, 0, 0, 0)
         self.tactical = PlanetTacticalSprite(self)
         self.galactic = PlanetGalacticSprite(self)
+        self.nearby = False
 
     def sp_planet_loc(self, x, y, name):
-        self.x = x
-        self.y = y
+        if self.x != x or self.y != y:
+            self.x = x
+            self.y = y
+            t = 15000
+            # FIXME: try using rect here
+            self.box_left = self.x - t
+            self.box_top = self.y - t
+            self.box_right = self.x + t
+            self.box_bottom = self.y + t
         self.name = name
 
     def sp_planet(self, owner, info, flags, armies):
@@ -215,6 +225,16 @@ class Planet:
         self.info = info
         self.flags = flags
         self.armies = armies
+
+    def proximity(self, x, y):
+        if (self.box_left < x < self.box_right) and (self.box_top < y < self.box_bottom):
+            if not self.nearby:
+                self.nearby = True
+                self.tactical.show()
+        else:
+            if self.nearby:
+                self.nearby = False
+                self.tactical.hide()
 
 class Ship:
     """ netrek ships
@@ -224,6 +244,7 @@ class Ship:
     """
     def __init__(self, n):
         self.n = n
+        self.ppcf = 1 # special case
         self.sp_flags_cumulative_flags = 0
         self.sp_you_cumulative_flags = 0
         self.sp_pl_login(0, '', '', '')
@@ -287,6 +308,16 @@ class Ship:
         self.y = y
         # FIXME: display galactic border
         # FIXME: display speed
+        
+        # FIXME: do this less frequently, according to actual change
+        # of coordinate, or set a bounding box of no further check
+        # required, by taking the minima and maxima of the planet zones
+        global me
+        if (me == self):
+            self.ppcf = self.ppcf - 1
+            if (self.ppcf < 0):
+                galaxy.planets_proximity_check()
+                self.ppcf = 20
 
     def sp_flags(self, tractor, flags):
         self.tractor = tractor
@@ -314,6 +345,15 @@ class Ship:
             # brute force of exception handling
             pass
 
+    def debug_draw(self):
+        fx = 900
+        fy = self.n * 30
+        tx = 900 - (self.status * 10)
+        ty = fy
+        p = pygame.draw.line(screen, (255, 255, 255), (fx, fy), (tx, ty))
+        q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx - 200, ty))
+        return pygame.Rect.union(p, q)
+
 class Torp:
     """ netrek torps
         each netrek ship has eight netrek torps
@@ -324,6 +364,7 @@ class Torp:
         self.n = n
         self.ship = galaxy.ship(n / MAXTORP)
         self.explode = 0
+        self.fuse = 0
         self.status = TFREE
         self.sp_torp_info(0, self.status)
         self.sp_torp(0, 0, 0)
@@ -336,22 +377,39 @@ class Torp:
         self.war = war
         self.status = status
 
-        try:
-            if old == TFREE:
-                if status != TFREE:
-                    self.tactical.show()
-            else:
-                if status == TFREE:
-                    self.tactical.hide()
-                elif status == TEXPLODE:
-                    self.explode = nt.time + 2
-        except:
-            pass
+        if old == TFREE:
+            if status != TFREE:
+                try: self.tactical.show()
+                except: pass
+        else:
+            if status == TFREE:
+                try: self.tactical.hide()
+                except: pass
+            elif status == TEXPLODE:
+                self.explode = nt.time + 2
+                NUMDETFRAMES = 10
+                self.fuse = NUMDETFRAMES * opt.updates / 10 - 1;
+                # FIXME: use feature packet FPS and UPS not opt.updates
+                # because at five updates per second explosions are half size
 
     def sp_torp(self, dir, x, y):
+        if self.status == TEXPLODE:
+            self.fuse = self.fuse - 1
+            if self.fuse == 0:
+                self.status = TFREE
+                self.tactical.hide()
         self.dir = dir
         self.x = x
         self.y = y
+
+    def debug_draw(self):
+        fx = 0
+        fy = self.n * 3
+        tx = self.status * 50
+        ty = fy
+        p = pygame.draw.line(screen, (255, 255, 255), (fx, fy), (tx, ty))
+        q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx + 200, ty))
+        return pygame.Rect.union(p, q)
 
 class Phaser:
     """ netrek phasers
@@ -462,16 +520,32 @@ class Galaxy:
             self.planets[n] = planet
         return self.planets[n]
 
+    def planets_proximity_check(self):
+        for n, planet in self.planets.iteritems():
+            planet.proximity(me.x, me.y)
+
     def ship(self, n):
         if not self.ships.has_key(n):
             self.ships[n] = Ship(n)
         return self.ships[n]
 
+    def ship_debug_draw(self):
+        r = []
+        for n, ship in self.ships.iteritems():
+            r.append(ship.debug_draw())
+        return r
+    
     def torp(self, n):
         if not self.torps.has_key(n):
             self.torps[n] = Torp(n)
         return self.torps[n]
 
+    def torp_debug_draw(self):
+        r = []
+        for n, torp in self.torps.iteritems():
+            r.append(torp.debug_draw())
+        return r
+    
     def phaser(self, n):
         if not self.phasers.has_key(n):
             self.phasers[n] = Phaser(n)
@@ -628,7 +702,12 @@ class PlanetTacticalSprite(PlanetSprite):
         self.me_old_y = -1
         PlanetSprite.__init__(self, planet)
         self.pick()
+
+    def show(self):
         t_planets.add(self)
+
+    def hide(self):
+        t_planets.remove(self)
 
     def pick(self):
         self.mi_begin()
@@ -802,19 +881,27 @@ class TorpTacticalSprite(TorpSprite):
         TorpSprite.__init__(self, torp)
         self.teams = { FED: 'torp-fed.png', ROM: 'torp-rom.png', KLI: 'torp-kli.png', ORI: 'torp-ori.png' }
         self.types = { TFREE: 'netrek.png',
-                       TEXPLODE: 'torp-explode.png',
+                       TEXPLODE: 'torp-explode-200.png',
                        TDET: 'torp-det.png',
                        TOFF: 'torp-off.png',
                        TSTRAIGHT: 'torp-straight.png' }
         self.pick()
+        # FIXME: larger explosions, but limit if possible to area of
+        # damage determined by server for torpedo explosions.
+        # include/defs.h #define DAMDIST 2000
+        # tactical scale 1:20, therefore 100 pixels radius
 
     def update(self):
-        if self.torp.status != self.old_status:
+        if self.torp.status == TEXPLODE:
             self.old_status = self.torp.status
             self.pick()
+        else:
+            if self.torp.status != self.old_status:
+                self.old_status = self.torp.status
+                self.pick()
         self.rect.center = tactical_scale(self.torp.x, self.torp.y)
         if self.torp.status == TEXPLODE:
-            if nt.time > self.torp.explode:
+            if nt.time > self.torp.explode or self.torp.fuse <= 0:
                 self.hide()
     
     def pick(self):
@@ -827,13 +914,14 @@ class TorpTacticalSprite(TorpSprite):
                 self.image = ic.get(self.teams[self.torp.ship.team])
         else:
             # IMAGERY: torp-explode.png
-            image = self.types[self.torp.status]
-            self.image = ic.get(image)
+            # IMAGERY: torp-explode-*.png
+            exp = ['torp-explode-20.png', 'torp-explode-40.png', 'torp-explode-60.png', 'torp-explode-80.png', 'torp-explode-100.png', 'torp-explode-120.png', 'torp-explode-140.png', 'torp-explode-160.png', 'torp-explode-180.png', 'torp-explode-200.png']
+            try:
+                self.image = ic.get(exp[self.torp.fuse])
+            except:
+                self.image = ic.get('torp-explode.png')
         
         # FIXME: animate torps
-        # FIXME: server does not inform us when exploded torps are
-        # finished exploding, so we have to run a counter of some
-        # sort.
         self.rect = self.image.get_rect()
         
     def show(self):
@@ -2024,30 +2112,67 @@ class Field:
         self.value = ""
         self.redraw()
 
+""" animations
+"""
+
+class Bouncer():
+    """ two torps following an orbital ellipse around an invisible mass """
+    def __init__(self, ex, ey, cx, cy, n1='torp-me.png', n2='torp-me.png'):
+        self.ex = ex
+        self.ey = ey
+        self.cx = cx
+        self.cy = cy
+        self.l = Icon(n1, self.cx+50, self.cy)
+        self.l.draw()
+        self.r = Icon(n2, self.cx-50, self.cy)
+        self.r.draw()
+
+    def update(self, pos, max):
+        r = []
+        r.append(self.l.clear())
+        r.append(self.r.clear())
+        x = self.ex * math.sin(pos * math.pi / max)
+        y = self.ey * math.cos(pos * math.pi / max)
+        self.l.move(500 - x, self.cy - y)
+        self.r.move(500 + x, self.cy + y)
+        r.append(self.l.draw())
+        r.append(self.r.draw())
+        pygame.display.update(r)
+
 """ user interface display phases
 """
 
 class Phase:
     def __init__(self):
-        self.warning_on = False
+        self.warn_on = False
+        self.warn_fuse = 0
+        self.ue_hz = 10
+        self.ue_delay = 1000 / self.ue_hz
         self.screenshot = 0
         self.run = False
 
-    def warning(self, message):
+    def warn(self, message, ms=0):
         font = fc.get('DejaVuSans.ttf', 32)
         text = font.render(message, 1, (255, 127, 127))
-        self.warning_br = text.get_rect(center=(screen.get_width()/2,
-                                                screen.get_height()-90))
-        self.warning_bg = screen.subsurface(self.warning_br).copy()
-        r1 = screen.blit(text, self.warning_br)
+        self.warn_br = text.get_rect(center=(screen.get_width()/2,
+                                             screen.get_height()-90))
+        self.warn_bg = screen.subsurface(self.warn_br).copy()
+        r1 = screen.blit(text, self.warn_br)
         pygame.display.update(r1)
-        self.warning_on = True
+        self.warn_on = True
+        self.warn_fuse = ms / self.ue_delay
 
-    def unwarning(self):
-        if self.warning_on:
-            r1 = screen.blit(self.warning_bg, self.warning_br)
+    def unwarn(self):
+        if self.warn_on:
+            r1 = screen.blit(self.warn_bg, self.warn_br)
             pygame.display.update(r1)
-            self.warning_on = False
+            self.warn_on = False
+
+    def warn_ue(self):
+        if self.warn_fuse > 0:
+            self.warn_fuse = self.warn_fuse - 1
+            if self.warn_fuse == 0:
+                self.unwarn()
         
     def background(self, name="stars.png"):
         # tile a background image onto the screen
@@ -2092,11 +2217,6 @@ class Phase:
             screen.blit(ts, tr)
 
     def network_sink(self):
-        # FIXME: select for *either* pygame events or network events.
-        # Currently the code is suboptimal because it waits on network
-        # events with a timeout of a twentieth of a second, after which it
-        # checks for pygame events.  Therefore pygame events are delayed
-        # by up to a twentieth of a second.
         nt.recv()
         
     def display_sink_event(self, event):
@@ -2109,6 +2229,8 @@ class Phase:
             sys.exit(0)
         elif event.type == pygame.MOUSEMOTION:
             self.mm(event)
+        elif event.type > pygame.USEREVENT:
+            self.ue(event)
         
     def display_sink(self):
         for event in pygame.event.get():
@@ -2118,6 +2240,17 @@ class Phase:
         event = pygame.event.wait()
         self.display_sink_event(event)
 
+    def ue(self, event):
+        pass
+
+    def ue_set(self, hz):
+        self.ue_hz = hz
+        self.ue_delay = 1000 / hz
+        pygame.time.set_timer(pygame.USEREVENT+1, self.ue_delay)
+
+    def ue_clear(self):
+        pygame.time.set_timer(pygame.USEREVENT+1, 0)
+        
     def mm(self, event):
         # FIXME: watch for MOUSEMOTION and update object information panes
         # for planets or ships (on tactical or galactic)
@@ -2140,25 +2273,64 @@ class Phase:
             self.screenshot += 1
 
     def cycle(self):
+        """ free wheeling cycle, use when it is acceptable to block on
+        either display or network events, without local user event
+        timers """
         while self.run:
             self.network_sink()
             self.display_sink()
     
+    def cycle_wait(self):
+        """ display waiting cycle, use when local user event timers
+        are needed """
+        while self.run:
+            self.network_sink()
+            self.display_sink_wait()
+    
+    def cycle_wait_display(self):
+        """ display waiting cycle, use when local user event timers
+        are needed, and no network events """
+        while self.run:
+            self.display_sink_wait()
+    
 class PhaseSplash(Phase):
-    """ splash screen, shows license for a short time """
+    """ splash screen, shows license for a short time, and the player
+    is to either wait for the timer to expire, or click to cancel """
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
-        self.text("netrek", screen.get_width()/2, screen.get_height()/2, 144)
+        x = screen.get_width()/2
+        y = screen.get_height()/2
+        self.text("netrek", x, y, 144)
+        self.bouncer = Bouncer(200, 200, x, y, 'torp-explode-20.png', 'torp-explode-20.png')
         self.license()
         pygame.display.flip()
-        pygame.time.wait(opt.splashtime)
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-splash.tga")
-        # FIXME: add neat animation
-        # FIXME: allow click-through (click to cancel wait)
+        self.ue_set(100)
+        self.fuse_was = self.fuse = opt.splashtime / self.ue_delay
+        self.run = True
+        self.cycle_wait_display()
+        self.ue_clear()
+
+    def ue(self, event):
+        self.bouncer.update(self.fuse, self.fuse_was)
+        self.fuse -= 1
+        if self.fuse < 0:
+            self.run = False
+
+    def mb(self, event):
+        self.run = False
+
+    def kb(self, event):
+        self.run = False
 
 class PhaseServers(Phase):
+    """ metaserver list, a list of services is shown, the list is
+    derived from the metaserver and multicast discovery, and the
+    player is to either select one with mouse, wait for the list to
+    update, or quit """
+    # FIXME: add an explicit quit button
     def __init__(self, screen, mc):
         Phase.__init__(self)
         self.background("hubble-orion.jpg")
@@ -2166,25 +2338,29 @@ class PhaseServers(Phase):
         self.text('server list', 500, 175, 64)
         self.license()
         pygame.display.flip()
-        self.bouncer_y = 240
-        self.bouncer_l = Icon('torp-me.png', 550, self.bouncer_y)
-        self.bouncer_l.draw()
-        self.bouncer_r = Icon('torp-me.png', 450, self.bouncer_y)
-        self.bouncer_r.draw()
-
+        self.bouncer = Bouncer(225, 20, 500, 240)
         self.dy = 40 # vertical spacing
         self.n = 0 # number of servers shown so far
         self.run = True
         self.mc = mc
         self.mc.uncork(self.update)
-        self.refresh_interval = opt.metaserver_refresh_interval * 10
-        self.refresh = self.refresh_interval / 2
-        self.cycle()
+        self.timing = False
+        self.sent = pygame.time.get_ticks()
+        self.lag = 0
+        self.ue_set(100)
+        self.fuse_was = opt.metaserver_refresh_interval * 1000 / self.ue_delay
+        self.fuse = self.fuse_was / 2
+        self.cycle_wait()
+        self.ue_clear()
         
     def update(self, name):
         """ called by MetaClient for each server for which a packet is received
         """
         server = self.mc.servers[name]
+        if self.timing and server['source'] == 'r':
+            self.lag = pygame.time.get_ticks() - self.sent
+            self.warn('ping ' + str(self.lag) + 'ms', 1500)
+            self.timing = False
         if not server.has_key('y'):
             y = 300 + self.dy * self.n
             self.n += 1
@@ -2194,8 +2370,6 @@ class PhaseServers(Phase):
                 sprite.clear()
         s = []
         # per server icon
-        # FIXME: icon per server type?
-        # FIXME: icon better than this one
         # IMAGERY: servers-icon.png
         s.append(Icon('servers-icon.png', 50, y))
         # server name, shade by age
@@ -2229,30 +2403,25 @@ class PhaseServers(Phase):
     def network_sink(self):
         self.mc.recv()
 
-        r = []
-        r.append(self.bouncer_l.clear())
-        r.append(self.bouncer_r.clear())
-        x = 225 * math.sin(self.refresh * math.pi / self.refresh_interval)
-        y =  20 * math.cos(self.refresh * math.pi / self.refresh_interval)
-        self.bouncer_l.move(500 - x, self.bouncer_y - y)
-        self.bouncer_r.move(500 + x, self.bouncer_y + y)
-        r.append(self.bouncer_l.draw())
-        r.append(self.bouncer_r.draw())
-        pygame.display.update(r)
+    def ue(self, event):
+        self.warn_ue()
+        self.bouncer.update(self.fuse, self.fuse_was)
 
-        self.refresh -= 1
-        if self.refresh < 0:
+        self.fuse -= 1
+        if self.fuse < 0:
+            self.sent = pygame.time.get_ticks()
+            self.timing = True
             self.mc.query(opt.metaserver)
-            self.refresh = self.refresh_interval
+            self.fuse = self.fuse_was
 
     def mb(self, event):
-        self.unwarning()
+        self.unwarn()
         if event.button != 1:
-            self.warning('not that button, mate')
+            self.warn('not that button, mate', 500)
             return
         y = event.pos[1]
-        if abs(self.bouncer_y - y) < 50:
-            self.warning('that is the metaserver query refresh timer, mate')
+        if abs(self.bouncer.cy - y) < 50:
+            self.warn('that is the metaserver query refresh timer, mate', 2000)
             return
         distance = self.dy
         chosen = None
@@ -2262,35 +2431,38 @@ class PhaseServers(Phase):
                 distance = dy
                 chosen = v['name']
         if chosen == None:
-            self.warning('click on a server, mate')
+            self.warn('click on a server, mate', 1000)
             return
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
-        self.warning('connecting, standby')
+        self.warn('connecting, standby')
         opt.chosen = chosen
         # FIXME: do not block and hang during connect, do it asynchronously
         if not nt.connect(opt.chosen, opt.port):
             # FIXME: handle connection failure more gracefully by
             # explaining what went wrong, rather than be this obtuse
-            self.unwarning()
-            self.warning('connection failure')
+            self.unwarn()
+            self.warn('connection failure', 2000)
             return
         self.run = False
 
 class PhaseLogin(Phase):
+    """ login, the server message of the day (MOTD) is displayed, and
+    the player is to type a character name and password, the name may
+    be guest, or the player may quit """
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
         self.text('netrek', 500, 100, 92)
         self.text(opt.chosen, 500, 185, 64)
         self.blame()
-        self.warning('connected, waiting for slot, standby')
+        self.warn('connected, waiting for slot, standby')
         pygame.display.flip()
         # pause until SP_YOU is received, which marks end of SP_MOTD
         while me == None:
             nt.recv()
-        self.unwarning()
-        self.warning('connected, as slot %s, ready to login' % Util.slot_decode(me.n))
+        self.unwarn()
+        self.warn('connected, as slot %s, ready to login' % Util.slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
         pygame.display.flip()
         self.name = Field("type a name ? ", "", 500, 750)
@@ -2303,7 +2475,6 @@ class PhaseLogin(Phase):
         self.cycle()
 
     def exit(self):
-        print "PhaseLogin exit"
         nt.send(cp_bye.data())
         nt.shutdown()
         self.run = False
@@ -2337,9 +2508,9 @@ class PhaseLogin(Phase):
 
     def throw_sp_login_attempt(self, accept, flags, keymap):
         if accept == 1:
-            self.warning('server has this name listed')
+            self.warn('server has this name listed')
         else:
-            self.warning('server ignorant of this name')
+            self.warn('server ignorant of this name')
         
     def catch_sp_login_attempt(self):
         global sp_login
@@ -2354,7 +2525,7 @@ class PhaseLogin(Phase):
         if accept == 1:
             self.run = False
         else:
-            self.warning('name and password refused by server')
+            self.warn('name and password refused by server')
             self.password.value = ''
             self.password.unhighlight()
             self.focused = self.name
@@ -2371,7 +2542,7 @@ class PhaseLogin(Phase):
             self.focused.redraw()
 
     def kb(self, event):
-        self.unwarning()
+        self.unwarn()
         shift = (event.mod == pygame.KMOD_SHIFT or
                  event.mod == pygame.KMOD_LSHIFT or
                  event.mod == pygame.KMOD_RSHIFT)
@@ -2400,6 +2571,13 @@ class PhaseLogin(Phase):
         pass
     
 class PhaseOutfit(Phase):
+    """ team and ship selection, the available teams and ships are
+    displayed, and the player may select one, or quit """
+    # FIXME: automatic quit timeout display
+    # FIXME: add a become observer button that disconnects, reconnects, using same login credentials
+    # FIXME: add a become player button as above
+    # FIXME: add a relinquish slot button, for rejoining end of queue
+    # FIXME: add a BACK button that disconnects, reconnects, for login
     def __init__(self, screen):
         Phase.__init__(self)
         self.run = True
@@ -2446,7 +2624,7 @@ class PhaseOutfit(Phase):
         # FIXME: show logged in players
         # FIXME: show planet status
         # FIXME: show whydead
-        self.warning("in netrek all races are equal")
+        self.warn("in netrek all races are equal")
         pygame.display.update(r)
         sp_mask.catch(self.mask)
         if opt.screenshots:
@@ -2482,8 +2660,8 @@ class PhaseOutfit(Phase):
         if state == 1:
             self.run = False
         else:
-            self.unwarning()
-            self.warning('outfit request refused by server')
+            self.unwarn()
+            self.warn('outfit request refused by server')
 
     def nearest(self, pos):
         (x, y) = pos
@@ -2498,27 +2676,27 @@ class PhaseOutfit(Phase):
         return nearest
     
     def mb(self, event):
-        self.unwarning()
+        self.unwarn()
         nearest = self.nearest(event.pos)
         if nearest != None:
             (bx, by, ship, team, description) = nearest
             self.team(teams_numeric[team], ship)
         else:
-            self.warning('click on a ship, mate')
+            self.warn('click on a ship, mate')
         # FIXME: click on team icon sends CP_OUTFIT most recent ship
         # FIXME: click on ship icon requests CP_OUTFIT with team and ship
         
     def mm(self, event):
         nearest = self.nearest(event.pos)
         if nearest != self.box:
-            self.unwarning()
+            self.unwarn()
             if nearest != None:
                 (bx, by, ship, team, description) = nearest
-                self.warning(description)
+                self.warn(description)
             self.box = nearest
         
     def kb(self, event):
-        self.unwarning()
+        self.unwarn()
         shift = (event.mod == pygame.KMOD_SHIFT or
                  event.mod == pygame.KMOD_LSHIFT or
                  event.mod == pygame.KMOD_RSHIFT)
@@ -2687,7 +2865,6 @@ class PhaseFlightGalactic(PhaseFlight):
     def do(self):
         self.run = True
         screen.blit(background, (0, 0))
-        pygame.display.flip()
         self.cycle()
         
     def kb(self, event):
@@ -2711,7 +2888,6 @@ class PhaseFlightTactical(PhaseFlight):
     def do(self):
         self.run = True
         screen.blit(background, (0, 0))
-        pygame.display.flip()
         self.cycle()
         
     def kb(self, event):
@@ -2741,6 +2917,11 @@ class PhaseFlightTactical(PhaseFlight):
         r_weapons = t_weapons.draw(screen)
         r_phasers = galaxy.phasers_draw()
         pygame.display.update(o_phasers+r_planets+r_players+r_weapons+r_phasers)
+        #r_debug = galaxy.torp_debug_draw()
+        #pygame.display.update(r_debug)
+        #r_debug = galaxy.ship_debug_draw()
+        #pygame.display.update(r_debug)
+
 
 class PhaseDisconnected(Phase):
     def __init__(self, screen):
@@ -2753,6 +2934,10 @@ class PhaseDisconnected(Phase):
         pygame.display.flip()
         self.run = True
         self.cycle()
+        # FIXME: show last few lines of message log
+        # FIXME: handle badversion here too
+        # FIXME: if freed by captain in clue game from player slot automatically return as an observer slot
+        # FIXME: offer rejoin as player and rejoin as observer buttons
 
     def mb(self, event):
         self.run = False
@@ -2773,6 +2958,22 @@ def nt_init():
         nt.mode_requested = COMM_TCP
     nt.cp_udp_req = cp_udp_req
     return nt
+
+def pg_fd():
+    """ lift the hood on pygame and find the file descriptor that it
+    expects graphics events to arrive from, so that it can be used in
+    select, contributed by coderanger on #pygame and #olpc-devel """
+    try:
+        w = pygame.display.get_wm_info()
+        w = w['display']
+        n = int(str(w)[23:-1], 16)
+        n = ctypes.cast(n+8, ctypes.POINTER(ctypes.c_int)).contents.value
+        n = ctypes.cast(n+8, ctypes.POINTER(ctypes.c_int)).contents.value
+    except:
+        print "unable to identify file descriptor of X socket, slowing"
+        return
+    nt.set_pg_fd(n)
+    if mc: mc.set_pg_fd(n)
 
 def pg_init():
     global t_planets, t_players, t_weapons, galactic, background
@@ -2797,6 +2998,7 @@ def pg_init():
     screen.blit(background, (0, 0))
     # FIXME: allow user to select graphics theme, default on XO is to be white with oysters, otherwise use stars, planets, and ships.
     pygame.display.flip()
+    pg_fd()
     return screen
 
 def mc_prompt():
@@ -2822,7 +3024,7 @@ def nt_play():
                 if ph_login.quit:
                     # return to metaserver list
                     mc_reprompt()
-                    break
+                    continue
 
             ph_outfit = PhaseOutfit(screen)
             ph_galactic = PhaseFlightGalactic()
@@ -2851,6 +3053,7 @@ def nt_play():
 def main(args=[]):
     global screen, mc, nt
 
+    mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()
     if opt.server != None:
@@ -2885,3 +3088,9 @@ if __name__ == '__main__':
 
 # FIXME: add graphic indicator of connection status
 # FIXME: discover servers from a cache
+
+# FIXME: when other slot frees, free all torps
+
+# FIXME: add a help aka documentation button on metaserver list, also
+# accessible from other modes but will force a disconnection from
+# server, to contain tutorial, ship classes, and rank information.

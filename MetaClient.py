@@ -11,6 +11,13 @@ class MetaClient:
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.spout = None
         self.servers = {}
+        self.fd = [self.socket]
+        self.timeout = 0.1
+
+    def set_pg_fd(self, n):
+        self.x = n
+        self.fd.append(n)
+        self.timeout = 0
 
     def uncork(self, spout):
         self.spout = spout
@@ -29,21 +36,17 @@ class MetaClient:
                     print sockaddr, "bad"
     
     def recv(self):
-        if not self.spout:
-            return
-        while 1:
-            is_readable = [self.socket]
-            is_writable = []
-            is_error = []
-            r, w, e = select.select(is_readable, is_writable, is_error, 0.1)
-            if not r: return
+        r, w, e = select.select(self.fd, [], [], self.timeout)
+        if self.socket in r:
+            if not self.spout:
+                print "suboptimal, mc recv spout unready"
+                return
             try:
                 (text, address) = self.socket.recvfrom(2048)
-                break
+                if text[0] == 's': self.version_s(text, address)
+                elif text[0] == 'r': self.version_r(text)
             except:
-                return
-        if text[0] == 's': self.version_s(text, address)
-        elif text[0] == 'r': self.version_r(text)
+                pass
 
     def version_s(self, text, address):
         unpack = text.split(',')
@@ -57,6 +60,7 @@ class MetaClient:
         server['status'] = 2
         if server['type'] == 'unknown': server['status'] = 3
         server['age'] = 0
+        server['source'] = 's'
         self.update(server)
 
     def version_r(self, text):
@@ -70,6 +74,7 @@ class MetaClient:
             server['players'] = int(players)
             server['queue'] = int(queue)
             server['comment'] = ''
+            server['source'] = 'r'
             self.update(server)
 
     def update(self, server):

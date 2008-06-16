@@ -11,14 +11,21 @@ class Client:
     """ Netrek TCP & UDP Client
         for connection to a server to play or observe the game.
     """
-    # FIXME: add UDP client
     def __init__(self, sp):
         self.sp = sp
         self.bufsiz = 1024
         self.time = time.time()
         self.mode_requested = COMM_UDP
         self.mode = None
-        self.read = []
+        self.x = None
+        self.timeout = 0.04
+        self.fd = []
+        self.tcp = self.udp = -1
+
+    def set_pg_fd(self, n):
+        self.x = n
+        self.fd.append(n)
+        self.timeout = None
 
     def connect(self, host, port):
         """ connect via TCP to a game server, and prepare the UDP
@@ -36,7 +43,7 @@ class Client:
                 self.sockaddr = sockaddr
                 self.tcp.connect(sockaddr)
                 self.mode = COMM_TCP
-                self.read = [self.tcp]
+                self.fd.append(self.tcp)
                 break
             except socket.error, (reason, explanation):
                 if reason == errno.ECONNREFUSED:
@@ -68,7 +75,7 @@ class Client:
         # our UDP connection will eventually be to the same host as the TCP
         self.udp_peerhost = self.tcp_peerhost
         self.udp_peerport = None
-        self.read.append(self.udp)
+        self.fd.append(self.udp)
         return True
 
     def tcp_send(self, data):
@@ -85,21 +92,11 @@ class Client:
 
     def recv(self):
         """ check for and process data arriving from the server """
-        # FIXME: a network update may cost more local time in
-        # processing than the time between updates from the server,
-        # which results in a pause to display updates since this
-        # function does not return until the network queue is empty
-        # ... this could be detected and CP_UPDATES negotiation made
-        # to reduce the update rate.
-        while 1:
-            is_readable = self.read
-            is_writable = is_error = []
-            r, w, e = select.select(is_readable, is_writable, is_error, 0.04)
-            if not r: return
-            if self.udp in r:
-                self.udp_readable()
-            if self.tcp in r:
-                self.tcp_readable()
+        r, w, e = select.select(self.fd, [], [], self.timeout)
+        if self.udp in r:
+            self.udp_readable()
+        if self.tcp in r:
+            self.tcp_readable()
 
     def tcp_readable(self):
         """ process TCP data, socket file descriptor is readable, and
@@ -112,7 +109,6 @@ class Client:
                 self.tcp_read_more(byte, self.tcp)
                 return
             # recv returned zero, indicating connection closure
-            # FIXME: when server closes connection, offer to reconnect
             print "server disconnection"
             self.shutdown()
             raise ServerDisconnectedError
@@ -206,9 +202,10 @@ class Client:
     
     def shutdown(self):
         self.tcp.shutdown(socket.SHUT_RDWR)
+        self.fd.remove(self.tcp)
         self.tcp.close()
+        self.fd.remove(self.udp)
         self.udp.close()
-        self.read = []
         self.mode = None
 
     def diagnostics(self):
