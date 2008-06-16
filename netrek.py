@@ -355,7 +355,6 @@ class Torp:
     def __init__(self, n):
         self.n = n
         self.ship = galaxy.ship(n / MAXTORP)
-        self.explode = 0
         self.fuse = 0
         self.status = TFREE
         self.sp_torp_info(0, self.status)
@@ -363,12 +362,10 @@ class Torp:
         self.tactical = TorpTacticalSprite(self)
 
     def sp_torp_info(self, war, status):
-        old = self.status
-
+        was = self.status
         self.war = war
         self.status = status
-
-        if old == TFREE:
+        if was == TFREE:
             if status != TFREE:
                 try: self.tactical.show()
                 except: pass
@@ -376,22 +373,30 @@ class Torp:
             if status == TFREE:
                 try: self.tactical.hide()
                 except: pass
+                self.x = -10000
+                self.y = -10000
             elif status == TEXPLODE:
-                self.explode = nt.time + 2
+                galaxy.te.append(self)
                 NUMDETFRAMES = 10
-                self.fuse = NUMDETFRAMES * opt.updates / 10 - 1;
+                self.fuse = NUMDETFRAMES * opt.updates / 10;
                 # FIXME: use feature packet FPS and UPS not opt.updates
                 # because at five updates per second explosions are half size
 
     def sp_torp(self, dir, x, y):
-        if self.status == TEXPLODE:
-            self.fuse = self.fuse - 1
-            if self.fuse == 0:
-                self.status = TFREE
-                self.tactical.hide()
         self.dir = dir
         self.x = x
         self.y = y
+
+    def aging(self):
+        """ if torp is exploding, decrement the explosion sequence fuse """
+        if self.status == TEXPLODE:
+            self.fuse -= 1
+            if self.fuse <= 0:
+                galaxy.te.remove(self)
+                self.tactical.hide()
+                self.x = -10000
+                self.y = -10000
+                self.status = TFREE
 
     def debug_draw(self):
         fx = 0
@@ -489,7 +494,7 @@ class Plasma:
                 if status == TFREE:
                     self.tactical.hide()
                 elif status == TEXPLODE:
-                    self.explode = nt.time + 2
+                    pass
         except:
             pass
 
@@ -502,6 +507,7 @@ class Galaxy:
         self.planets = {}
         self.ships = {}
         self.torps = {}
+        self.te = [] # exploding torps
         self.phasers = {}
         self.plasmas = {}
         self.motd = MOTD.MOTD()
@@ -531,6 +537,10 @@ class Galaxy:
         if not self.torps.has_key(n):
             self.torps[n] = Torp(n)
         return self.torps[n]
+
+    def torp_aging(self):
+        for t in self.te:
+            t.aging()
 
     def torp_debug_draw(self):
         r = []
@@ -875,12 +885,9 @@ class TorpTacticalSprite(TorpSprite):
                        TOFF: 'torp-off.png',
                        TSTRAIGHT: 'torp-straight.png' }
         self.pick()
-        # FIXME: larger explosions, but limit if possible to area of
-        # damage determined by server for torpedo explosions.
-        # include/defs.h #define DAMDIST 2000
-        # tactical scale 1:20, therefore 100 pixels radius
 
     def update(self):
+        # torp image changes only while exploding or change of status
         if self.torp.status == TEXPLODE:
             self.old_status = self.torp.status
             self.pick()
@@ -889,9 +896,6 @@ class TorpTacticalSprite(TorpSprite):
                 self.old_status = self.torp.status
                 self.pick()
         self.rect.center = tactical_scale(self.torp.x, self.torp.y)
-        if self.torp.status == TEXPLODE:
-            if nt.time > self.torp.explode or self.torp.fuse <= 0:
-                self.hide()
     
     def pick(self):
         if self.torp.status == TMOVE:
@@ -901,7 +905,7 @@ class TorpTacticalSprite(TorpSprite):
             else:
                 # IMAGERY: torp-???.png
                 self.image = ic.get(self.teams[self.torp.ship.team])
-        else:
+        elif self.torp.status == TEXPLODE:
             # IMAGERY: torp-explode.png
             # IMAGERY: torp-explode-*.png
             exp = ['torp-explode-20.png', 'torp-explode-40.png', 'torp-explode-60.png', 'torp-explode-80.png', 'torp-explode-100.png', 'torp-explode-120.png', 'torp-explode-140.png', 'torp-explode-160.png', 'torp-explode-180.png', 'torp-explode-200.png']
@@ -909,15 +913,16 @@ class TorpTacticalSprite(TorpSprite):
                 self.image = ic.get(exp[self.torp.fuse])
             except:
                 self.image = ic.get('torp-explode.png')
+        else:
+            self.image = ic.get('netrek.png')
         
-        # FIXME: animate torps
         self.rect = self.image.get_rect()
         
     def show(self):
-        t_weapons.add(self)
+        t_torps.add(self)
 
     def hide(self):
-        t_weapons.remove(self)
+        t_torps.remove(self)
 
 """ netrek protocol documentation, from server include/packets.h
 
@@ -1475,6 +1480,8 @@ class SP_YOU(SP):
         if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",Util.team_decode(hostile),"swar=",Util.team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
         ship = galaxy.ship(pnum)
         ship.sp_you(hostile, swar, armies, tractor, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
+        if nt.mode == COMM_TCP and ship.speed == 0:
+            galaxy.torp_aging()
         if opt.name:
             nt.send(cp_updates.data(1000000/opt.updates))
             nt.send(cp_login.data(0, opt.name, opt.password, opt.login))
@@ -1577,6 +1584,8 @@ class SP_PLAYER(SP):
         if opt.sp: print "SP_PLAYER pnum=",pnum,"dir=",dir,"speed=",speed,"x=",x,"y=",y
         ship = galaxy.ship(pnum)
         ship.sp_player(dir, speed, x, y)
+        if nt.mode == COMM_TCP and ship == me:
+            galaxy.torp_aging()
 
 sp_player = SP_PLAYER()
 
@@ -1704,7 +1713,7 @@ class SP_TORP_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, tnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_TORP_INFO war=",Util.team_decode(war),"status=",status,"tnum=",tnum
+        if opt.sp: print "SP_TORP_INFO war=%s status=%d tnum=%d" % (str(Util.team_decode(war)), status, tnum)
         torp = galaxy.torp(tnum)
         torp.sp_torp_info(war, status)
 
@@ -1718,7 +1727,7 @@ class SP_TORP(SP):
 
     def handler(self, data):
         (ignored, dir, tnum, x, y) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_TORP dir=",dir,"tnum=",tnum,"x=",x,"y=",y
+        if opt.sp: print "SP_TORP dir=%d tnum=%d x=%d y=%d" % (dir, tnum, x, y)
         torp = galaxy.torp(tnum)
         torp.sp_torp(dir, x, y)
 
@@ -1944,6 +1953,7 @@ class SP_SEQUENCE(SP):
 
     def handler(self, data):
         (ignored, flag, sequence) = struct.unpack(self.format, data)
+        galaxy.torp_aging()
         if opt.sp: print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
 
 sp_sequence = SP_SEQUENCE()
@@ -2895,15 +2905,15 @@ class PhaseFlightTactical(PhaseFlight):
         
     def update(self):
         o_phasers = galaxy.phasers_undraw()
-        t_weapons.clear(screen, background)
+        t_torps.clear(screen, background)
         t_players.clear(screen, background)
         t_planets.clear(screen, background)
         t_planets.update()
         t_players.update()
-        t_weapons.update()
+        t_torps.update()
         r_planets = t_planets.draw(screen)
         r_players = t_players.draw(screen)
-        r_weapons = t_weapons.draw(screen)
+        r_weapons = t_torps.draw(screen)
         r_phasers = galaxy.phasers_draw()
         pygame.display.update(o_phasers+r_planets+r_players+r_weapons+r_phasers)
         #r_debug = galaxy.torp_debug_draw()
@@ -2965,7 +2975,7 @@ def pg_fd():
     if mc: mc.set_pg_fd(n)
 
 def pg_init():
-    global t_planets, t_players, t_weapons, galactic, background
+    global t_planets, t_players, t_torps, galactic, background
     
     pygame.init()
     size = width, height = 1000, 1000
@@ -2979,7 +2989,7 @@ def pg_init():
 
     t_planets = pygame.sprite.OrderedUpdates(())
     t_players = pygame.sprite.OrderedUpdates(())
-    t_weapons = pygame.sprite.OrderedUpdates(())
+    t_torps = pygame.sprite.OrderedUpdates(())
     galactic = pygame.sprite.OrderedUpdates(())
 
     background = screen.copy()
