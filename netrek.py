@@ -125,14 +125,6 @@ in a few days.
 -Grey Elf
 markiel@callisto.pas.rochester.edu
 
-------------------------------
-
-temporary release instructions
-
-mkdir /tmp/netrek-client-pygame
-cp -p try.py /tmp/netrek-client-pygame/netrek
-cp `grep IMAGERY try.py|grep -v grep|cut -f2 -d:|sort|uniq` /tmp/netrek-client-pygame
-
 """
 import sys, time, socket, errno, select, struct, pygame, math, ctypes
 from Cache import *
