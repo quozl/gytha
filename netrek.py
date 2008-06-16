@@ -1047,7 +1047,7 @@ class CP_DIRECTION(CP):
 
     def data(self, direction):
         if opt.cp: print "CP_DIRECTION direction=",direction
-        return struct.pack(self.format, self.code, direction)
+        return struct.pack(self.format, self.code, direction & 255)
 
 cp_direction = CP_DIRECTION()
 
@@ -1191,7 +1191,7 @@ class CP_TORP(CP):
 
     def data(self, direction):
         if opt.cp: print "CP_TORP direction=",direction
-        return struct.pack(self.format, self.code, direction)
+        return struct.pack(self.format, self.code, direction & 255)
 
 cp_torp = CP_TORP()
 
