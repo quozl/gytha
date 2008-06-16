@@ -1958,32 +1958,6 @@ class SP_SEQUENCE(SP):
 
 sp_sequence = SP_SEQUENCE()
 
-## end of server packets
-
-## from Xlib.display import Display
-## from Xlib import X
-## class XlibEventSource:
-##     """ incomplete code for obtaining an Xlib event source that can be
-##     used to wake the client when keyboard or mouse events occur,
-##     usable by select.
-##     """
-##     def handle_event(event):
-##         keycode = event.detail
-##         if event.type == X.KeyPress:
-##             print event.detail
-
-##     def main():
-##         disp = Display()
-##         root = disp.screen().root
-        
-##         root.change_attributes(event_mask = X.KeyPressMask)
-##         root.grab_key(49, X.AnyModifier, 1, X.GrabModeAsync, X.GrabModeAsync)
-        
-##         while 1:
-##             event = root.display.next_event()
-##             handle_event(event)
-##             return
-
 """ assorted sprites
 """
 
