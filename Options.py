@@ -17,8 +17,8 @@ parser.add_option("--team", dest="team",
 parser.add_option("--ship", dest="ship",
                   help="ship class to request")
 parser.add_option("--updates",
-                  type="int", dest="updates", default="5",
-                  help="updates per second from server, default 5")
+                  type="int", dest="updates", default="10",
+                  help="updates per second from server, default 10")
 parser.add_option("--tcp-only",
                   action="store_true", dest="tcp_only", default=False,
                   help="only use TCP, avoid UDP")

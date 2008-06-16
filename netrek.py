@@ -361,7 +361,6 @@ class Torp:
         self.sp_torp_info(0, self.status)
         self.sp_torp(0, 0, 0)
         self.tactical = TorpTacticalSprite(self)
-        #self.galactic = TorpGalacticSprite(self)
 
     def sp_torp_info(self, war, status):
         old = self.status
@@ -473,6 +472,7 @@ class Plasma:
         self.sp_plasma_info(0, self.status)
         self.sp_plasma(0, 0)
         # self.tactical = PlasmaTacticalSprite(self)
+        # FIXME: show plasma on tactical
 
     def sp_plasma_info(self, war, status):
         old = self.status
@@ -656,6 +656,7 @@ class PlanetSprite(MultipleImageSprite):
         MultipleImageSprite.__init__(self)
 
 class PlanetGalacticSprite(PlanetSprite):
+    """ netrek planet sprite on galactic """
     def __init__(self, planet):
         PlanetSprite.__init__(self, planet)
         self.pick()
@@ -667,7 +668,7 @@ class PlanetGalacticSprite(PlanetSprite):
         image = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
         self.mi_add_image(image)
         
-        # FIXME: render planet owner, flags and armies on screen
+        # FIXME: render planet owner, flags and armies
         
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 8)
@@ -679,16 +680,18 @@ class PlanetGalacticSprite(PlanetSprite):
         self.mi_commit()
 
     def update(self):
-        if self.planet.owner != self.old_owner:
+        if self.planet.owner != self.old_owner or self.planet.name != self.old_name:
             self.pick()
             self.rect.center = galactic_scale(self.planet.x, self.planet.y)
             self.old_owner = self.planet.owner
+            self.old_name = self.planet.name
         if self.planet.x != self.old_x or self.planet.y != self.old_y:
             self.rect.center = galactic_scale(self.planet.x, self.planet.y)
             self.old_x = self.planet.x
             self.old_y = self.planet.y
             
 class PlanetTacticalSprite(PlanetSprite):
+    """ netrek planet sprite on tactical """
     def __init__(self, planet):
         self.me_old_x = -1
         self.me_old_y = -1
@@ -750,13 +753,6 @@ class PlanetTacticalSprite(PlanetSprite):
             self.old_y = self.planet.y
             self.me_old_x = me.x
             self.me_old_y = me.y
-        # FIXME: performance note, all planets are on the tactical
-        # sprite list, but are off the screen, so there is processing
-        # for all planets happening.  it may prove worthwhile to only
-        # include planets on the tactical sprite list if they are
-        # nearby.
-        # 2008-06-14 shows up on pstat results as the most significant
-        # reference within this file
             
 class ShipSprite(MultipleImageSprite):
     def __init__(self, ship):
@@ -771,6 +767,7 @@ class ShipSprite(MultipleImageSprite):
 class ShipGalacticSprite(ShipSprite):
     """ netrek ship sprites
     """
+    # FIXME: a non-moving ship does not appear
     def __init__(self, ship):
         ShipSprite.__init__(self, ship)
         self.pick()
