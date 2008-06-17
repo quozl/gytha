@@ -1,4 +1,4 @@
-import sys, socket, select, errno, time, struct
+import sys, socket, select, errno, time, struct, array
 from Constants import *
 
 class Error(Exception):
@@ -13,7 +13,8 @@ class Client:
     """
     def __init__(self, sp):
         self.sp = sp
-        self.bufsiz = 1024
+        self.bufsiz = 1024 * 8
+        self.buffer = array.array('B', self.bufsiz * '\0')
         self.time = time.time()
         self.mode_requested = COMM_UDP
         self.mode = None
@@ -21,6 +22,7 @@ class Client:
         self.timeout = 0.04
         self.fd = []
         self.tcp = self.udp = -1
+        self.ct = self.cu = 0
 
     def set_pg_fd(self, n):
         self.x = n
@@ -76,6 +78,7 @@ class Client:
         self.udp_peerhost = self.tcp_peerhost
         self.udp_peerport = None
         self.fd.append(self.udp)
+        self.ct = self.cu = 0
         return True
 
     def tcp_send(self, data):
@@ -93,15 +96,88 @@ class Client:
     def recv(self):
         """ check for and process data arriving from the server """
         r, w, e = select.select(self.fd, [], [], self.timeout)
+        self.time = time.time()
         if self.udp in r:
             self.udp_readable()
         if self.tcp in r:
             self.tcp_readable()
+        # select may also return because X socket is readable, we let
+        # the caller handle that situation.
 
+    def udp_readable(self):
+        """ process UDP data, socket file descriptor is readable, and
+        so we will read the UDP packet from the socket, then break it
+        down into game packets, one by one, and pass each to the
+        respective handler. """
+
+        try:
+            length = self.udp.recv_into(self.buffer, self.bufsiz)
+        except socket.error, (reason, explanation):
+            if reason == errno.EINTR: return
+            print "udp recv", reason, explanation
+            self.udp_failure()
+            return
+
+        # break UDP packet into game packets using type codes and handle
+        offset = 0
+        while offset < length:
+            p_type = struct.unpack_from('b', self.buffer, offset)[0]
+            (size, instance) = self.sp.find(p_type)
+            if size != 1:
+                # FIXME: detect truncated packets
+                instance.handler(self.buffer[offset:offset+size].tostring())
+                self.cu += 1
+                offset = offset + size
+                continue
+            print "bad udp drop type=%d bytes=%d" % (p_type, length-offset)
+            return
+                    
     def tcp_readable(self):
         """ process TCP data, socket file descriptor is readable, and
-        presumed to be positioned at the first byte of a game
-        packet. """
+        presumed to be positioned at the first byte of a game packet,
+        so we shall look to see how many bytes are ahead in the
+        stream, and if there is a potential for segmentation use the
+        byte by byte method ... this generally occurs during the
+        initial login data burst because of the MOTD and torp arrays. """
+        
+        # find out how much is available right now
+        pbytes = self.tcp.recv_into(self.buffer, self.bufsiz, socket.MSG_PEEK + socket.MSG_DONTWAIT)
+        if pbytes > 1024:
+            return self.tcp_readable_stream()
+
+        # read all the data available right now
+        try:
+            length = self.tcp.recv_into(self.buffer, pbytes)
+        except socket.error, (reason, explanation):
+            if reason == errno.EINTR: return
+            print "tcp recv", reason, explanation
+            sys.exit(1)
+        if length == 0:
+            print "server disconnection"
+            self.shutdown()
+            raise ServerDisconnectedError
+            
+        # break TCP packet into game packets using type codes and handle
+        offset = 0
+        while offset < length:
+            p_type = struct.unpack_from('b', self.buffer, offset)[0]
+            (size, instance) = self.sp.find(p_type)
+            if size != 1:
+                # FIXME: detect truncated packets
+                instance.handler(self.buffer[offset:offset+size].tostring())
+                self.ct += 1
+                offset = offset + size
+                continue
+            print "bad tcp drop type=%d bytes=%d" % (p_type, length-offset)
+            return
+
+    def tcp_readable_stream(self):
+        """ process TCP data, socket file descriptor is readable, and
+        presumed to be positioned at the first byte of a game packet,
+        but we shall read the stream in a bytewise fashion instead of
+        hoping for a game packet ... and return after we have read
+        only one game packet ... the performance impact is acceptable
+        only during login. """
 
         try:
             byte = self.tcp.recv(1)
@@ -141,43 +217,10 @@ class Client:
         if len(rest) != (size-1):
             print "### asked for %d and got %d bytes" % ((size-1), len(rest))
 
-        # set the timestamp
-        self.time = time.time()
-
         # reconstruct the packet and pass it to a handler
         instance.handler(byte + rest)
+        self.ct += 1
 
-    def udp_readable(self):
-        """ process UDP data, socket file descriptor is readable, and
-        so we will read the UDP packet from the socket, then break it
-        down into game packets, one by one, and pass each to the
-        respective handler. """
-
-        try:
-            packet = self.udp.recv(self.bufsiz)
-        except socket.error, (reason, explanation):
-            if reason == errno.EINTR: return
-            print "udp recv", reason, explanation
-            self.udp_failure()
-            return
-
-        # set the timestamp
-        self.time = time.time()
-
-        # break UDP packet into game packets using type codes and handle
-        offset = 0
-        length = len(packet)
-        while offset < length:
-            p_type = struct.unpack_from('b', packet, offset)[0]
-            (size, instance) = self.sp.find(p_type)
-            if size != 1:
-                # FIXME: detect truncated packets
-                instance.handler(packet[offset:offset+size])
-                offset = offset + size
-                continue
-            print "bad udp drop type=%d bytes=%d" % (p_type, length-offset)
-            return
-                    
     def sp_pickok(self):
     	""" ship has entered game, switch to udp mode """
         if self.mode_requested != COMM_UDP:
@@ -207,6 +250,7 @@ class Client:
         self.fd.remove(self.udp)
         self.udp.close()
         self.mode = None
+        print 'closure, tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu)
 
     def diagnostics(self):
         (self.tcp_sockhost, self.tcp_sockport) = self.tcp_sockname
