@@ -1962,6 +1962,7 @@ sp_sequence = SP_SEQUENCE()
 """
 
 class SpriteBacked(pygame.sprite.Sprite):
+    """ a sprite on the existing background """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
 
@@ -1977,9 +1978,10 @@ class SpriteBacked(pygame.sprite.Sprite):
         self.rect.y = y
 
 class Icon(SpriteBacked):
+    """ a sprite for icons, a simple image """
     def __init__(self, name, x, y):
         self.image = ic.get(name)
-        self.rect = self.image.get_rect(left=x, centery=y)
+        self.rect = self.image.get_rect(centerx=x, centery=y)
         SpriteBacked.__init__(self)
         
 class Text(SpriteBacked):
@@ -2344,7 +2346,7 @@ class PhaseServers(Phase):
         s = []
         # per server icon
         # IMAGERY: servers-icon.png
-        s.append(Icon('servers-icon.png', 50, y))
+        s.append(Icon('servers-icon.png', 70, y))
         # server name, shade by age
         colour = 64
         age = server['age']
