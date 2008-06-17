@@ -1167,7 +1167,7 @@ class CP_PHASER(CP):
 
     def data(self, direction):
         if opt.cp: print "CP_PHASER direction=",direction
-        return struct.pack(self.format, self.code, direction)
+        return struct.pack(self.format, self.code, direction & 255)
 
 cp_phaser = CP_PHASER()
 
