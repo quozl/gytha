@@ -13,6 +13,7 @@ class MetaClient:
         self.servers = {}
         self.fd = [self.socket]
         self.timeout = 0.1
+        self.last_s = None
 
     def set_pg_fd(self, n):
         self.x = n
@@ -24,8 +25,6 @@ class MetaClient:
 
     def query(self, metaserver):
         metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
-        # FIXME: merge duplicate replies from 127.0.0.1 and the
-        # interface used by 224.0.0.1
         for hostname in metaservers:
             addresses = socket.getaddrinfo(
                     hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
@@ -42,13 +41,21 @@ class MetaClient:
                 print "suboptimal, mc recv spout unready"
                 return
             try:
-                (text, address) = self.socket.recvfrom(2048)
+                # netrek-metaserver/disp_udp.c display_udp() specifies
+                # no maximum size of the response
+                (text, address) = self.socket.recvfrom(8192)
                 if text[0] == 's': self.version_s(text, address)
                 elif text[0] == 'r': self.version_r(text)
             except:
                 pass
 
     def version_s(self, text, address):
+        """ single server reply from a server via multicast """
+
+        # ignore duplicate responses from localhost
+        if text == self.last_s: return
+        self.last_s = text
+
         unpack = text.split(',')
         server = {}
         server['name'] = address[0]
@@ -64,6 +71,7 @@ class MetaClient:
         self.update(server)
 
     def version_r(self, text):
+        """ multi-server reply from a metaserver via UDP query """
         lines = text.split('\n')
         (version, n) = lines[0].split(',')
         for x in range(int(n)):
@@ -79,10 +87,12 @@ class MetaClient:
 
     def update(self, server):
         # FIXME: client currently lacks necessary hockey support
+        # meanwhile do not list unsupported servers
         if server['type'] == 'H':
             return
 
         # FIXME: client currently lacks necessary sturgeon support
+        # meanwhile do not list unsupported servers
         if server['type'] == 'S':
             return
 
