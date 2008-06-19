@@ -3026,7 +3026,7 @@ def nt_play():
         ph_servers = PhaseServers(screen, mc)
 
 def main(args=[]):
-    global screen, mc, nt
+    global screen, mc, nt, ic
 
     mc = None
     if opt.server == None: mc = mc_init()
@@ -3042,6 +3042,7 @@ def main(args=[]):
     if opt.server == None: mc_prompt()
     nt_play()
     print "exit"
+    ic.statistics()
 
 if __name__ == '__main__':
     import sys
