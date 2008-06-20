@@ -150,7 +150,7 @@ def galactic_scale(x, y):
     return (x/100, y/100)
 
 def tactical_scale(x, y):
-    """ temporary coordinate scaling, tactical to screen
+    """ temporary coordinate scaling, tactical to screen, ship relative
     """
     return ((x - me.x) / 20 + 500, (y - me.y) / 20 + 500)
 
@@ -160,7 +160,7 @@ def galactic_descale(x, y):
     return (x*100, y*100)
 
 def tactical_descale(x, y):
-    """ temporary coordinate scaling, screen to tactical
+    """ temporary coordinate scaling, screen to tactical, ship relative
     """
     return ((x - 500) * 20 + me.x, (y - 500) * 20 + me.y)
 
@@ -298,7 +298,6 @@ class Ship:
         self.speed = speed
         self.x = x
         self.y = y
-        # FIXME: display galactic border
         # FIXME: display speed
         
         # FIXME: do this less frequently, according to actual change
@@ -502,6 +501,51 @@ class Plasma:
         self.x = x
         self.y = y
 
+class Borders:
+    """ netrek border
+        each galaxy has one border
+        instance created when galaxy created
+    """
+    def __init__(self):
+        self.lines = []
+        self.rect = []
+        proximity = 0.90 # how close before wall appears
+        threshold = n = int(GWIDTH / 10.0 * proximity)
+        self.inner = pygame.Rect(n, n, GWIDTH-n-n, GWIDTH-n-n)
+        # FIXME: proximity customisation option
+
+    def line(self, sx, sy, ex, ey):
+        self.lines.append((sx, sy, ex, ey))
+        return pygame.draw.line(screen, (255, 0, 0), (sx, sy), (ex, ey))
+
+    def limit(self, v1, v2):
+        return (max(0, v1), min(999, v2))
+
+    def draw(self):
+        self.lines = []
+        self.rect = []
+        if self.inner.collidepoint(me.x, me.y): return self.rect
+        x1, y1 = tactical_scale(0, 0)
+        x2, y2 = tactical_scale(GWIDTH, GWIDTH)
+        if 0 < x1 < 500: # left edge
+            (sy, ey) = self.limit(y1, y2)
+            self.rect.append(self.line(x1, sy, x1, ey))
+        if 0 < y1 < 500: # top edge
+            (sx, ex) = self.limit(x1, x2)
+            self.rect.append(self.line(sx, y1, ex, y1))
+        if 500 < x2 < 1000: # right edge
+            (sy, ey) = self.limit(y1, y2)
+            self.rect.append(self.line(x2, sy, x2, ey))
+        if 500 < y2 < 1000: # bottom edge
+            (sx, ex) = self.limit(x1, x2)
+            self.rect.append(self.line(sx, y2, ex, y2))
+        return self.rect
+
+    def undraw(self):
+        for (sx, sy, ex, ey) in self.lines:
+            pygame.draw.line(screen, (0, 0, 0), (sx, sy), (ex, ey))
+        return self.rect
+
 class Galaxy:
     def __init__(self):
         self.planets = {}
@@ -511,6 +555,7 @@ class Galaxy:
         self.phasers = {}
         self.plasmas = {}
         self.motd = MOTD.MOTD()
+        self.borders = Borders()
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -564,7 +609,7 @@ class Galaxy:
         for n, phaser in self.phasers.iteritems():
             if phaser.want: r.append(phaser.draw())
         return r
-    
+
     def plasma(self, n):
         if not self.plasmas.has_key(n):
             self.plasmas[n] = Plasma(n)
@@ -3003,6 +3048,7 @@ class PhaseFlightTactical(PhaseFlight):
         
     def update(self):
         o_phasers = galaxy.phasers_undraw()
+        o_borders = galaxy.borders.undraw()
         t_torps.clear(screen, background)
         t_players.clear(screen, background)
         t_planets.clear(screen, background)
@@ -3013,7 +3059,8 @@ class PhaseFlightTactical(PhaseFlight):
         r_players = t_players.draw(screen)
         r_weapons = t_torps.draw(screen)
         r_phasers = galaxy.phasers_draw()
-        pygame.display.update(o_phasers+r_planets+r_players+r_weapons+r_phasers)
+        r_borders = galaxy.borders.draw()
+        pygame.display.update(o_phasers+o_borders+r_planets+r_players+r_weapons+r_phasers+r_borders)
         #r_debug = galaxy.torp_debug_draw()
         #pygame.display.update(r_debug)
         #r_debug = galaxy.ship_debug_draw()
@@ -3181,11 +3228,7 @@ if __name__ == '__main__':
 # struct http://docs.python.org/lib/module-struct.html
 # built-ins http://docs.python.org/lib/built-in-funcs.html
 
-# FIXME: add quit button to team selection window?
 # FIXME: add fast quit, which answers SP_PICKOK with -1 and then CP_QUIT
-
-# FIXME: quit from logon prompt should return to metaserver list
-# FIXME: quit from outfit should return to metaserver list
 
 # FIXME: add graphic indicator of connection status
 # FIXME: discover servers from a cache
@@ -3195,3 +3238,5 @@ if __name__ == '__main__':
 # FIXME: add a help aka documentation button on metaserver list, also
 # accessible from other modes but will force a disconnection from
 # server, to contain tutorial, ship classes, and rank information.
+
+# FIXME: mouse-over hint for word "clue", explain terms (says Petria)
