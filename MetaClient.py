@@ -24,6 +24,7 @@ class MetaClient:
         self.spout = spout
 
     def query(self, metaserver):
+        self.last_s = None
         metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
         for hostname in metaservers:
             addresses = socket.getaddrinfo(
@@ -44,10 +45,11 @@ class MetaClient:
                 # netrek-metaserver/disp_udp.c display_udp() specifies
                 # no maximum size of the response
                 (text, address) = self.socket.recvfrom(8192)
-                if text[0] == 's': self.version_s(text, address)
-                elif text[0] == 'r': self.version_r(text)
             except:
                 pass
+            else:
+                if text[0] == 's': self.version_s(text, address)
+                elif text[0] == 'r': self.version_r(text)
 
     def version_s(self, text, address):
         """ single server reply from a server via multicast """
