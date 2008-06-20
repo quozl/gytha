@@ -2399,7 +2399,39 @@ class PhaseServers(Phase):
         self.fuse = self.fuse_was / 2
         self.cycle_wait()
         self.ue_clear()
-        
+
+    def server_icon(self, y):
+        # IMAGERY: servers-icon.png
+        return Icon('servers-icon.png', 70, y)
+
+    def server_name(self, y, server):
+        """ server name, shade by age """
+        colour = 64
+        age = server['age']
+        if age < 3000: colour = 128
+        if age < 300: colour = 192
+        if age < 180: colour = 255
+        colour = (colour, colour, colour)
+        return Text(server['name'] + ' ' + server['comment'], 100, y, 22, colour)
+
+    def server_queue(self, y, server):
+        return Text('Q' + str(server['queue']), 500, y, 22, (255, 0, 0))
+
+    def server_players(self, y, server):
+        s = []
+        # per player icon
+        gx = 500
+        for x in range(min(server['players'], 16)):
+            # per player icon
+            # IMAGERY: servers-player.png
+            s.append(Icon('servers-player.png', gx, y))
+            # space them out for visual counting
+            if (x % 4) == 3:
+                gx = gx + 35
+            else:
+                gx = gx + 30
+        return s
+
     def update(self, name):
         """ called by MetaClient for each server for which a packet is received
         """
@@ -2416,29 +2448,12 @@ class PhaseServers(Phase):
             for sprite in server['sprites']:
                 sprite.clear()
         s = []
-        # per server icon
-        # IMAGERY: servers-icon.png
-        s.append(Icon('servers-icon.png', 70, y))
-        # server name, shade by age
-        colour = 64
-        age = server['age']
-        if age < 3000: colour = 128
-        if age < 300: colour = 192
-        if age < 180: colour = 255
-        colour = (colour, colour, colour)
-        s.append(Text(name + ' ' + server['comment'], 100, y, 26, colour))
-        # per player icon
-        gx = 500
-        for x in range(min(server['players'], 16)):
-            # per player icon
-            # IMAGERY: servers-player.png
-            s.append(Icon('servers-player.png', gx, y))
-            # space them out for visual counting
-            if (x % 4) == 3:
-                gx = gx + 35
-            else:
-                gx = gx + 30
-                     
+        s.append(self.server_icon(y))
+        s.append(self.server_name(y, server))
+        if server['queue'] > 0:
+            s.append(self.server_queue(y, server))
+        else:
+            s += self.server_players(y, server)
         self.mc.servers[name]['y'] = y
         self.mc.servers[name]['sprites'] = s
         
