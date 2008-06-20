@@ -1977,6 +1977,34 @@ class SpriteBacked(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
+class Clickable():
+    """ a clickable screen object """
+    def __init__(self, clicked):
+        self.clicked = clicked
+        self.arm = False
+
+    def md(self, event):
+        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
+            self.arm = False
+            return False
+        if event.button != 1:
+            self.arm = False
+            return True
+        self.arm = True
+        return True
+
+    def mu(self, event):
+        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
+            self.arm = False
+            return False
+        if event.button != 1:
+            self.arm = False
+            return True
+        if not self.arm: return True
+        self.clicked(event)
+        self.arm = False
+        return True
+
 class Icon(SpriteBacked):
     """ a sprite for icons, a simple image """
     def __init__(self, name, x, y):
@@ -1990,7 +2018,7 @@ class Text(SpriteBacked):
         self.image = font.render(text, 1, colour)
         self.rect = self.image.get_rect(left=x, centery=y)
         SpriteBacked.__init__(self)
-        
+
 class TextsLine(SpriteBacked):
     def __init__(self, text, x, y, size=18):
         font = fc.get('DejaVuSansMono.ttf', size)
@@ -2087,6 +2115,12 @@ class Field:
         self.value = ""
         self.redraw()
 
+class Button(Text, Clickable):
+    def __init__(self, clicked, text, x, y, size, colour):
+        self.text = text
+        Text.__init__(self, text, x, y, size, colour)
+        Clickable.__init__(self, clicked)
+
 """ animations
 """
 
@@ -2125,6 +2159,21 @@ class Phase:
         self.ue_delay = 1000 / self.ue_hz
         self.screenshot = 0
         self.run = False
+        self.eh_md = [] # event handlers, mouse down
+        self.eh_mu = [] # event handlers, mouse up
+
+    def button(self, clicked, text, x, y, size, colour):
+        b = Button(clicked, text, x, y, size, colour)
+        self.eh_md.append(b.md)
+        self.eh_mu.append(b.mu)
+        b.draw()
+        return b
+
+    def add_quit_button(self, clicked):
+        self.b_quit = self.button(clicked, 'QUIT', 900, 950, 32, colour=(255, 255, 255))
+
+    def add_list_button(self, clicked):
+        self.b_list = self.button(clicked, 'LIST', 20, 950, 32, colour=(255, 255, 255))
 
     def warn(self, message, ms=0):
         font = fc.get('DejaVuSans.ttf', 32)
@@ -2196,7 +2245,7 @@ class Phase:
         
     def display_sink_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            self.mb(event)
+            self.md(event)
         elif event.type == pygame.KEYDOWN:
             self.kb(event)
         elif event.type == pygame.QUIT:
@@ -2206,6 +2255,8 @@ class Phase:
             self.mm(event)
         elif event.type > pygame.USEREVENT:
             self.ue(event)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.mu(event)
         
     def display_sink(self):
         for event in pygame.event.get():
@@ -2231,21 +2282,34 @@ class Phase:
         # for planets or ships (on tactical or galactic)
         pass
 
-    def mb(self, event):
-        pass
+    def md(self, event):
+        for eh in self.eh_md:
+            if eh(event): return True
+        return False
+
+    def mu(self, event):
+        for eh in self.eh_mu:
+            if eh(event): return True
+        return False
 
     def kb(self, event):
         if event.key == pygame.K_q:
-            if nt.mode != None:
-                nt.send(cp_quit.data())
-            else:
-                screen.fill((0, 0, 0))
-                pygame.display.flip()
-                sys.exit(0)
+            self.quit(event)
         elif event.key == pygame.K_ESCAPE:
-            pygame.image.save(screen, "netrek-client-pygame-%04d.tga" % self.screenshot)
-            print "snapshot taken"
-            self.screenshot += 1
+            self.snap(event)
+
+    def quit(self, event):
+        if nt.mode != None:
+            nt.send(cp_quit.data())
+        else:
+            screen.fill((0, 0, 0))
+            pygame.display.flip()
+            sys.exit(0)
+
+    def snap(self, event):
+        pygame.image.save(screen, "netrek-client-pygame-%04d.tga" % self.screenshot)
+        print "snapshot taken"
+        self.screenshot += 1
 
     def cycle(self):
         """ free wheeling cycle, use when it is acceptable to block on
@@ -2279,6 +2343,7 @@ class PhaseSplash(Phase):
         self.text("netrek", x, y, 144)
         self.bouncer = Bouncer(200, 200, x, y, 'torp-explode-20.png', 'torp-explode-20.png')
         self.license()
+        self.add_quit_button(self.quit)
         pygame.display.flip()
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-splash.tga")
@@ -2289,29 +2354,36 @@ class PhaseSplash(Phase):
         self.ue_clear()
 
     def ue(self, event):
-        self.bouncer.update(self.fuse, self.fuse_was)
         self.fuse -= 1
         if self.fuse < 0:
-            self.run = False
+            self.leave()
+        else:
+            self.bouncer.update(self.fuse, self.fuse_was)
 
-    def mb(self, event):
-        self.run = False
+    def md(self, event):
+        if Phase.md(self, event): return
+        self.leave()
 
     def kb(self, event):
+        self.leave()
+
+    def leave(self):
+        self.b_quit.clear()
+        pygame.display.flip()
         self.run = False
 
 class PhaseServers(Phase):
     """ metaserver list, a list of services is shown, the list is
     derived from the metaserver and multicast discovery, and the
     player is to either select one with mouse, wait for the list to
-    update, or quit """
-    # FIXME: add an explicit quit button
+    update, or quit. """
     def __init__(self, screen, mc):
         Phase.__init__(self)
         self.background("hubble-orion.jpg")
         self.text('netrek', 500, 100, 92)
         self.text('server list', 500, 175, 64)
         self.license()
+        self.add_quit_button(self.quit)
         pygame.display.flip()
         self.bouncer = Bouncer(225, 20, 500, 240)
         self.dy = 40 # vertical spacing
@@ -2389,7 +2461,8 @@ class PhaseServers(Phase):
             self.mc.query(opt.metaserver)
             self.fuse = self.fuse_was
 
-    def mb(self, event):
+    def md(self, event):
+        if Phase.md(self, event): return
         self.unwarn()
         if event.button != 1:
             self.warn('not that button, mate', 500)
@@ -2410,6 +2483,7 @@ class PhaseServers(Phase):
             return
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-servers.tga")
+        pygame.display.update(self.b_quit.clear())
         self.warn('connecting, standby')
         opt.chosen = chosen
         # FIXME: do not block and hang during connect, do it asynchronously
@@ -2418,13 +2492,18 @@ class PhaseServers(Phase):
             # explaining what went wrong, rather than be this obtuse
             self.unwarn()
             self.warn('connection failure', 2000)
+            pygame.display.update(self.b_quit.draw())
             return
+        self.leave()
+
+    def leave(self):
+        pygame.display.update(self.b_quit.clear())
         self.run = False
 
 class PhaseLogin(Phase):
     """ login, the server message of the day (MOTD) is displayed, and
     the player is to type a character name and password, the name may
-    be guest, or the player may quit """
+    be guest, or the player may quit. """
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
@@ -2434,8 +2513,12 @@ class PhaseLogin(Phase):
         self.warn('connected, waiting for slot, standby')
         pygame.display.flip()
         # pause until SP_YOU is received, which marks end of SP_MOTD
+        # (while on queue, this pauses)
         while me == None:
             nt.recv()
+            # FIXME: allow QUIT here
+        self.add_quit_button(self.quit)
+        self.add_list_button(self.list)
         self.unwarn()
         self.warn('connected, as slot %s, ready to login' % Util.slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
@@ -2446,15 +2529,9 @@ class PhaseLogin(Phase):
         self.run = True
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-login.tga")
-        self.quit = False
+        self.cancelled = False
         self.cycle()
 
-    def exit(self):
-        nt.send(cp_bye.data())
-        nt.shutdown()
-        self.run = False
-        self.quit = True
-        
     def tab(self):
         # FIXME: just press enter for guest
         """ move to next field """
@@ -2490,7 +2567,7 @@ class PhaseLogin(Phase):
     def catch_sp_login_attempt(self):
         global sp_login
         sp_login.catch(self.throw_sp_login_attempt)
-                
+
     def chuck_cp_login(self):
         self.catch_sp_login()
         nt.send(cp_updates.data(1000000/opt.updates))
@@ -2498,7 +2575,7 @@ class PhaseLogin(Phase):
 
     def throw_sp_login(self, accept, flags, keymap):
         if accept == 1:
-            self.run = False
+            self.proceed()
         else:
             self.warn('name and password refused by server')
             self.password.value = ''
@@ -2527,7 +2604,7 @@ class PhaseLogin(Phase):
         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: pass
         elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
         elif event.key == pygame.K_d and control:
-            self.exit()
+            self.list(event)
         elif event.key == pygame.K_w and control:
             self.focused.delete()
         elif event.key == pygame.K_TAB and shift:
@@ -2541,10 +2618,22 @@ class PhaseLogin(Phase):
         else:
             return Phase.kb(self, event)
         
-    def mb(self, event):
-        # FIXME: add a BACK button to return to metaserver list
-        pass
-    
+    def list(self, event):
+        self.cancelled = True
+        nt.send(cp_bye.data())
+        nt.shutdown()
+        self.proceed()
+
+    def quit(self, event):
+        self.back(event)
+        Phase.quit(self, event)
+
+    def proceed(self):
+        self.b_quit.clear()
+        self.b_list.clear()
+        pygame.display.flip()
+        self.run = False
+
 class PhaseOutfit(Phase):
     """ team and ship selection, the available teams and ships are
     displayed, and the player may select one, or quit """
@@ -2559,6 +2648,7 @@ class PhaseOutfit(Phase):
         self.box = None
         self.last_team = None
         self.last_ship = CRUISER
+        self.cancelled = False
         
     def do(self):
         self.run = True
@@ -2567,6 +2657,8 @@ class PhaseOutfit(Phase):
         self.text(opt.chosen, 500, 185, 64)
         self.text('ship and race', 500, 255, 64)
         self.blame()
+        self.add_quit_button(self.quit)
+        self.add_list_button(self.list)
         pygame.display.flip()
         box_l = 212
         box_t = 300
@@ -2581,6 +2673,7 @@ class PhaseOutfit(Phase):
             (team, dx, dy) = row
             # box centre
             # FIXME: show SP_MASK by hiding or covering a team axis
+            # FIXME: slide ships into race on race positions, omitting other races
             x = (box_r - box_l) / 2 + box_l
             y = (box_b - box_t) / 2 + box_t
             for ship in [CRUISER, ASSAULT, SCOUT, BATTLESHIP, DESTROYER, STARBASE]:
@@ -2614,6 +2707,7 @@ class PhaseOutfit(Phase):
 
     def auto(self):
         # attempt auto-refit if command line arguments are supplied
+        # FIXME: this appears to be persistent, even if we quit
         if opt.team != None and opt.ship != None:
             while me == None:
                 nt.recv()
@@ -2650,7 +2744,8 @@ class PhaseOutfit(Phase):
                 minimum = distance
         return nearest
     
-    def mb(self, event):
+    def md(self, event):
+        if Phase.md(self, event): return
         self.unwarn()
         nearest = self.nearest(event.pos)
         if nearest != None:
@@ -2681,14 +2776,9 @@ class PhaseOutfit(Phase):
         if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: pass
         elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
         elif event.key == pygame.K_d and control:
-            nt.send(cp_bye.data())
-            sys.exit(0)
+            self.list(event)
         elif event.key == pygame.K_q:
-            nt.send(cp_quit.data())
-            nt.send(cp_bye.data())
-            nt.shutdown()
-            print "quit"
-            sys.exit(0)
+            self.quit(event)
         elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
             if self.last_team != None:
                 self.team(self.last_team, self.last_ship)
@@ -2698,7 +2788,24 @@ class PhaseOutfit(Phase):
         elif event.key == pygame.K_o: self.team(3, self.last_ship)
         else:
             return Phase.kb(self, event)
+
+    def list(self, event):
+        nt.send(cp_bye.data())
+        nt.shutdown()
+        self.cancelled = True
+        self.proceed()
         
+    def quit(self, event):
+        nt.send(cp_bye.data())
+        nt.shutdown()
+        sys.exit(0)
+
+    def proceed(self):
+        self.b_quit.clear()
+        self.b_list.clear()
+        pygame.display.flip()
+        self.run = False
+
 class PhaseFlight(Phase):
     def __init__(self):
         Phase.__init__(self)
@@ -2714,7 +2821,7 @@ class PhaseFlight(Phase):
     def update(self):
         raise NotImplemented
 
-    def mb(self, event):
+    def md(self, event):
         """ mouse button down event handler
         position is a list of (x, y) screen coordinates
         button is a mouse button number
@@ -2905,7 +3012,9 @@ class PhaseDisconnected(Phase):
         self.text('netrek', 500, 100, 92)
         self.text(opt.chosen, 500, 185, 64)
         self.text('disconnected', 500, 255, 64)
-        self.texts = Texts(['Connection was closed by the server.', '','You may have been idle for too long.','You may have a network problem.','You may have been ejected by vote.','You may have been freed by the captain in a clue game.','You may have been disconnected by the server owner.','','Please click.','','Technical data: read(2) returned zero on', nt.diagnostics()], 50, 455, 12, 18)
+        self.texts = Texts(['Connection was closed by the server.', '','You may have been idle for too long.','You may have a network problem.','You may have been ejected by vote.','You may have been freed by the captain in a clue game.','You may have been disconnected by the server owner.','','Technical data: read(2) returned zero on', nt.diagnostics()], 50, 455, 12, 18)
+        self.add_quit_button(self.quit)
+        self.add_list_button(self.list)
         pygame.display.flip()
         self.run = True
         self.cycle()
@@ -2914,7 +3023,7 @@ class PhaseDisconnected(Phase):
         # FIXME: if freed by captain in clue game from player slot automatically return as an observer slot
         # FIXME: offer rejoin as player and rejoin as observer buttons
 
-    def mb(self, event):
+    def list(self, event):
         self.run = False
 
 """ Main Program
@@ -2996,7 +3105,7 @@ def nt_play():
             # FIXME: allow play on another server even while queued? [grin]
             if opt.name == '':
                 ph_login = PhaseLogin(screen)
-                if ph_login.quit:
+                if ph_login.cancelled:
                     # return to metaserver list
                     mc_reprompt()
                     continue
@@ -3007,6 +3116,7 @@ def nt_play():
 
             while True:
                 ph_outfit.do()
+                if ph_outfit.cancelled: break
                 while me.status == POUTFIT: nt.recv()
                 ph_flight = ph_tactical
                 while True:
