@@ -194,7 +194,7 @@ class Planet:
         self.n = n
         self.x = -10001
         self.y = -10001
-        self.sp_planet_loc(-10000, -10000, '')
+        self.name = ''
         self.sp_planet(0, 0, 0, 0)
         self.tactical = PlanetTacticalSprite(self)
         self.galactic = PlanetGalacticSprite(self)
@@ -204,12 +204,7 @@ class Planet:
         if self.x != x or self.y != y:
             self.x = x
             self.y = y
-            t = 15000
-            # FIXME: try using rect here
-            self.box_left = self.x - t
-            self.box_top = self.y - t
-            self.box_right = self.x + t
-            self.box_bottom = self.y + t
+            self.set_box(x, y)
         self.name = name
 
     def sp_planet(self, owner, info, flags, armies):
@@ -218,8 +213,24 @@ class Planet:
         self.flags = flags
         self.armies = armies
 
+    def set_box(self, x, y):
+        """ create a proximity bounding box around the planet """
+        t = 13000
+        wx = t * 2
+        wy = t * 2
+        sx = self.x - t
+        sy = self.y - t
+        if sx < 0:
+            wx += sx
+            sx = 0
+        if sy < 0:
+            wy += sy
+            sy = 0
+        self.box = pygame.Rect(sx, sy, wx, wy)
+
     def proximity(self, x, y):
-        if (self.box_left < x < self.box_right) and (self.box_top < y < self.box_bottom):
+        """ set planet visibility on tactical if we are within range """
+        if self.box.collidepoint(x, y):
             if not self.nearby:
                 self.nearby = True
                 self.tactical.show()
@@ -236,18 +247,34 @@ class Ship:
     """
     def __init__(self, n):
         self.n = n
-        self.ppcf = 1 # special case
-        self.sp_flags_cumulative_flags = 0
-        self.sp_you_cumulative_flags = 0
-        self.sp_pl_login(0, '', '', '')
-        self.sp_hostile(0, 0)
-        self.sp_player_info(0, 0)
-        self.sp_kills(0)
-        self.sp_player(0, 0, -10000, -10000)
-        self.sp_flags(0, 0)
-        self.sp_pstatus(PFREE)
+        # sp_pl_login
+        self.rank = 0
+        self.name = ''
+        self.monitor = ''
+        self.login = ''
+        # sp_hostile
+        self.war = 0
+        self.hostile = 0
+        # sp_player_info
+        self.shiptype = 0
+        self.team = 0
+        # sp_kills
+        self.kills = 0
+        # sp_player
+        self.dir = 0
+        self.speed = 0
+        self.x = self.px = -10000
+        self.y = self.py = -10000
+        # sp_flags
+        self.tractor = 0
+        self.flags = 0
+        # sp_pstatus
+        self.status = PFREE
         self.tactical = ShipTacticalSprite(self)
         self.galactic = ShipGalacticSprite(self)
+        self.sp_flags_cumulative_flags = 0
+        self.sp_you_cumulative_flags = 0
+        self.ppcf = 1
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
@@ -294,6 +321,12 @@ class Ship:
         # FIXME: display this data
 
     def sp_player(self, dir, speed, x, y):
+        global me
+        if me == self:
+            if self.x < 0 and x > 0:
+                self.px = self.x = x
+                self.py = self.y = y
+                galaxy.planets_proximity_check()
         self.dir = dir_to_angle(dir)
         self.speed = speed
         self.x = x
@@ -303,11 +336,13 @@ class Ship:
         # FIXME: do this less frequently, according to actual change
         # of coordinate, or set a bounding box of no further check
         # required, by taking the minima and maxima of the planet zones
-        global me
-        if (me == self):
-            self.ppcf = self.ppcf - 1
-            if (self.ppcf < 0):
-                galaxy.planets_proximity_check()
+        if me == self:
+            self.ppcf -= 1
+            if self.ppcf < 0:
+                if abs(self.x - self.px) > 1000 or abs(self.y - self.py) > 1000:
+                    self.px = self.x
+                    self.py = self.y
+                    galaxy.planets_proximity_check()
                 self.ppcf = 20
 
     def sp_flags(self, tractor, flags):
@@ -318,11 +353,15 @@ class Ship:
         # FIXME: figure out if flags in SP_FLAGS is same as flags in SP_YOU
 
     def sp_pstatus(self, status):
+        # store the status
         self.status = status
         # ship sprite visibility is brutally controlled by status
         # FIXME: PEXPLODE needs to be shown as an explosion
         # FIXME: do not show cloaked ships
         # FIXME: move visibility check to sprite class
+        # FIXME: only show ships on tactical if within range of them
+        # (currently we draw every ship on the tactical regardless of
+        # whether the coordinates are visible)
         try:
             if status == PALIVE or status == PEXPLODE:
                 self.galactic.show()
@@ -524,6 +563,7 @@ class Borders:
     def draw(self):
         self.lines = []
         self.rect = []
+
         if self.inner.collidepoint(me.x, me.y): return self.rect
         x1, y1 = tactical_scale(0, 0)
         x2, y2 = tactical_scale(GWIDTH, GWIDTH)
@@ -545,6 +585,16 @@ class Borders:
         for (sx, sy, ex, ey) in self.lines:
             pygame.draw.line(screen, (0, 0, 0), (sx, sy), (ex, ey))
         return self.rect
+
+    def draw_debug_planet_proximity_boxes(self):
+        for n, planet in galaxy.planets.iteritems():
+            (x1, y1, w, h) = planet.box
+            x2 = x1 + w
+            y2 = y1 + h
+            x1, y1 = tactical_scale(x1, y1)
+            x2, y2 = tactical_scale(x2, y2)
+            self.rect.append(self.line(x1, y1, x2, y2))
+            self.rect.append(self.line(x1, y2, x1, y2))
 
 class Galaxy:
     def __init__(self):
