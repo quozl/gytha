@@ -36,7 +36,16 @@ class IC:
         return self.cache_rotated[(name, angle)]
 
     def statistics(self):
-        print "IC: normal hits=%d miss=%d rate=%d%% n=%d rotate hits=%d miss=%d rate=%d%% n=%d" % (self.hits, self.miss, self.hits * 100 / (self.hits + self.miss), len(self.cache), self.hits_rotated, self.miss_rotated, self.hits_rotated * 100 / (self.hits_rotated + self.miss_rotated), len(self.cache_rotated))
+        if self.miss > 0:
+            self.rate = self.hits * 100 / (self.hits + self.miss)
+        else:
+            self.rate = 0
+        if self.miss_rotated > 0:
+            self.rate_rotated = self.hits_rotated * 100 / (self.hits_rotated + self.miss_rotated)
+        else:
+            self.rate_rotated = 0
+        print "IC: normal hits=%d miss=%d rate=%d%% n=%d" % (self.hits, self.miss, self.rate, len(self.cache))
+        print "IC: rotate hits=%d miss=%d rate=%d%% n=%d" % (self.hits_rotated, self.miss_rotated, self.rate_rotated, len(self.cache_rotated))
 
 class FC:
     """ a font cache

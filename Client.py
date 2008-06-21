@@ -242,7 +242,10 @@ class Client:
         # FIXME: test, when UDP connection severed, reset to TCP
         self.mode = COMM_TCP
         self.tcp.send(self.cp_udp_req.data(COMM_TCP, 0, 0))
-    
+
+    def statistics(self):
+        print 'Client: tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu)
+
     def shutdown(self):
         self.tcp.shutdown(socket.SHUT_RDWR)
         self.fd.remove(self.tcp)
@@ -250,7 +253,7 @@ class Client:
         self.fd.remove(self.udp)
         self.udp.close()
         self.mode = None
-        print 'closure, tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu)
+        self.statistics()
 
     def diagnostics(self):
         (self.tcp_sockhost, self.tcp_sockport) = self.tcp_sockname

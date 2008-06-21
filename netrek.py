@@ -2343,13 +2343,17 @@ class Phase:
         elif event.key == pygame.K_ESCAPE:
             self.snap(event)
 
+    def exit(self, status):
+        screen.fill((0, 0, 0))
+        pygame.display.flip()
+        ic.statistics()
+        sys.exit(status)
+
     def quit(self, event):
         if nt.mode != None:
             nt.send(cp_quit.data())
         else:
-            screen.fill((0, 0, 0))
-            pygame.display.flip()
-            sys.exit(0)
+            self.exit(0)
 
     def snap(self, event):
         pygame.image.save(screen, "netrek-client-pygame-%04d.tga" % self.screenshot)
@@ -2858,7 +2862,7 @@ class PhaseOutfit(Phase):
     def quit(self, event):
         nt.send(cp_bye.data())
         nt.shutdown()
-        sys.exit(0)
+        self.exit(0)
 
     def proceed(self):
         self.b_quit.clear()
@@ -3147,17 +3151,34 @@ def pg_init():
     pg_fd()
     return screen
 
-def mc_prompt():
+def mc_choose_first():
     ph_splash = PhaseSplash(screen)
     ph_servers = PhaseServers(screen, mc)
 
-def mc_reprompt():
+def mc_choose_again():
     mc.query(opt.metaserver)
     ph_servers = PhaseServers(screen, mc)
-    
-def nt_play():
+
+def nt_play_a_slot():
     global ph_flight, ph_galactic, ph_tactical
     
+    ph_outfit = PhaseOutfit(screen)
+    ph_galactic = PhaseFlightGalactic()
+    ph_tactical = PhaseFlightTactical()
+
+    while True:
+        ph_outfit.do()
+        if ph_outfit.cancelled: break
+        while me.status == POUTFIT: nt.recv()
+        ph_flight = ph_tactical
+        while True:
+            screen.blit(background, (0, 0))
+            pygame.display.flip()
+            ph_flight.do()
+            if me.status == POUTFIT: break
+
+def nt_play():
+    if opt.server == None: mc_choose_first()
     while True:
         try:
             nt.send(cp_socket.data())
@@ -3169,23 +3190,10 @@ def nt_play():
                 ph_login = PhaseLogin(screen)
                 if ph_login.cancelled:
                     # return to metaserver list
-                    mc_reprompt()
+                    mc_choose_again()
                     continue
 
-            ph_outfit = PhaseOutfit(screen)
-            ph_galactic = PhaseFlightGalactic()
-            ph_tactical = PhaseFlightTactical()
-
-            while True:
-                ph_outfit.do()
-                if ph_outfit.cancelled: break
-                while me.status == POUTFIT: nt.recv()
-                ph_flight = ph_tactical
-                while True:
-                    screen.blit(background, (0, 0))
-                    pygame.display.flip()
-                    ph_flight.do()
-                    if me.status == POUTFIT: break
+            nt_play_a_slot()
 
         except Client.ServerDisconnectedError:
             PhaseDisconnected(screen)
@@ -3194,11 +3202,10 @@ def nt_play():
             break
 
         # return to metaserver list
-        mc.query(opt.metaserver)
-        ph_servers = PhaseServers(screen, mc)
+        mc_choose_again()
 
 def main(args=[]):
-    global screen, mc, nt, ic
+    global screen, mc, nt
 
     mc = None
     if opt.server == None: mc = mc_init()
@@ -3211,9 +3218,7 @@ def main(args=[]):
             sys.exit(1)
     screen = pg_init()
 
-    if opt.server == None: mc_prompt()
     nt_play()
-    print "exit"
     ic.statistics()
 
 if __name__ == '__main__':
