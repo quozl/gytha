@@ -156,14 +156,18 @@ class Client:
             print "server disconnection"
             self.shutdown()
             raise ServerDisconnectedError
-            
+
         # break TCP packet into game packets using type codes and handle
         offset = 0
         while offset < length:
             p_type = struct.unpack_from('b', self.buffer, offset)[0]
             (size, instance) = self.sp.find(p_type)
             if size != 1:
-                # FIXME: detect truncated packets
+                # if we have not got the complete packet, read some more
+                if (offset + size) > length:
+                    have = length - offset
+                    need = size - have
+                    length += self.tcp.recv_into(self.buffer[length:], need)
                 instance.handler(self.buffer[offset:offset+size].tostring())
                 self.ct += 1
                 offset = offset + size

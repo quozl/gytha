@@ -187,3 +187,11 @@ SWITCH_TCP_OK   = 0
 SWITCH_UDP_OK   = 1
 SWITCH_DENIED   = 2
 SWITCH_VERIFY   = 3
+
+BADVERSION_SOCKET  = 0 # CP_SOCKET version does not match, exiting
+BADVERSION_DENIED  = 1 # access denied by netrekd
+BADVERSION_NOSLOT  = 2 # no slot on queue
+BADVERSION_BANNED  = 3 # banned
+BADVERSION_DOWN    = 4 # game shutdown by server
+BADVERSION_SILENCE = 5 # daemon stalled
+BADVERSION_SELECT  = 6 # internal error

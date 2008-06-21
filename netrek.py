@@ -1956,11 +1956,11 @@ class SP_BADVERSION(SP):
         self.code = 21
         self.format = "!bbxx"
         self.tabulate(self.code, self.format, self)
+        self.why = None
 
     def handler(self, data):
         (ignored, why) = struct.unpack(self.format, data)
-        print "SP_BADVERSION why=",why
-        # FIXME: process the packet
+        self.why = why
 
 sp_badversion = SP_BADVERSION()
 
@@ -2689,7 +2689,7 @@ class PhaseLogin(Phase):
         self.proceed()
 
     def quit(self, event):
-        self.back(event)
+        self.list(event)
         Phase.quit(self, event)
 
     def proceed(self):
@@ -3070,7 +3070,6 @@ class PhaseFlightTactical(PhaseFlight):
         #r_debug = galaxy.ship_debug_draw()
         #pygame.display.update(r_debug)
 
-
 class PhaseDisconnected(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
@@ -3078,16 +3077,93 @@ class PhaseDisconnected(Phase):
         self.text('netrek', 500, 100, 92)
         self.text(opt.chosen, 500, 185, 64)
         self.text('disconnected', 500, 255, 64)
-        self.texts = Texts(['Connection was closed by the server.', '','You may have been idle for too long.','You may have a network problem.','You may have been ejected by vote.','You may have been freed by the captain in a clue game.','You may have been disconnected by the server owner.','','Technical data: read(2) returned zero on', nt.diagnostics()], 50, 455, 12, 18)
+        self.texts = Texts(self.diagnosis(), 50, 455, 12, 18)
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
         pygame.display.flip()
         self.run = True
         self.cycle()
         # FIXME: show last few lines of message log
-        # FIXME: handle badversion here too
         # FIXME: if freed by captain in clue game from player slot automatically return as an observer slot
         # FIXME: offer rejoin as player and rejoin as observer buttons
+
+    def diagnosis(self):
+        if sp_badversion.why == None:
+            return ['Connection was closed by the server.',
+                    '',
+                    'You may have been idle for too long.',
+                    'You may have a network problem.',
+                    'You may have been ejected by vote.',
+                    'You may have been freed by the captain in a clue game.',
+                    'You may have been disconnected by the server owner.',
+                    '',
+                    'Technical data: read(2) returned zero on',
+                    nt.diagnostics()]
+
+        x = []
+        s = ['Protocol version in CP_SOCKET is not supported by server.',
+             'Access denied by server.',
+             'No free slots on server queue.',
+             'Banned from server.',
+             'Game shutdown by server.',
+             'Server daemon stalled, internal error.',
+             'Server reports internal error.']
+
+        # FIXME: how to contact a server owner, noted by Gerdesas, design as
+        # either a new feature packet with sysdef text setting, or
+        # default to first user@host in .motd if an old server.
+
+        l = [['You have either connected to a server that does not support',
+              'this client, or the server itself is insane.',
+              '',
+              'Try a different server,',
+              'or report this to the server owner,',
+              'or report this to the client developer.'],
+             
+             ['The server has your IP address, or a range of addresses, in a',
+              'configuration file, due to a prior denial of service attack.',
+              '',
+              'Try a different server,',
+              'or try a different service provider,',
+              'or ask the server owner about it.'],
+             
+             ['The server was not able to place you in the queue, perhaps',
+              'due to a denial of service attack happening right now.',
+              '',
+              'Or if you were in a clue game, the captain has freed your slot',
+              'so that another play can join.',
+              '',
+              'Or in a pickup game the players ejected you.',
+              '',
+              'Try a different server,',
+              'or rejoin as an observer on the clue game.'],
+             
+             ['The server has your IP address in the list of bans,',
+              'usually because you were banned by the players or the owner.',
+              '',
+              'Try a different server,',
+              'and if you were misbehaving try not to in future.'],
+             
+             ['The server was shutdown by the owner,',
+              'probably only temporarily.',
+              '',
+              'Try a different server,',
+              'or try this server later,',
+              'or ask the server owner about it.']]
+
+        try:
+            x.append(s[sp_badversion.why])
+        except:
+            x.append('Unknown cause.')
+        x.append('')
+        try:
+            for y in l[sp_badversion.why]:
+                x.append(y)
+        except:
+            x.append('Try again later.')
+        x.append('')
+        x.append('Technical data: received SP_BADVERSION packet, reason code %d' % sp_badversion.why)
+        return x
 
     def list(self, event):
         self.run = False
@@ -3189,6 +3265,7 @@ def nt_play():
             if opt.name == '':
                 ph_login = PhaseLogin(screen)
                 if ph_login.cancelled:
+                    if mc == None: break
                     # return to metaserver list
                     mc_choose_again()
                     continue
@@ -3198,8 +3275,7 @@ def nt_play():
         except Client.ServerDisconnectedError:
             PhaseDisconnected(screen)
 
-        if opt.server != None:
-            break
+        if mc == None: break
 
         # return to metaserver list
         mc_choose_again()
@@ -3245,3 +3321,6 @@ if __name__ == '__main__':
 # server, to contain tutorial, ship classes, and rank information.
 
 # FIXME: mouse-over hint for word "clue", explain terms (says Petria)
+
+# FIXME: list buttons do not show server list if --server used, avoid
+# rendering them.
