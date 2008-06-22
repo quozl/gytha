@@ -1,6 +1,7 @@
 from optparse import OptionParser
 parser= OptionParser()
-parser.add_option("-F", "--fullscreen", dest="fullscreen",
+parser.add_option("-F", "--fullscreen",
+                  action="store_true", dest="fullscreen", default=False,
                   help="force fullscreen mode")
 parser.add_option("-s", "--server", "--host", dest="server",
                   help="netrek server to connect to")

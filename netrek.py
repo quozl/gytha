@@ -3256,11 +3256,15 @@ def pg_init():
     
     pygame.init()
     size = width, height = 1000, 1000
-    screen = pygame.display.set_mode(size)
     # FIXME: #1187736408 support a full screen mode that's variable
     # depending on the environment
-    if opt.fullscreen :
-        pygame.display.set_mode(size, FULLSCREEN)
+    if not opt.fullscreen :
+        screen = pygame.display.set_mode(size)
+    else:
+        try:
+            screen = pygame.display.set_mode(size, FULLSCREEN)
+        except:
+            screen = pygame.display.set_mode(size)
 
     # FIXME: #1187736407 support screen resolutions below 1000x1000
 
