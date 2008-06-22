@@ -275,8 +275,6 @@ class Ship:
         self.status = PFREE
         self.tactical = ShipTacticalSprite(self)
         self.galactic = ShipGalacticSprite(self)
-        self.sp_flags_cumulative_flags = 0
-        self.sp_you_cumulative_flags = 0
         self.ppcf = 1
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
@@ -284,17 +282,16 @@ class Ship:
         self.hostile = hostile
         self.swar = swar
         self.armies = armies
-        self.tractor = tractor
+        self.tractor = tractor # FIXME: add visible tractor beams
         self.flags = flags
         self.damage = damage
         self.shield = shield
         self.fuel = fuel
         self.etemp = etemp
         self.wtemp = wtemp
-        # FIXME: display this data
-        self.whydead = whydead
-        self.whodead = whodead
-        self.sp_you_cumulative_flags |= flags
+        self.whydead = whydead # FIXME: display this data, on death
+        self.whodead = whodead # FIXME: display this data, on death
+        self.sp_you_shown = False
         global me
         if not me:
             me = self
@@ -307,21 +304,22 @@ class Ship:
         self.name = name
         self.monitor = monitor
         self.login = login
-        # FIXME: display this data
+        # FIXME: display this data, on player list
 
     def sp_hostile(self, war, hostile):
         self.war = war
         self.hostile = hostile
-        # FIXME: display this data
+        # FIXME: display this data, on player list
     
     def sp_player_info(self, shiptype, team):
         self.shiptype = shiptype
         self.team = team
-        # FIXME: display this data
+        # FIXME: display this data, on player list
 
     def sp_kills(self, kills):
         self.kills = kills
-        # FIXME: display this data
+        # FIXME: display this data, on player list
+        # FIXME: show kills on tactical sprite for ship
 
     def sp_player(self, dir, speed, x, y):
         global me
@@ -334,11 +332,11 @@ class Ship:
         self.speed = speed
         self.x = x
         self.y = y
-        # FIXME: display speed
+        # FIXME: display speed on tactical
         
-        # FIXME: do this less frequently, according to actual change
-        # of coordinate, or set a bounding box of no further check
-        # required, by taking the minima and maxima of the planet zones
+        # FIXME: potential optimisation, set a bounding box of no
+        # further check required, by taking the minima and maxima of
+        # the planet zones of unseen planets.
         if me == self:
             self.ppcf -= 1
             if self.ppcf < 0:
@@ -351,15 +349,12 @@ class Ship:
     def sp_flags(self, tractor, flags):
         self.tractor = tractor
         self.flags = flags
-        self.sp_flags_cumulative_flags |= flags
-        # FIXME: display this data
-        # FIXME: figure out if flags in SP_FLAGS is same as flags in SP_YOU
+        # FIXME: display this data, visible tractors on tactical
 
     def sp_pstatus(self, status):
         # store the status
         self.status = status
         # ship sprite visibility is brutally controlled by status
-        # FIXME: PEXPLODE needs to be shown as an explosion
         # FIXME: do not show cloaked ships
         # FIXME: move visibility check to sprite class
         # FIXME: only show ships on tactical if within range of them
@@ -487,9 +482,9 @@ class Phaser:
         self.fxfy = (fx, fy)
         return pygame.draw.line(screen, (255, 255, 255), (fx, fy), (tx, ty))
 
-    def undraw(self):
+    def undraw(self, colour):
         self.have = False
-        return pygame.draw.line(screen, (0, 0, 0), self.fxfy, self.txty)
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty)
 
     def sp_phaser(self, status, dir, x, y, target):
         old = self.status
@@ -594,10 +589,10 @@ class Galaxy:
             self.phasers[n] = Phaser(n)
         return self.phasers[n]
 
-    def phasers_undraw(self):
+    def phasers_undraw(self, colour):
         r = []
         for n, phaser in self.phasers.iteritems():
-            if phaser.have: r.append(phaser.undraw())
+            if phaser.have: r.append(phaser.undraw(colour))
         return r
             
     def phasers_draw(self):
@@ -833,9 +828,8 @@ class ShipGalacticSprite(ShipSprite):
     def pick(self):
         # FIXME: obtain imagery for galactic view
         # IMAGERY: ???-8x8.png
-        if self.ship.team != IND:
-            self.image = ic.get_rotated(teams[self.ship.team]+"-8x8.png", self.ship.dir)
-            self.rect = self.image.get_rect()
+        self.image = ic.get_rotated(teams[self.ship.team]+"-8x8.png", self.ship.dir)
+        self.rect = self.image.get_rect()
         
     def show(self):
         galactic.add(self)
@@ -873,7 +867,7 @@ class ShipTacticalSprite(ShipSprite):
             try:
                 self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", self.ship.dir))
             except:
-                self.mi_add_image(ic.get('netrek.png'))
+                self.mi_add_image(ic.get_rotated('netrek.png', self.ship.dir))
 
         # FIXME: filter for visibility by distance from me
         
@@ -917,7 +911,7 @@ class TorpTacticalSprite(TorpSprite):
     """
     def __init__(self, torp):
         TorpSprite.__init__(self, torp)
-        self.teams = { FED: 'torp-fed.png', ROM: 'torp-rom.png', KLI: 'torp-kli.png', ORI: 'torp-ori.png' }
+        self.teams = { IND: 'torp-ind.png', FED: 'torp-fed.png', ROM: 'torp-rom.png', KLI: 'torp-kli.png', ORI: 'torp-ori.png' }
         self.types = { TFREE: 'netrek.png',
                        TEXPLODE: 'torp-explode-200.png',
                        TDET: 'torp-det.png',
@@ -1002,9 +996,9 @@ class Borders:
             self.rect.append(self.line(sx, y2, ex, y2))
         return self.rect
 
-    def undraw(self):
+    def undraw(self, colour):
         for (sx, sy, ex, ey) in self.lines:
-            pygame.draw.line(screen, (0, 0, 0), (sx, sy), (ex, ey))
+            pygame.draw.line(screen, colour, (sx, sy), (ex, ey))
         return self.rect
 
     def draw_debug_planet_proximity_boxes(self):
@@ -1025,32 +1019,31 @@ class ReportSprite(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.font = fc.get('DejaVuSansMono.ttf', 20)
         self.fuel = self.damage = self.shield = self.armies = 0
-        self.pace = 0
         self.image = self.font.render('--', 1, (255, 255, 255))
         self.rect = self.image.get_rect(centerx=500, bottom=999)
 
     def update(self):
-        self.pace += 1
-        # FIXME: tune this pacing, yet convey sudden damage
-        if not self.pace % 20: return
-        update = False
-        if self.fuel != me.fuel:
-            self.fuel = me.fuel
-            update = True
-        if self.damage != me.damage:
-            self.damage = me.damage
-            update = True
-        if self.shield != me.shield:
-            self.shield = me.shield
-            update = True
-        if self.armies != me.armies:
-            self.armies = me.armies
-            update = True
-        if update:
-            self.pick()
+        if me.sp_you_shown: return
+        me.sp_you_shown = True
+        self.pick()
+
+    def flags(self):
+        r = ''
+        x = ['SHIELD',    'REPAIR',    'BOMB',      'ORBIT',
+             'CLOAK',     'WEP',       'ENG',       'ROBOT',
+             'BEAMUP',    'BEAMDOWN',  'SELFDEST',  'GREEN',
+             'YELLOW',    'RED',       'PLOCK',     'PLLOCK',
+             'COPILOT',   'WAR',       'PRACTR',    'DOCK',
+             'REFIT',     'REFITTING', 'TRACT',     'PRESS',
+             'DOCKOK',    'SEEN',      'CYBORG',    'OBSERV',
+             '', '',      'TWARP',     'BPROBOT']
+        for n in range(32):
+            if me.flags & (1 << n):
+                r += x[n] + ' '
+        return r
 
     def pick(self):
-        self.text = " Fuel %5d Damage %3d Shield %3d Armies %2d " % (me.fuel, me.damage, me.shield, me.armies)
+        self.text = "A %d S %d F %d D %d S %d E %d W %d %s" % (me.armies, me.speed, me.fuel, me.damage, me.shield, me.etemp, me.wtemp, self.flags())
         self.image = self.font.render(self.text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(centerx=500, bottom=999)
 
@@ -1555,12 +1548,6 @@ class CP_QUIT(CP):
     def data(self):
         if opt.cp: print "CP_QUIT"
         return struct.pack(self.format, self.code)
-        # FIXME: #1187683550 <Gerdesas> Quozl: quit still does not
-        # properly quit out of the game.  I have a busted ship still
-        # in the game after hitting q/Q
-        # <Quozl> perhaps cp_quit is not being called, but is this a
-        # client or server problem?
-
         # FIXME: on quit, no teams available for selection, should
         # drop out rather than show outfit window.
 
@@ -2010,7 +1997,6 @@ class SP_MASK(SP):
         if opt.sp: print "SP_MASK mask=",Util.team_decode(mask)
         if self.callback:
             self.callback(mask)
-        # FIXME: note protocol phase change
         # FIXME: #1187683470 update team selection icons in response to SP_MASK
 
 sp_mask = SP_MASK()
@@ -2035,8 +2021,6 @@ class SP_PICKOK(SP):
         if self.callback:
             self.callback(state)
             self.uncatch()
-        # FIXME: handle bad state reply
-        # FIXME: note protocol phase change
 
 sp_pickok = SP_PICKOK()
 
@@ -2121,7 +2105,7 @@ class SP_STATUS(SP):
     def handler(self, data):
         (ignored, tourn, armsbomb, planets, kills, losses, time, timeprod) = struct.unpack(self.format, data)
         if opt.sp: print "SP_STATUS tourn=",tourn,"armsbomb=",armsbomb,"planets=",planets,"kills=",kills,"losses=",losses,"time=",time,"timepro=",timeprod
-        # FIXME: display t-mode state
+        # FIXME: display t-mode state, and hey, the other things might be fun
 
 sp_status = SP_STATUS()
 
@@ -3151,6 +3135,8 @@ class PhaseFlightGalactic(PhaseFlight):
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
+        global background
+
         PhaseFlight.__init__(self)
         self.borders = Borders()
         self.reports = pygame.sprite.OrderedUpdates()
@@ -3160,10 +3146,28 @@ class PhaseFlightTactical(PhaseFlight):
         self.warning.add(self.warning_sprite)
         self.eh_ue.append(self.warning_sprite.ue)
 
+        self.co_g = (0, 30, 30) # cyan
+        self.co_y = (30, 30, 0) # yellow
+        self.co_r = (30, 0, 30) # purple
+
+        self.bg_g = screen.copy()
+        self.bg_g.fill(self.co_g)
+        self.bg_y = screen.copy()
+        self.bg_y.fill(self.co_y)
+        self.bg_r = screen.copy()
+        self.bg_r.fill(self.co_r)
+
+        self.bg = self.bg_g
+        self.co = self.co_g
+
     def do(self):
+        global background
+
+        self.saved_background = background
         self.run = True
-        screen.blit(background, (0, 0))
+        screen.blit(self.bg, (0, 0))
         self.cycle()
+        background = self.saved_background
         
     def kb(self, event):
         global ph_flight
@@ -3178,17 +3182,33 @@ class PhaseFlightTactical(PhaseFlight):
     # FIXME: action menu items around edge
     # FIXME: menu item "?" or mouse-over, to do modal information
     # query on a screen object.
-        
+
+    def alert(self):
+        global background
+
+        if me.flags & PFGREEN:
+            bg = self.bg_g
+        elif me.flags & PFYELLOW:
+            bg = self.bg_y
+        elif me.flags & PFRED:
+            bg = self.bg_r
+        if bg != background:
+            background = bg
+            self.bg = bg
+            screen.blit(self.bg, (0, 0))
+            pygame.display.flip()
+
     def update(self):
         
-        o_phasers = galaxy.phasers_undraw()
-        o_borders = self.borders.undraw()
-        self.reports.clear(screen, background)
-        self.warning.clear(screen, background)
-        t_torps.clear(screen, background)
-        t_players.clear(screen, background)
-        t_planets.clear(screen, background)
+        o_phasers = galaxy.phasers_undraw(self.co)
+        o_borders = self.borders.undraw(self.co)
+        self.reports.clear(screen, self.bg)
+        self.warning.clear(screen, self.bg)
+        t_torps.clear(screen, self.bg)
+        t_players.clear(screen, self.bg)
+        t_planets.clear(screen, self.bg)
         
+        self.alert()
         t_planets.update()
         t_players.update()
         t_torps.update()
@@ -3204,6 +3224,7 @@ class PhaseFlightTactical(PhaseFlight):
         r_warning = self.warning.draw(screen)
         
         pygame.display.update(o_phasers+o_borders+r_planets+r_players+r_weapons+r_phasers+r_borders+r_reports+r_warning)
+
         #r_debug = galaxy.torp_debug_draw()
         #pygame.display.update(r_debug)
         #r_debug = galaxy.ship_debug_draw()
@@ -3365,7 +3386,8 @@ def pg_init():
     background = screen.copy()
     background.fill((0, 0, 0))
     screen.blit(background, (0, 0))
-    # FIXME: allow user to select graphics theme, default on XO is to be white with oysters, otherwise use stars, planets, and ships.
+    # FIXME: allow user to select graphics theme, default on XO is to
+    # be white with oysters, otherwise use stars, planets, and ships.
     pygame.display.flip()
     pg_fd()
     return screen
