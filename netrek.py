@@ -144,6 +144,9 @@ print "This is free software, and you are welcome to redistribute it under certa
 print "conditions; see source for details."
 print ""
 
+ic = IC()
+fc = FC()
+
 def galactic_scale(x, y):
     """ temporary coordinate scaling, galactic to screen
     """
@@ -540,62 +543,6 @@ class Plasma:
         self.x = x
         self.y = y
 
-class Borders:
-    """ netrek border
-        each galaxy has one border
-        instance created when galaxy created
-    """
-    def __init__(self):
-        self.lines = []
-        self.rect = []
-        proximity = 0.90 # how close before wall appears
-        threshold = n = int(GWIDTH / 10.0 * proximity)
-        self.inner = pygame.Rect(n, n, GWIDTH-n-n, GWIDTH-n-n)
-        # FIXME: proximity customisation option
-
-    def line(self, sx, sy, ex, ey):
-        self.lines.append((sx, sy, ex, ey))
-        return pygame.draw.line(screen, (255, 0, 0), (sx, sy), (ex, ey))
-
-    def limit(self, v1, v2):
-        return (max(0, v1), min(999, v2))
-
-    def draw(self):
-        self.lines = []
-        self.rect = []
-
-        if self.inner.collidepoint(me.x, me.y): return self.rect
-        x1, y1 = tactical_scale(0, 0)
-        x2, y2 = tactical_scale(GWIDTH, GWIDTH)
-        if 0 < x1 < 500: # left edge
-            (sy, ey) = self.limit(y1, y2)
-            self.rect.append(self.line(x1, sy, x1, ey))
-        if 0 < y1 < 500: # top edge
-            (sx, ex) = self.limit(x1, x2)
-            self.rect.append(self.line(sx, y1, ex, y1))
-        if 500 < x2 < 1000: # right edge
-            (sy, ey) = self.limit(y1, y2)
-            self.rect.append(self.line(x2, sy, x2, ey))
-        if 500 < y2 < 1000: # bottom edge
-            (sx, ex) = self.limit(x1, x2)
-            self.rect.append(self.line(sx, y2, ex, y2))
-        return self.rect
-
-    def undraw(self):
-        for (sx, sy, ex, ey) in self.lines:
-            pygame.draw.line(screen, (0, 0, 0), (sx, sy), (ex, ey))
-        return self.rect
-
-    def draw_debug_planet_proximity_boxes(self):
-        for n, planet in galaxy.planets.iteritems():
-            (x1, y1, w, h) = planet.box
-            x2 = x1 + w
-            y2 = y1 + h
-            x1, y1 = tactical_scale(x1, y1)
-            x2, y2 = tactical_scale(x2, y2)
-            self.rect.append(self.line(x1, y1, x2, y2))
-            self.rect.append(self.line(x1, y2, x1, y2))
-
 class Galaxy:
     def __init__(self):
         self.planets = {}
@@ -605,7 +552,6 @@ class Galaxy:
         self.phasers = {}
         self.plasmas = {}
         self.motd = MOTD.MOTD()
-        self.borders = Borders()
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -712,8 +658,6 @@ class Galaxy:
 
 galaxy = Galaxy()
 me = None
-ic = IC()
-fc = FC()
 
 class MultipleImageSprite(pygame.sprite.Sprite):
     """ a sprite class consisting of multiple images overlaid
@@ -1018,6 +962,318 @@ class TorpTacticalSprite(TorpSprite):
 
     def hide(self):
         t_torps.remove(self)
+
+class Borders:
+    """ netrek borders
+    """
+    def __init__(self):
+        self.lines = []
+        self.rect = []
+        proximity = 0.90 # how close before wall appears
+        threshold = n = int(GWIDTH / 10.0 * proximity)
+        self.inner = pygame.Rect(n, n, GWIDTH-n-n, GWIDTH-n-n)
+        # FIXME: proximity customisation option
+
+    def line(self, sx, sy, ex, ey):
+        self.lines.append((sx, sy, ex, ey))
+        return pygame.draw.line(screen, (255, 0, 0), (sx, sy), (ex, ey))
+
+    def limit(self, v1, v2):
+        return (max(0, v1), min(999, v2))
+
+    def draw(self):
+        self.lines = []
+        self.rect = []
+
+        if self.inner.collidepoint(me.x, me.y): return self.rect
+        x1, y1 = tactical_scale(0, 0)
+        x2, y2 = tactical_scale(GWIDTH, GWIDTH)
+        if 0 < x1 < 500: # left edge
+            (sy, ey) = self.limit(y1, y2)
+            self.rect.append(self.line(x1, sy, x1, ey))
+        if 0 < y1 < 500: # top edge
+            (sx, ex) = self.limit(x1, x2)
+            self.rect.append(self.line(sx, y1, ex, y1))
+        if 500 < x2 < 1000: # right edge
+            (sy, ey) = self.limit(y1, y2)
+            self.rect.append(self.line(x2, sy, x2, ey))
+        if 500 < y2 < 1000: # bottom edge
+            (sx, ex) = self.limit(x1, x2)
+            self.rect.append(self.line(sx, y2, ex, y2))
+        return self.rect
+
+    def undraw(self):
+        for (sx, sy, ex, ey) in self.lines:
+            pygame.draw.line(screen, (0, 0, 0), (sx, sy), (ex, ey))
+        return self.rect
+
+    def draw_debug_planet_proximity_boxes(self):
+        for n, planet in galaxy.planets.iteritems():
+            (x1, y1, w, h) = planet.box
+            x2 = x1 + w
+            y2 = y1 + h
+            x1, y1 = tactical_scale(x1, y1)
+            x2, y2 = tactical_scale(x2, y2)
+            self.rect.append(self.line(x1, y1, x2, y2))
+            self.rect.append(self.line(x1, y2, x1, y2))
+
+class ReportSprite(pygame.sprite.Sprite):
+    """ netrek reports
+        aka dashboard
+    """
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = fc.get('DejaVuSansMono.ttf', 20)
+        self.fuel = self.damage = self.shield = self.armies = 0
+        self.pace = 0
+        self.image = self.font.render('--', 1, (255, 255, 255))
+        self.rect = self.image.get_rect(centerx=500, bottom=999)
+
+    def update(self):
+        self.pace += 1
+        # FIXME: tune this pacing, yet convey sudden damage
+        if not self.pace % 20: return
+        update = False
+        if self.fuel != me.fuel:
+            self.fuel = me.fuel
+            update = True
+        if self.damage != me.damage:
+            self.damage = me.damage
+            update = True
+        if self.shield != me.shield:
+            self.shield = me.shield
+            update = True
+        if self.armies != me.armies:
+            self.armies = me.armies
+            update = True
+        if update:
+            self.pick()
+
+    def pick(self):
+        self.text = " Fuel %5d Damage %3d Shield %3d Armies %2d " % (me.fuel, me.damage, me.shield, me.armies)
+        self.image = self.font.render(self.text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect(centerx=500, bottom=999)
+
+class WarningSprite(pygame.sprite.Sprite):
+    """ netrek warnings
+    """
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = fc.get('DejaVuSans.ttf', 24)
+        self.last = ''
+        self.time = 0
+        self.pick('')
+
+    def update(self):
+        if sp_warning.seen: return
+        sp_warning.seen = True
+        text = sp_warning.text
+        if self.last != text:
+            self.last = text
+            self.pick(text)
+            self.time = 1000
+            length = len(text)
+            if length > 32: self.time = 2500
+            if length > 64: self.time = 5000
+        pygame.time.set_timer(pygame.USEREVENT+2, self.time)
+
+    def ue(self, event):
+        pygame.time.set_timer(pygame.USEREVENT+2, 0)
+        self.pick('')
+
+    def pick(self, text):
+        self.image = self.font.render(text, 1, (255, 0, 0))
+        self.rect = self.image.get_rect(centerx=500, top=0)
+
+""" assorted sprites
+"""
+
+class SpriteBacked(pygame.sprite.Sprite):
+    """ a sprite on the existing background """
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+
+    def clear(self):
+        return screen.blit(self.background, self.rect)
+
+    def draw(self):
+        self.background = screen.subsurface(self.rect).copy()
+        return screen.blit(self.image, self.rect)
+
+    def move(self, x, y):
+        self.rect.x = x
+        self.rect.y = y
+
+class Clickable():
+    """ a clickable screen object """
+    def __init__(self, clicked):
+        self.clicked = clicked
+        self.arm = False
+
+    def md(self, event):
+        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
+            self.arm = False
+            return False
+        if event.button != 1:
+            self.arm = False
+            return True
+        self.arm = True
+        return True
+
+    def mu(self, event):
+        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
+            self.arm = False
+            return False
+        if event.button != 1:
+            self.arm = False
+            return True
+        if not self.arm: return True
+        self.clicked(event)
+        self.arm = False
+        return True
+
+class Icon(SpriteBacked):
+    """ a sprite for icons, a simple image """
+    def __init__(self, name, x, y):
+        self.image = ic.get(name)
+        self.rect = self.image.get_rect(centerx=x, centery=y)
+        SpriteBacked.__init__(self)
+        
+class Text(SpriteBacked):
+    def __init__(self, text, x, y, size=18, colour=(255, 255, 255)):
+        font = fc.get('DejaVuSans.ttf', size)
+        self.image = font.render(text, 1, colour)
+        self.rect = self.image.get_rect(left=x, centery=y)
+        SpriteBacked.__init__(self)
+
+class TextsLine(SpriteBacked):
+    def __init__(self, text, x, y, size=18):
+        font = fc.get('DejaVuSansMono.ttf', size)
+        self.image = font.render(text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect(left=x, top=y)
+        SpriteBacked.__init__(self)
+        
+class Texts:
+    def __init__(self, texts, x, y, lines=24, size=18):
+        self.group = pygame.sprite.OrderedUpdates()
+        self.left = x
+        self.top = self.y = y
+        self.lines = lines
+        self.size = size
+        for row in texts:
+            self._new(row)
+            self.lines -= 1
+            if self.lines < 1: break
+        self.draw()
+
+    def _new(self, text):
+        sprite = TextsLine(text, self.left, self.y, self.size)
+        self.y = sprite.rect.bottom
+        self.group.add(sprite)
+        return sprite
+
+    def draw(self):
+        self.rects = self.group.draw(screen)
+
+    def add(self, text):
+        if self.lines < 1: return None
+        sprite = self._new(text)
+        sprite.draw()
+        return sprite
+
+class Field:
+    def __init__(self, prompt, value, x, y):
+        self.value = value
+        self.fn = fn = fc.get('DejaVuSans.ttf', 36)
+        self.sw = sw = screen.get_width()
+        self.sh = sh = screen.get_height()
+        # place prompt on screen
+        self.ps = ps = fn.render(prompt, 1, (255, 255, 255))
+        self.pc = pc = (x, y)
+        self.pr = pr = ps.get_rect(topright=pc)
+        self.pg = screen.subsurface(self.pr).copy()
+        r1 = screen.blit(ps, pr)
+        # highlight entry area
+        self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 300, pr.height)
+        self.bg = screen.subsurface(self.br).copy()
+        pygame.display.update(r1)
+        self.enter()
+        
+    def highlight(self):
+        return screen.fill((0,127,0), self.br)
+
+    def unhighlight(self):
+        return screen.blit(self.bg, self.br)
+
+    def draw(self):
+        as = self.fn.render(self.value, 1, (255, 255, 255))
+        ar = as.get_rect(topleft=self.pc)
+        ar.left = self.pr.right
+        return screen.blit(as, ar)
+        
+    def undraw(self):
+        return screen.blit(self.pg, self.pr)
+
+    def redraw(self):
+        r1 = self.highlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
+
+    def leave(self):
+        r1 = self.unhighlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
+        
+    def enter(self):
+        r1 = self.highlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
+        
+    def append(self, char):
+        self.value = self.value + char
+        r1 = self.draw()
+        pygame.display.update(r1)
+        
+    def backspace(self):
+        self.value = self.value[:-1]
+        self.redraw()
+
+    def delete(self):
+        self.value = ""
+        self.redraw()
+
+class Button(Text, Clickable):
+    def __init__(self, clicked, text, x, y, size, colour):
+        self.text = text
+        Text.__init__(self, text, x, y, size, colour)
+        Clickable.__init__(self, clicked)
+
+""" animations
+"""
+
+class Bouncer():
+    """ two torps following an orbital ellipse around an invisible mass """
+    def __init__(self, ex, ey, cx, cy, n1='torp-me.png', n2='torp-me.png'):
+        self.ex = ex
+        self.ey = ey
+        self.cx = cx
+        self.cy = cy
+        self.l = Icon(n1, self.cx+50, self.cy)
+        self.l.draw()
+        self.r = Icon(n2, self.cx-50, self.cy)
+        self.r.draw()
+
+    def update(self, pos, max):
+        r = []
+        r.append(self.l.clear())
+        r.append(self.r.clear())
+        x = self.ex * math.sin(pos * math.pi / max)
+        y = self.ey * math.cos(pos * math.pi / max)
+        self.l.move(500 - x, self.cy - y)
+        self.r.move(500 + x, self.cy + y)
+        r.append(self.l.draw())
+        r.append(self.r.draw())
+        pygame.display.update(r)
 
 """ netrek protocol documentation, from server include/packets.h
 
@@ -1975,12 +2231,14 @@ class SP_WARNING(SP):
         self.code = 10
         self.format = '!bxxx80s'
         self.tabulate(self.code, self.format, self)
+        self.text = ''
+        self.seen = False
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
         if opt.sp: print "SP_WARNING message=", Util.strnul(message)
-        print Util.strnul(message)
-        # FIXME: display the warning
+        self.text = Util.strnul(message)
+        self.seen = False
 
 sp_warning = SP_WARNING()
 
@@ -2053,196 +2311,6 @@ class SP_SEQUENCE(SP):
 
 sp_sequence = SP_SEQUENCE()
 
-""" assorted sprites
-"""
-
-class SpriteBacked(pygame.sprite.Sprite):
-    """ a sprite on the existing background """
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-
-    def clear(self):
-        return screen.blit(self.background, self.rect)
-
-    def draw(self):
-        self.background = screen.subsurface(self.rect).copy()
-        return screen.blit(self.image, self.rect)
-
-    def move(self, x, y):
-        self.rect.x = x
-        self.rect.y = y
-
-class Clickable():
-    """ a clickable screen object """
-    def __init__(self, clicked):
-        self.clicked = clicked
-        self.arm = False
-
-    def md(self, event):
-        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
-            self.arm = False
-            return False
-        if event.button != 1:
-            self.arm = False
-            return True
-        self.arm = True
-        return True
-
-    def mu(self, event):
-        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
-            self.arm = False
-            return False
-        if event.button != 1:
-            self.arm = False
-            return True
-        if not self.arm: return True
-        self.clicked(event)
-        self.arm = False
-        return True
-
-class Icon(SpriteBacked):
-    """ a sprite for icons, a simple image """
-    def __init__(self, name, x, y):
-        self.image = ic.get(name)
-        self.rect = self.image.get_rect(centerx=x, centery=y)
-        SpriteBacked.__init__(self)
-        
-class Text(SpriteBacked):
-    def __init__(self, text, x, y, size=18, colour=(255, 255, 255)):
-        font = fc.get('DejaVuSans.ttf', size)
-        self.image = font.render(text, 1, colour)
-        self.rect = self.image.get_rect(left=x, centery=y)
-        SpriteBacked.__init__(self)
-
-class TextsLine(SpriteBacked):
-    def __init__(self, text, x, y, size=18):
-        font = fc.get('DejaVuSansMono.ttf', size)
-        self.image = font.render(text, 1, (255, 255, 255))
-        self.rect = self.image.get_rect(left=x, top=y)
-        SpriteBacked.__init__(self)
-        
-class Texts:
-    def __init__(self, texts, x, y, lines=24, size=18):
-        self.group = pygame.sprite.OrderedUpdates()
-        self.left = x
-        self.top = self.y = y
-        self.lines = lines
-        self.size = size
-        for row in texts:
-            self._new(row)
-            self.lines -= 1
-            if self.lines < 1: break
-        self.draw()
-
-    def _new(self, text):
-        sprite = TextsLine(text, self.left, self.y, self.size)
-        self.y = sprite.rect.bottom
-        self.group.add(sprite)
-        return sprite
-
-    def draw(self):
-        self.rects = self.group.draw(screen)
-
-    def add(self, text):
-        if self.lines < 1: return None
-        sprite = self._new(text)
-        sprite.draw()
-        return sprite
-
-class Field:
-    def __init__(self, prompt, value, x, y):
-        self.value = value
-        self.fn = fn = fc.get('DejaVuSans.ttf', 36)
-        self.sw = sw = screen.get_width()
-        self.sh = sh = screen.get_height()
-        # place prompt on screen
-        self.ps = ps = fn.render(prompt, 1, (255, 255, 255))
-        self.pc = pc = (x, y)
-        self.pr = pr = ps.get_rect(topright=pc)
-        self.pg = screen.subsurface(self.pr).copy()
-        r1 = screen.blit(ps, pr)
-        # highlight entry area
-        self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 300, pr.height)
-        self.bg = screen.subsurface(self.br).copy()
-        pygame.display.update(r1)
-        self.enter()
-        
-    def highlight(self):
-        return screen.fill((0,127,0), self.br)
-
-    def unhighlight(self):
-        return screen.blit(self.bg, self.br)
-
-    def draw(self):
-        as = self.fn.render(self.value, 1, (255, 255, 255))
-        ar = as.get_rect(topleft=self.pc)
-        ar.left = self.pr.right
-        return screen.blit(as, ar)
-        
-    def undraw(self):
-        return screen.blit(self.pg, self.pr)
-
-    def redraw(self):
-        r1 = self.highlight()
-        r2 = self.draw()
-        pygame.display.update([r1, r2])
-
-    def leave(self):
-        r1 = self.unhighlight()
-        r2 = self.draw()
-        pygame.display.update([r1, r2])
-        
-    def enter(self):
-        r1 = self.highlight()
-        r2 = self.draw()
-        pygame.display.update([r1, r2])
-        
-    def append(self, char):
-        self.value = self.value + char
-        r1 = self.draw()
-        pygame.display.update(r1)
-        
-    def backspace(self):
-        self.value = self.value[:-1]
-        self.redraw()
-
-    def delete(self):
-        self.value = ""
-        self.redraw()
-
-class Button(Text, Clickable):
-    def __init__(self, clicked, text, x, y, size, colour):
-        self.text = text
-        Text.__init__(self, text, x, y, size, colour)
-        Clickable.__init__(self, clicked)
-
-""" animations
-"""
-
-class Bouncer():
-    """ two torps following an orbital ellipse around an invisible mass """
-    def __init__(self, ex, ey, cx, cy, n1='torp-me.png', n2='torp-me.png'):
-        self.ex = ex
-        self.ey = ey
-        self.cx = cx
-        self.cy = cy
-        self.l = Icon(n1, self.cx+50, self.cy)
-        self.l.draw()
-        self.r = Icon(n2, self.cx-50, self.cy)
-        self.r.draw()
-
-    def update(self, pos, max):
-        r = []
-        r.append(self.l.clear())
-        r.append(self.r.clear())
-        x = self.ex * math.sin(pos * math.pi / max)
-        y = self.ey * math.cos(pos * math.pi / max)
-        self.l.move(500 - x, self.cy - y)
-        self.r.move(500 + x, self.cy + y)
-        r.append(self.l.draw())
-        r.append(self.r.draw())
-        pygame.display.update(r)
-
 """ user interface display phases
 """
 
@@ -2256,6 +2324,7 @@ class Phase:
         self.run = False
         self.eh_md = [] # event handlers, mouse down
         self.eh_mu = [] # event handlers, mouse up
+        self.eh_ue = [] # event handlers, user events (timers)
 
     def button(self, clicked, text, x, y, size, colour):
         b = Button(clicked, text, x, y, size, colour)
@@ -2362,7 +2431,9 @@ class Phase:
         self.display_sink_event(event)
 
     def ue(self, event):
-        pass
+        for eh in self.eh_ue:
+            if eh(event): return True
+        return False
 
     def ue_set(self, hz):
         self.ue_hz = hz
@@ -2413,7 +2484,8 @@ class Phase:
     def cycle(self):
         """ free wheeling cycle, use when it is acceptable to block on
         either display or network events, without local user event
-        timers """
+        timers (a timer scheduled in this mode will not fire until
+        after a display or network event occurs) """
         while self.run:
             self.network_sink()
             self.display_sink()
@@ -3080,6 +3152,13 @@ class PhaseFlightGalactic(PhaseFlight):
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self)
+        self.borders = Borders()
+        self.reports = pygame.sprite.OrderedUpdates()
+        self.reports.add(ReportSprite())
+        self.warning_sprite = WarningSprite()
+        self.warning = pygame.sprite.OrderedUpdates()
+        self.warning.add(self.warning_sprite)
+        self.eh_ue.append(self.warning_sprite.ue)
 
     def do(self):
         self.run = True
@@ -3101,20 +3180,30 @@ class PhaseFlightTactical(PhaseFlight):
     # query on a screen object.
         
     def update(self):
+        
         o_phasers = galaxy.phasers_undraw()
-        o_borders = galaxy.borders.undraw()
+        o_borders = self.borders.undraw()
+        self.reports.clear(screen, background)
+        self.warning.clear(screen, background)
         t_torps.clear(screen, background)
         t_players.clear(screen, background)
         t_planets.clear(screen, background)
+        
         t_planets.update()
         t_players.update()
         t_torps.update()
+        self.warning.update()
+        self.reports.update()
+        
         r_planets = t_planets.draw(screen)
         r_players = t_players.draw(screen)
         r_weapons = t_torps.draw(screen)
         r_phasers = galaxy.phasers_draw()
-        r_borders = galaxy.borders.draw()
-        pygame.display.update(o_phasers+o_borders+r_planets+r_players+r_weapons+r_phasers+r_borders)
+        r_borders = self.borders.draw()
+        r_reports = self.reports.draw(screen)
+        r_warning = self.warning.draw(screen)
+        
+        pygame.display.update(o_phasers+o_borders+r_planets+r_players+r_weapons+r_phasers+r_borders+r_reports+r_warning)
         #r_debug = galaxy.torp_debug_draw()
         #pygame.display.update(r_debug)
         #r_debug = galaxy.ship_debug_draw()
