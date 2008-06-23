@@ -857,10 +857,14 @@ class ShipTacticalSprite(ShipSprite):
         else:
             # FIXME: obtain imagery for galactic view
             # IMAGERY: ???-??-40x40.png
+            if self.ship.shiptype != STARBASE:
+                rotation = self.ship.dir
+            else:
+                rotation = 0
             try:
-                self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", self.ship.dir))
+                self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", rotation))
             except:
-                self.mi_add_image(ic.get_rotated('netrek.png', self.ship.dir))
+                self.mi_add_image(ic.get_rotated('netrek.png', rotation))
 
         # FIXME: filter for visibility by distance from me
         
