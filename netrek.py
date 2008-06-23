@@ -276,6 +276,7 @@ class Ship(Local):
         # sp_player
         self.dir = 0
         self.speed = 0
+        self.sp_player_me_speed_shown = False
         self.x = self.px = -10000
         self.y = self.py = -10000
         # sp_flags
@@ -338,6 +339,8 @@ class Ship(Local):
                 self.px = self.x = x
                 self.py = self.y = y
                 galaxy.planets_proximity_check() # forward reference to enclosing class
+            if self.speed != speed:
+                self.sp_player_me_speed_shown = False
         self.dir = dir_to_angle(dir)
         self.speed = speed
         self.x = x
@@ -1001,10 +1004,10 @@ class ReportSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(centerx=500, bottom=999)
 
     def update(self):
-        if me.sp_you_shown: return
+        if me.sp_you_shown and me.sp_player_me_speed_shown: return
         me.sp_you_shown = True
+        me.sp_player_me_speed_shown = True
         self.pick()
-        # FIXME: does not update for speed only changes
 
     def flags(self):
         f = me.flags
@@ -2881,8 +2884,8 @@ class PhaseOutfit(Phase):
                     break
 
     def team(self, team, ship):
-        self.last_team = team;
-        self.last_ship = ship;
+        self.last_team = team
+        self.last_ship = ship
         sp_pickok.catch(self.sp_pickok)
         nt.send(cp_outfit.data(team, ship))
 
