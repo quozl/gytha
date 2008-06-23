@@ -127,12 +127,15 @@ markiel@callisto.pas.rochester.edu
 
 """
 import sys, time, socket, errno, select, struct, pygame, math, ctypes
+
+# a global namespace until complexity grows too far
 from Cache import *
 from Constants import *
-import Util
-import MetaClient
-import Client
-import MOTD
+from MultipleImageSprite import *
+from Util import *
+from MetaClient import MetaClient
+from Client import Client, ServerDisconnectedError
+from MOTD import MOTD
 from pygame.locals import *
 from Options import opt
 
@@ -155,7 +158,7 @@ def galactic_scale(x, y):
 def tactical_scale(x, y):
     """ temporary coordinate scaling, tactical to screen, ship relative
     """
-    return ((x - me.x) / 20 + 500, (y - me.y) / 20 + 500)
+    return ((x - me.x) / 20 + 500, (y - me.y) / 20 + 500) # forward reference (me)
 
 def galactic_descale(x, y):
     """ temporary coordinate scaling, screen to galactic
@@ -165,10 +168,10 @@ def galactic_descale(x, y):
 def tactical_descale(x, y):
     """ temporary coordinate scaling, screen to tactical, ship relative
     """
-    return ((x - 500) * 20 + me.x, (y - 500) * 20 + me.y)
+    return ((x - 500) * 20 + me.x, (y - 500) * 20 + me.y) # forward reference (me)
 
 def descale(x, y):
-    if ph_flight == ph_galactic:
+    if ph_flight == ph_galactic: # forward reference (ph_*)
         return galactic_descale(x, y)
     else:
         return tactical_descale(x, y)
@@ -181,26 +184,33 @@ def dir_to_angle(dir):
 
 def xy_to_dir(x, y):
     global me
-    if ph_flight == ph_galactic:
-        (mx, my) = galactic_scale(me.x, me.y)
+    if ph_flight == ph_galactic: # forward reference (ph_*)
+        (mx, my) = galactic_scale(me.x, me.y) # forward reference (me)
         return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
     else:
         return int((math.atan2(x - 500, 500 - y) / math.pi * 128.0 + 0.5))
 
-class Planet:
+class Local:
+    """ netrek game objects, corresponding to objects in the game """
+    def __init__(self, n):
+        self.n = n
+        self.tactical = None
+        self.galactic = None
+
+class Planet(Local):
     """ netrek planets
         each server has a number of planets
         instances created as packets about the planets are received
         instances are listed in a dictionary of planets in the galaxy instance
     """
     def __init__(self, n):
-        self.n = n
+        Local.__init__(self, n)
         self.x = -10001
         self.y = -10001
         self.name = ''
         self.sp_planet(0, 0, 0, 0)
-        self.tactical = PlanetTacticalSprite(self)
-        self.galactic = PlanetGalacticSprite(self)
+        self.tactical = PlanetTacticalSprite(self) # forward reference
+        self.galactic = PlanetGalacticSprite(self) # forward reference
         self.nearby = False
 
     def sp_planet_loc(self, x, y, name):
@@ -242,14 +252,14 @@ class Planet:
                 self.nearby = False
                 self.tactical.hide()
 
-class Ship:
+class Ship(Local):
     """ netrek ships
         each server has a number of netrek ships, normally 32 (MAXPLAYER)
         instances created as packets about the ships are received
         instances are listed in a dictionary of ships in the galaxy instance
     """
     def __init__(self, n):
-        self.n = n
+        Local.__init__(self, n)
         # sp_pl_login
         self.rank = 0
         self.name = ''
@@ -273,8 +283,8 @@ class Ship:
         self.flags = 0
         # sp_pstatus
         self.status = PFREE
-        self.tactical = ShipTacticalSprite(self)
-        self.galactic = ShipGalacticSprite(self)
+        self.tactical = ShipTacticalSprite(self) # forward reference
+        self.galactic = ShipGalacticSprite(self) # forward reference
         self.ppcf = 1
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
@@ -327,7 +337,7 @@ class Ship:
             if self.x < 0 and x > 0:
                 self.px = self.x = x
                 self.py = self.y = y
-                galaxy.planets_proximity_check()
+                galaxy.planets_proximity_check() # forward reference to enclosing class
         self.dir = dir_to_angle(dir)
         self.speed = speed
         self.x = x
@@ -343,7 +353,7 @@ class Ship:
                 if abs(self.x - self.px) > 1000 or abs(self.y - self.py) > 1000:
                     self.px = self.x
                     self.py = self.y
-                    galaxy.planets_proximity_check()
+                    galaxy.planets_proximity_check() # forward reference to enclosing class
                 self.ppcf = 20
 
     def sp_flags(self, tractor, flags):
@@ -382,20 +392,20 @@ class Ship:
         q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx - 200, ty))
         return pygame.Rect.union(p, q)
 
-class Torp:
+class Torp(Local):
     """ netrek torps
         each netrek ship has eight netrek torps
         instances created as packets about the torps are received
         instances are listed in a dictionary of torps in the galaxy instance
     """
     def __init__(self, n):
-        self.n = n
-        self.ship = galaxy.ship(n / MAXTORP)
+        Local.__init__(self, n)
+        self.ship = galaxy.ship(n / MAXTORP) # forward reference to enclosing class
         self.fuse = 0
         self.status = TFREE
         self.sp_torp_info(0, self.status)
         self.sp_torp(0, 0, 0)
-        self.tactical = TorpTacticalSprite(self)
+        self.tactical = TorpTacticalSprite(self) # forward reference
 
     def sp_torp_info(self, war, status):
         was = self.status
@@ -412,7 +422,7 @@ class Torp:
                 self.x = -10000
                 self.y = -10000
             elif status == TEXPLODE:
-                galaxy.te.append(self)
+                galaxy.te.append(self) # forward reference to enclosing class
                 NUMDETFRAMES = 10
                 self.fuse = NUMDETFRAMES * opt.updates / 10;
                 # FIXME: use feature packet FPS and UPS not opt.updates
@@ -428,7 +438,7 @@ class Torp:
         if self.status == TEXPLODE:
             self.fuse -= 1
             if self.fuse <= 0:
-                galaxy.te.remove(self)
+                galaxy.te.remove(self) # forward reference to enclosing class
                 self.tactical.hide()
                 self.x = -10000
                 self.y = -10000
@@ -443,15 +453,15 @@ class Torp:
         q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx + 200, ty))
         return pygame.Rect.union(p, q)
 
-class Phaser:
+class Phaser(Local):
     """ netrek phasers
         each netrek ship has one netrek phaser
         instances created as packets about the phasers are received
         instances are listed in a dictionary of phasers in the galaxy instance
     """
     def __init__(self, n):
-        self.n = n
-        self.ship = galaxy.ship(n)
+        Local.__init__(self, n)
+        self.ship = galaxy.ship(n) # forward reference to enclosing class
         self.status = PHFREE
         self.want = False
         self.have = False
@@ -475,7 +485,7 @@ class Phaser:
             plasma.y = 100000
             (tx, ty) = tactical_scale(plasma.x, plasma.y)
         elif self.status == PHHIT:
-            target = galaxy.ship(self.target)
+            target = galaxy.ship(self.target) # forward reference to enclosing class
             (tx, ty) = tactical_scale(target.x, target.y)
             (fx, fy) = tactical_scale(self.ship.x, self.ship.y)
         self.txty = (tx, ty)
@@ -500,15 +510,15 @@ class Phaser:
         else:
             if self.status == PHFREE: self.want = False
 
-class Plasma:
+class Plasma(Local):
     """ netrek plasma torps
         each netrek ship has one netrek plasma torp
         instances created as packets about the plasma torps are received
         instances are listed in a dictionary in the galaxy instance
     """
     def __init__(self, n):
-        self.n = n
-        self.ship = galaxy.ship(n)
+        Local.__init__(self, n)
+        self.ship = galaxy.ship(n) # forward reference to enclosing class
         self.status = TFREE
         self.sp_plasma_info(0, self.status)
         self.sp_plasma(0, 0)
@@ -539,6 +549,7 @@ class Plasma:
         self.y = y
 
 class Galaxy:
+    """ structure to contain all netrek game objects """
     def __init__(self):
         self.planets = {}
         self.ships = {}
@@ -546,7 +557,7 @@ class Galaxy:
         self.te = [] # exploding torps
         self.phasers = {}
         self.plasmas = {}
-        self.motd = MOTD.MOTD()
+        self.motd = MOTD()
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -654,38 +665,6 @@ class Galaxy:
 galaxy = Galaxy()
 me = None
 
-class MultipleImageSprite(pygame.sprite.Sprite):
-    """ a sprite class consisting of multiple images overlaid
-        the images are blitted over each other in the order they are added
-    """
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-
-    def mi_begin(self):
-        self.ml = []
-        self.mr = None
-
-    def mi_add(self, image, rect):
-        self.ml.append((image, rect))
-        if self.mr == None:
-            self.mr = rect
-        else:
-            self.mr = pygame.Rect.union(self.mr, rect)
-            
-    def mi_add_image(self, image):
-        rect = image.get_rect()
-        self.mi_add(image, rect)
-
-    def mi_commit(self):
-        width = self.mr.width
-        height = self.mr.height
-        self.image = pygame.Surface((width, height), pygame.SRCALPHA, 32)
-        for x in self.ml:
-            (image, rect) = x
-            rect.center = (width/2, height/2)
-            self.image.blit(image, rect)
-        self.rect = self.image.get_rect()
-    
 class PlanetSprite(MultipleImageSprite):
     """ netrek planet sprites
     """
@@ -874,7 +853,7 @@ class ShipTacticalSprite(ShipSprite):
         # ship number
         image = pygame.Surface((40, 40), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 24)
-        message = Util.slot_decode(self.ship.n)
+        message = slot_decode(self.ship.n)
         text = font.render(message, 1, (255, 255, 255))
         rect = text.get_rect(center=(20, 20))
         # FIXME: cache this surface here, it will never change
@@ -1013,7 +992,6 @@ class Borders:
 
 class ReportSprite(pygame.sprite.Sprite):
     """ netrek reports
-        aka dashboard
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -1026,24 +1004,37 @@ class ReportSprite(pygame.sprite.Sprite):
         if me.sp_you_shown: return
         me.sp_you_shown = True
         self.pick()
+        # FIXME: does not update for speed only changes
 
     def flags(self):
+        f = me.flags
+        if f & PFPRESS: f ^= PFTRACT
         r = ''
-        x = ['SHIELD',    'REPAIR',    'BOMB',      'ORBIT',
-             'CLOAK',     'WEP',       'ENG',       'ROBOT',
-             'BEAMUP',    'BEAMDOWN',  'SELFDEST',  'GREEN',
-             'YELLOW',    'RED',       'PLOCK',     'PLLOCK',
-             'COPILOT',   'WAR',       'PRACTR',    'DOCK',
-             'REFIT',     'REFITTING', 'TRACT',     'PRESS',
-             'DOCKOK',    'SEEN',      'CYBORG',    'OBSERV',
-             '', '',      'TWARP',     'BPROBOT']
+        x = ['SHIELDS',      'REPAIRING',     'BOMBING',       'ORBITING',
+             'CLOAKED',      'WEAPONS-HOT',   'ENGINES-HOT',   'ROBOT',
+             'BEAM-UP',      'BEAM-DOWN',     'SELF-DESTRUCT', None,
+             'YELLOW-ALERT', 'RED-ALERT',     'SHIP-LOCK',     'PLANET-LOCK',
+             'COPILOT',      'DECLARING-WAR', 'PRACTICE',      'DOCKED',
+             'REFIT',        'REFITTING',     'TRACTOR',       'PRESSOR',
+             'DOCKING-OK',   'SEEN',          'CYBORG',        'OBSERVING',
+             None,           None,            'TRANSWARP',     'BPROBOT']
         for n in range(32):
-            if me.flags & (1 << n):
-                r += x[n] + ' '
+            if f & (1 << n):
+                if x[n]:
+                    r += x[n] + ' '
         return r
 
     def pick(self):
-        self.text = "A %d S %d F %d D %d S %d E %d W %d %s" % (me.armies, me.speed, me.fuel, me.damage, me.shield, me.etemp, me.wtemp, self.flags())
+        x = ' '
+        if me.armies  > 0:     x += "A %d " % me.armies
+        if me.speed   > 0:     x += "S %d " % me.speed
+        if me.fuel    < 10000: x += "F %d " % me.fuel # FIXME: getship values
+        if me.damage  > 0:     x += "D %d " % me.damage
+        if me.shield  < 100:   x += "S %d " % me.shield # FIXME: getship values
+        if me.etemp   > 0:     x += "E %d " % me.etemp
+        if me.wtemp   > 0:     x += "W %d " % (me.wtemp / 10)
+        x += self.flags()
+        self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(centerx=500, bottom=999)
 
@@ -1366,7 +1357,7 @@ class CP_OUTFIT(CP):
         self.tabulate(self.code, self.format)
 
     def data(self, race, ship=ASSAULT):
-        if opt.cp: print "CP_OUTFIT team=",Util.race_decode(race),"ship=",ship
+        if opt.cp: print "CP_OUTFIT team=",race_decode(race),"ship=",ship
         return struct.pack(self.format, self.code, race, ship)
 
 cp_outfit = CP_OUTFIT()
@@ -1801,7 +1792,7 @@ class SP_MOTD(SP):
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
         if opt.sp: print "SP_MOTD message=", message
-        galaxy.motd.add(Util.strnul(message))
+        galaxy.motd.add(strnul(message))
 
 sp_motd = SP_MOTD()
 
@@ -1815,7 +1806,7 @@ class SP_YOU(SP):
         global opt
         (ignored, pnum, hostile, swar, armies, tractor, flags, damage,
          shield, fuel, etemp, wtemp, whydead, whodead) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",Util.team_decode(hostile),"swar=",Util.team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
+        if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",team_decode(hostile),"swar=",team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
         ship = galaxy.ship(pnum)
         ship.sp_you(hostile, swar, armies, tractor, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
         if nt.mode == COMM_TCP and ship.speed == 0:
@@ -1849,7 +1840,7 @@ class SP_PL_LOGIN(SP):
     def handler(self, data):
         (ignored, pnum, rank, name, monitor,
          login) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PL_LOGIN pnum=",pnum,"rank=",rank,"name=",Util.strnul(name),"monitor=",Util.strnul(monitor),"login=",Util.strnul(login)
+        if opt.sp: print "SP_PL_LOGIN pnum=",pnum,"rank=",rank,"name=",strnul(name),"monitor=",strnul(monitor),"login=",strnul(login)
         ship = galaxy.ship(pnum)
         ship.sp_pl_login(rank, name, monitor, login)
 
@@ -1863,7 +1854,7 @@ class SP_HOSTILE(SP):
 
     def handler(self, data):
         (ignored, pnum, war, hostile) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_HOSTILE pnum=",pnum,"war=",Util.team_decode(war),"hostile=",Util.team_decode(hostile)
+        if opt.sp: print "SP_HOSTILE pnum=",pnum,"war=",team_decode(war),"hostile=",team_decode(hostile)
         ship = galaxy.ship(pnum)
         ship.sp_hostile(war, hostile)
 
@@ -1877,7 +1868,7 @@ class SP_PLAYER_INFO(SP):
 
     def handler(self, data):
         (ignored, pnum, shiptype, team) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLAYER_INFO pnum=",pnum,"shiptype=",shiptype,"team=",Util.team_decode(team)
+        if opt.sp: print "SP_PLAYER_INFO pnum=",pnum,"shiptype=",shiptype,"team=",team_decode(team)
         ship = galaxy.ship(pnum)
         ship.sp_player_info(shiptype, team)
 
@@ -1949,7 +1940,7 @@ class SP_PLANET_LOC(SP):
 
     def handler(self, data):
         (ignored, pnum, x, y, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLANET_LOC pnum=",pnum,"x=",x,"y=",y,"name=",Util.strnul(name)
+        if opt.sp: print "SP_PLANET_LOC pnum=",pnum,"x=",x,"y=",y,"name=",strnul(name)
         planet = galaxy.planet(pnum)
         planet.sp_planet_loc(x, y, name)
 
@@ -1994,7 +1985,7 @@ class SP_MASK(SP):
 
     def handler(self, data):
         (ignored, mask) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_MASK mask=",Util.team_decode(mask)
+        if opt.sp: print "SP_MASK mask=",team_decode(mask)
         if self.callback:
             self.callback(mask)
         # FIXME: #1187683470 update team selection icons in response to SP_MASK
@@ -2048,7 +2039,7 @@ class SP_TORP_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, tnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_TORP_INFO war=%s status=%d tnum=%d" % (str(Util.team_decode(war)), status, tnum)
+        if opt.sp: print "SP_TORP_INFO war=%s status=%d tnum=%d" % (str(team_decode(war)), status, tnum)
         torp = galaxy.torp(tnum)
         torp.sp_torp_info(war, status)
 
@@ -2076,7 +2067,7 @@ class SP_PLASMA_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, pnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLASMA_INFO war=",Util.team_decode(war),"status=",status,"pnum=",pnum
+        if opt.sp: print "SP_PLASMA_INFO war=",team_decode(war),"status=",status,"pnum=",pnum
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma_info(war, status)
 
@@ -2145,7 +2136,7 @@ class SP_MESSAGE(SP):
 
     def handler(self, data):
         (ignored, m_flags, m_recpt, m_from, mesg) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",Util.strnul(mesg)
+        if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",strnul(mesg)
         # FIXME: this is temporary processing of distress messages,
         # depending on the type of message it should be portrayed.
         if m_flags == (MVALID | MTEAM | MDISTR):
@@ -2193,7 +2184,7 @@ class SP_MESSAGE(SP):
 
             # FIXME: send control/t ;-)
         else:
-            print Util.strnul(mesg)
+            print strnul(mesg)
         # FIXME: display the message
 
 sp_message = SP_MESSAGE()
@@ -2220,8 +2211,8 @@ class SP_WARNING(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_WARNING message=", Util.strnul(message)
-        self.text = Util.strnul(message)
+        if opt.sp: print "SP_WARNING message=", strnul(message)
+        self.text = strnul(message)
         self.seen = False
 
 sp_warning = SP_WARNING()
@@ -2234,8 +2225,8 @@ class SP_FEATURE(SP):
 
     def handler(self, data):
         (ignored, type, arg1, arg2, value, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",Util.strnul(name)
-        if (type, arg1, arg2, value, Util.strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
+        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",strnul(name)
+        if (type, arg1, arg2, value, strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
             # send client features
             nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
 
@@ -2690,7 +2681,7 @@ class PhaseLogin(Phase):
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
         self.unwarn()
-        self.warn('connected, as slot %s, ready to login' % Util.slot_decode(me.n))
+        self.warn('connected, as slot %s, ready to login' % slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
         pygame.display.flip()
         self.name = Field("type a name ? ", "", 500, 750)
@@ -3146,9 +3137,9 @@ class PhaseFlightTactical(PhaseFlight):
         self.warning.add(self.warning_sprite)
         self.eh_ue.append(self.warning_sprite.ue)
 
-        self.co_g = (0, 30, 30) # cyan
-        self.co_y = (30, 30, 0) # yellow
-        self.co_r = (30, 0, 30) # purple
+        self.co_g = (0, 15, 15) # cyan
+        self.co_y = (15, 15, 0) # yellow
+        self.co_r = (15, 0, 15) # purple
 
         self.bg_g = screen.copy()
         self.bg_g.fill(self.co_g)
@@ -3332,14 +3323,14 @@ class PhaseDisconnected(Phase):
 """
 
 def mc_init():
-    mc = MetaClient.MetaClient()
+    mc = MetaClient()
     # query metaserver early,
     # to make good use of pygame startup and splash delay
     mc.query(opt.metaserver)
     return mc
 
 def nt_init():
-    nt = Client.Client(sp)
+    nt = Client(sp)
     if opt.tcp_only:
         nt.mode_requested = COMM_TCP
     nt.cp_udp_req = cp_udp_req
@@ -3437,7 +3428,7 @@ def nt_play():
 
             nt_play_a_slot()
 
-        except Client.ServerDisconnectedError:
+        except ServerDisconnectedError:
             PhaseDisconnected(screen)
 
         if mc == None: break
@@ -3489,3 +3480,5 @@ if __name__ == '__main__':
 
 # FIXME: list buttons do not show server list if --server used, avoid
 # rendering them.
+
+# FIXME: 'k' key, 'p' key
