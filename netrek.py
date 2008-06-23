@@ -136,6 +136,7 @@ from Util import *
 from MetaClient import MetaClient
 from Client import Client, ServerDisconnectedError
 from MOTD import MOTD
+from Cap import Cap
 from pygame.locals import *
 from Options import opt
 
@@ -269,7 +270,8 @@ class Ship(Local):
         self.war = 0
         self.hostile = 0
         # sp_player_info
-        self.shiptype = 0
+        self.shiptype = CRUISER
+        self.cap = galaxy.caps[CRUISER]
         self.team = 0
         # sp_kills
         self.kills = 0
@@ -324,6 +326,7 @@ class Ship(Local):
     
     def sp_player_info(self, shiptype, team):
         self.shiptype = shiptype
+        self.cap = galaxy.caps[shiptype]
         self.team = team
         # FIXME: display this data, on player list
 
@@ -473,9 +476,9 @@ class Phaser(Local):
     def draw(self):
         self.have = True
         if self.status == PHMISS:
-            s_phaserdamage = 100 # FIXME: CA is 100, others are different
+            s_phaserrange = self.ship.cap.s_phaserrange
             phasedist = 6000
-            factor = phasedist * s_phaserdamage / 100
+            factor = phasedist * s_phaserrange / 100
             angle = ( self.dir - 64 ) / 128.0 * math.pi
             tx = factor * math.cos(angle)
             ty = factor * math.sin(angle)
@@ -560,6 +563,9 @@ class Galaxy:
         self.te = [] # exploding torps
         self.phasers = {}
         self.plasmas = {}
+        self.caps = {}
+        for n in range(NUM_TYPES):
+            self.caps[n] = Cap(n)
         self.motd = MOTD()
 
     def planet(self, n):
@@ -619,6 +625,11 @@ class Galaxy:
         if not self.plasmas.has_key(n):
             self.plasmas[n] = Plasma(n)
         return self.plasmas[n]
+
+    def cap(self, n):
+        if not self.caps.has_key(n):
+            self.caps[n] = Cap(n)
+        return self.caps[n]
 
     def nearest(self, x, y, things):
         """ return the nearest thing to input screen coordinates
@@ -1029,13 +1040,13 @@ class ReportSprite(pygame.sprite.Sprite):
 
     def pick(self):
         x = ' '
-        if me.armies  > 0:     x += "A %d " % me.armies
-        if me.speed   > 0:     x += "S %d " % me.speed
-        if me.fuel    < 10000: x += "F %d " % me.fuel # FIXME: getship values
-        if me.damage  > 0:     x += "D %d " % me.damage
-        if me.shield  < 100:   x += "S %d " % me.shield # FIXME: getship values
-        if me.etemp   > 0:     x += "E %d " % me.etemp
-        if me.wtemp   > 0:     x += "W %d " % (me.wtemp / 10)
+        if me.armies > 0:                  x += "A %d " % me.armies
+        if me.speed  > 0:                  x += "S %d " % me.speed
+        if me.fuel   < me.cap.s_maxfuel:   x += "F %d " % me.fuel
+        if me.damage > 0:                  x += "D %d " % me.damage
+        if me.shield < me.cap.s_maxshield: x += "S %d " % me.shield
+        if me.etemp  > 0:                  x += "E %d " % (me.etemp / 10)
+        if me.wtemp  > 0:                  x += "W %d " % (me.wtemp / 10)
         x += self.flags()
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
@@ -2232,6 +2243,7 @@ class SP_FEATURE(SP):
         if (type, arg1, arg2, value, strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
             # send client features
             nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
+            nt.send(cp_feature.data('S', 0, 0, 1, 'SHIP_CAP'))
 
         # FIXME: process the packet
 
@@ -2251,6 +2263,7 @@ class SP_BADVERSION(SP):
 sp_badversion = SP_BADVERSION()
 
 class SP_PING(SP):
+    """ only received if client sends CP_PING_RESPONSE after SP_LOGIN """
     def __init__(self):
         self.code = 46
         self.format = "!bBHBBBB" 
@@ -2264,6 +2277,7 @@ class SP_PING(SP):
 sp_ping = SP_PING()
 
 class SP_UDP_REPLY(SP):
+    """ only received if client sends CP_UDP_REQ """
     def __init__(self):
         self.code = 28
         self.format = "!bbxxi" 
@@ -2277,6 +2291,7 @@ class SP_UDP_REPLY(SP):
 sp_udp_reply = SP_UDP_REPLY()
 
 class SP_SEQUENCE(SP):
+    """ only received if client sends CP_UDP_REQ requesting COMM_UDP """
     def __init__(self):
         self.code = 29
         self.format = "!bBH" 
@@ -2288,6 +2303,47 @@ class SP_SEQUENCE(SP):
         if opt.sp: print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
 
 sp_sequence = SP_SEQUENCE()
+
+class SP_SHIP_CAP(SP):
+    """ only received if client sends CP_FEATURE feature packet SHIP_CAP """
+    def __init__(self):
+        self.code = 39
+        self.format = "!bbHHHiiiiiiHHH1sx16s2sH"
+        self.tabulate(self.code, self.format, self)
+
+    def handler(self, data):
+        (ignored, operation, s_type, s_torpspeed, s_phaserrange, s_maxspeed, s_maxfuel, s_maxshield, s_maxdamage, s_maxwpntemp, s_maxegntemp, s_width, s_height, s_maxarmies, s_letter, s_name, s_desig, s_bitmap) = struct.unpack(self.format, data)
+        if opt.sp: print "SP_SHIP_CAP operation=%d s_type=%d s_torpspeed=%d s_phaserrange=%d s_maxspeed=%d s_maxfuel=%d s_maxshield=%d s_maxdamage=%d s_maxwpntemp=%d s_maxegntemp=%d s_width=%d s_height=%d s_maxarmies=%d s_letter=%s s_name=%s s_desig=%s s_bitmap=%d" % (operation, s_type, s_torpspeed, s_phaserrange, s_maxspeed, s_maxfuel, s_maxshield, s_maxdamage, s_maxwpntemp, s_maxegntemp, s_width, s_height, s_maxarmies, s_letter, s_name, s_desig, s_bitmap)
+        try:
+            cap = galaxy.cap(s_type)
+        except:
+            print "SP_SHIP_CAP s_type was invalid: %d" % s_type
+            return
+        # check operation, zero add or change, one remove
+        if operation == 1:
+            cap.reset(s_type)
+            return
+        if operation != 0:
+            print "SP_SHIP_CAP operation was invalid: %d" % operation
+            return
+        cap.seen = False
+        cap.s_torpspeed = s_torpspeed
+        cap.s_phaserrange = s_phaserrange
+        cap.s_maxspeed = s_maxspeed
+        cap.s_maxfuel = s_maxfuel
+        cap.s_maxshield = s_maxshield
+        cap.s_maxdamage = s_maxdamage
+        cap.s_maxwpntemp = s_maxwpntemp
+        cap.s_maxegntemp = s_maxegntemp
+        cap.s_width = s_width
+        cap.s_height = s_height
+        cap.s_maxarmies = s_maxarmies
+        cap.s_letter = s_letter
+        cap.s_name = s_name
+        cap.s_desig = s_desig
+        cap.s_bitmap = s_bitmap
+
+sp_ship_cap = SP_SHIP_CAP()
 
 """ user interface display phases
 """

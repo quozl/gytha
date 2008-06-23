@@ -96,6 +96,7 @@ PFOBSERV        = 0x8000000 # not to be displayed
 PFTWARP        = 0x40000000 # FIXME: display
 PFBPROBOT      = 0x80000000 # FIXME: display
 
+NUM_TYPES=8
 SCOUT=0
 DESTROYER=1
 CRUISER=2
