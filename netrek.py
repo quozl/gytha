@@ -430,9 +430,9 @@ class Torp(Local):
             elif status == TEXPLODE:
                 galaxy.te.append(self) # forward reference to enclosing class
                 NUMDETFRAMES = 10
-                self.fuse = NUMDETFRAMES * opt.updates / 10;
-                # FIXME: use feature packet FPS and UPS not opt.updates
-                # because at five updates per second explosions are half size
+                self.fuse = NUMDETFRAMES * galaxy.ups / 10;
+                # FIXME: animate torp explosions over local time?
+                # They vary according to update rate.
 
     def sp_torp(self, dir, x, y):
         self.dir = dir
@@ -567,6 +567,7 @@ class Galaxy:
         for n in range(NUM_TYPES):
             self.caps[n] = Cap(n)
         self.motd = MOTD()
+        self.ups = 5 # default if SP_FEATURE UPS is not received
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -2243,13 +2244,17 @@ class SP_FEATURE(SP):
 
     def handler(self, data):
         (ignored, type, arg1, arg2, value, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",strnul(name)
-        if (type, arg1, arg2, value, strnul(name)) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
+        name = strnul(name)
+        if opt.sp:
+            print "SP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name)
+        if (type, arg1, arg2, value, name) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
             # send client features
             nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
             nt.send(cp_feature.data('S', 0, 0, 1, 'SHIP_CAP'))
 
-        # FIXME: process the packet
+        if name == 'UPS':
+            galaxy.ups = value
+        # FIXME: process the other feature packets received
 
 sp_feature = SP_FEATURE()
 
