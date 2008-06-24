@@ -27,13 +27,20 @@ class MetaClient:
         self.last_s = None
         metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
         for hostname in metaservers:
-            addresses = socket.getaddrinfo(
-                    hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
-            for family, socktype, proto, canonname, sockaddr in addresses:
-                try:
-                    self.socket.sendto('?', sockaddr)
-                except socket.error:
-                    print sockaddr, "bad"
+            try:
+                # FIXME: resolving host name can take a while, and may
+                # not be required if a multicast discovery server is
+                # selected, so do not block on this.
+                addresses = socket.getaddrinfo(
+                        hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
+                for family, socktype, proto, canonname, sockaddr in addresses:
+                    try:
+                        self.socket.sendto('?', sockaddr)
+                        print "queried", hostname
+                    except socket.error:
+                        print "unable to query %s, proceeding" % sockaddr
+            except socket.gaierror:
+                print "unable to resolve %s, proceeding" % hostname
     
     def recv(self):
         r, w, e = select.select(self.fd, [], [], self.timeout)
