@@ -1810,8 +1810,9 @@ class SP_MOTD(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
+        message = strnul(message)
         if opt.sp: print "SP_MOTD message=", message
-        galaxy.motd.add(strnul(message))
+        galaxy.motd.add(message)
 
 sp_motd = SP_MOTD()
 
