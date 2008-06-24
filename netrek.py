@@ -2449,7 +2449,7 @@ class Phase:
             screen.blit(ts, tr)
 
     def network_sink(self):
-        nt.recv()
+        return nt.recv()
         
     def display_sink_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -3037,15 +3037,31 @@ class PhaseOutfit(Phase):
         self.run = False
 
 class PhaseFlight(Phase):
-    def __init__(self):
+    def __init__(self, name):
         Phase.__init__(self)
         self.run = True
+        self.frames = 0
+        self.events = 0
+        self.start = time.time()
+        self.name = name
+
+    def __del__(self):
+        end = time.time()
+        elapsed = end - self.start
+        fps = self.frames / elapsed
+        print "%s: frames=%d elapsed=%d rate=%d events=%d" % (self.name, self.frames, elapsed, fps, self.events)
 
     def cycle(self):
+        self.update()
+        self.frames += 1
         while self.run:
-            self.network_sink()
-            self.display_sink()
-            self.update()
+            packets = self.network_sink()
+            if not packets:
+                self.display_sink()
+                self.events += 1
+            if packets:
+                self.update()
+                self.frames += 1
             if me.status == POUTFIT: break
 
     def update(self):
@@ -3172,7 +3188,7 @@ class PhaseFlight(Phase):
     
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
-        PhaseFlight.__init__(self)
+        PhaseFlight.__init__(self, 'galactic')
         
     def do(self):
         self.run = True
@@ -3197,7 +3213,7 @@ class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
         global background
 
-        PhaseFlight.__init__(self)
+        PhaseFlight.__init__(self, 'tactical')
         self.borders = Borders()
         self.reports = pygame.sprite.OrderedUpdates()
         self.reports.add(ReportSprite())
@@ -3244,6 +3260,7 @@ class PhaseFlightTactical(PhaseFlight):
     # query on a screen object.
 
     def alert(self):
+        """ if the alert status has changed, adjust the background colour """
         global background
 
         if me.flags & PFGREEN:
@@ -3259,7 +3276,8 @@ class PhaseFlightTactical(PhaseFlight):
             pygame.display.flip()
 
     def update(self):
-        
+        """ clear, update, and redraw all tactical sprites and non-sprites """
+
         o_phasers = galaxy.phasers_undraw(self.co)
         o_borders = self.borders.undraw(self.co)
         self.reports.clear(screen, self.bg)
