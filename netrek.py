@@ -140,13 +140,17 @@ from Cap import Cap
 from pygame.locals import *
 from Options import opt
 
-print "Netrek Client Pygame"
-print "Copyright (C) 2008 James Cameron <quozl@us.netrek.org>"
-print ""
-print "This program comes with ABSOLUTELY NO WARRANTY; for details see source."
-print "This is free software, and you are welcome to redistribute it under certain"
-print "conditions; see source for details."
-print ""
+WELCOME = [
+"Netrek Client Pygame",
+"Copyright (C) 2008 James Cameron <quozl@us.netrek.org>",
+"",
+"This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
+"This is free software, and you are welcome to redistribute it under certain",
+"conditions; see source for details."
+]
+
+for line in WELCOME: print line
+print
 
 ic = IC()
 fc = FC()
@@ -2437,19 +2441,13 @@ class Phase:
         if not opt.no_backgrounds: more = "backgrounds by hubble, "
         self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 16)
         
-    def license(self):
+    def welcome(self):
+        global WELCOME
+
         font = fc.get('DejaVuSansMono.ttf', 14)
-        lines = [
-"Netrek Client Pygame",
-"Copyright (C) 2008 James Cameron <quozl@us.netrek.org>",
-"",
-"This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
-"This is free software, and you are welcome to redistribute it under certain",
-"conditions; see source for details."
-        ]
         x = 200
         y = 790
-        for line in lines:
+        for line in WELCOME:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
             y = tr.bottom
@@ -2555,7 +2553,7 @@ class Phase:
             self.display_sink_wait()
     
 class PhaseSplash(Phase):
-    """ splash screen, shows license for a short time, and the player
+    """ splash screen, shows welcome for a short time, and the player
     is to either wait for the timer to expire, or click to cancel """
     def __init__(self, screen):
         Phase.__init__(self)
@@ -2564,7 +2562,7 @@ class PhaseSplash(Phase):
         y = screen.get_height()/2
         self.text("netrek", x, y, 144)
         self.bouncer = Bouncer(200, 200, x, y, 'torp-explode-20.png', 'torp-explode-20.png')
-        self.license()
+        self.welcome()
         self.add_quit_button(self.quit)
         pygame.display.flip()
         if opt.screenshots:
@@ -2604,7 +2602,7 @@ class PhaseServers(Phase):
         self.background("hubble-orion.jpg")
         self.text('netrek', 500, 100, 92)
         self.text('server list', 500, 175, 64)
-        self.license()
+        self.welcome()
         self.add_quit_button(self.quit)
         pygame.display.flip()
         self.bouncer = Bouncer(225, 20, 500, 240)
