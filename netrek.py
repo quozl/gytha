@@ -1057,7 +1057,10 @@ class ReportSprite(pygame.sprite.Sprite):
         x = ' '
         if me.armies > 0:                  x += "A %d " % me.armies
         if me.kills  > 0:                  x += "K %.2f " % (me.kills / 100.0)
-        if me.speed  > 0:                  x += "S %d " % me.speed
+        if me.shiptype != STARBASE:
+            if me.speed > 0:               x += "S %d " % me.speed
+        else:
+            if me.speed != me.cap.s_maxspeed: x += "S %d " % me.speed
         if me.fuel   < me.cap.s_maxfuel:   x += "F %d " % me.fuel
         if me.damage > 0:                  x += "D %d " % me.damage
         if me.shield < me.cap.s_maxshield: x += "S %d " % me.shield
@@ -3135,6 +3138,7 @@ class PhaseFlight(Phase):
             pygame.K_b: self.op_bomb,
             pygame.K_c: self.op_cloak_toggle,
             pygame.K_d: self.op_det,
+            pygame.K_e: self.op_docking_toggle,
             pygame.K_l: self.op_player_lock,
             pygame.K_o: self.op_orbit,
             pygame.K_s: self.op_shield_toggle,
@@ -3193,6 +3197,13 @@ class PhaseFlight(Phase):
             torp = galaxy.torp(x)
             if torp.status == TMOVE or torp.status == TSTRAIGHT:
                 nt.send(cp_det_mytorp.data(x))
+
+    def op_docking_toggle(self, event):
+        if not me: return
+        if me.flags & PFDOCKOK:
+            nt.send(cp_dockperm.data(0))
+        else:
+            nt.send(cp_dockperm.data(1))
 
     def op_orbit(self, event):
         nt.send(cp_orbit.data(1))
