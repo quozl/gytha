@@ -3049,6 +3049,7 @@ class PhaseFlight(Phase):
         self.events = 0
         self.start = time.time()
         self.name = name
+        self.set_keys()
 
     def __del__(self):
         end = time.time()
@@ -3089,108 +3090,207 @@ class PhaseFlight(Phase):
             nt.send(cp_torp.data(xy_to_dir(x, y)))
     
     def kb(self, event):
-        global me
-        shift = (event.mod == pygame.KMOD_SHIFT or
-                 event.mod == pygame.KMOD_LSHIFT or
-                 event.mod == pygame.KMOD_RSHIFT)
-        control = (event.mod == pygame.KMOD_CTRL or
-                   event.mod == pygame.KMOD_LCTRL or
-                   event.mod == pygame.KMOD_RCTRL)
-        # FIXME: use a lookup table
-        if event.key == pygame.K_LSHIFT: pass
-        elif event.key == pygame.K_8 and shift: nt.send(cp_practr.data())
-        elif event.key == pygame.K_0: nt.send(cp_speed.data(0))
-        elif event.key == pygame.K_1: nt.send(cp_speed.data(1))
-        elif event.key == pygame.K_2 and shift: nt.send(cp_speed.data(12))
-        elif event.key == pygame.K_2: nt.send(cp_speed.data(2))
-        elif event.key == pygame.K_3: nt.send(cp_speed.data(3))
-        elif event.key == pygame.K_4: nt.send(cp_speed.data(4))
-        elif event.key == pygame.K_5: nt.send(cp_speed.data(5))
-        elif event.key == pygame.K_6: nt.send(cp_speed.data(6))
-        elif event.key == pygame.K_7: nt.send(cp_speed.data(7))
-        elif event.key == pygame.K_8: nt.send(cp_speed.data(8))
-        elif event.key == pygame.K_9: nt.send(cp_speed.data(9))
-        elif event.key == pygame.K_u or event.key == pygame.K_s:
-            if me:
-                if me.flags & PFSHIELD:
-                    nt.send(cp_shield.data(0))
-                else:
-                    nt.send(cp_shield.data(1))
-        elif event.key == pygame.K_r and shift: nt.send(cp_repair.data(1))
-        elif event.key == pygame.K_b: nt.send(cp_bomb.data())
-        elif event.key == pygame.K_z: nt.send(cp_beam.data(1))
-        elif event.key == pygame.K_x: nt.send(cp_beam.data(2))
-        elif event.key == pygame.K_d and shift:
-            if me:
-                base = me.n * MAXTORP
-                for x in range(base, base + MAXTORP):
-                    torp = galaxy.torp(x)
-                    if torp.status == TMOVE or torp.status == TSTRAIGHT:
-                        nt.send(cp_det_mytorp.data(x))
-        elif event.key == pygame.K_d: nt.send(cp_det_torps.data())
-        elif event.key == pygame.K_c:
-            if me:
-                if me.flags & PFCLOAK:
-                    nt.send(cp_cloak.data(0))
-                else:
-                    nt.send(cp_cloak.data(1))
-        elif event.key == pygame.K_SEMICOLON:
-            x, y = pygame.mouse.get_pos()
-            nearest = galaxy.nearest_planet(x, y)
-            if nearest != None:
-                nt.send(cp_planlock.data(nearest.n))
-        elif event.key == pygame.K_l:
-            x, y = pygame.mouse.get_pos()
-            nearest = galaxy.nearest_ship(x, y)
-            if nearest != None:
-                nt.send(cp_playlock.data(nearest.n))
-        elif event.key == pygame.K_t and shift:
-            x, y = pygame.mouse.get_pos()
-            nearest = galaxy.nearest_ship(x, y)
-            if me and nearest != None:
-                if me.flags & PFTRACT:
-                    nt.send(cp_tractor.data(0, nearest.n))
-                else:
-                    nt.send(cp_tractor.data(1, nearest.n))
-        elif event.key == pygame.K_y:
-            x, y = pygame.mouse.get_pos()
-            nearest = galaxy.nearest_ship(x, y)
-            if me and nearest != None:
-                if me.flags & PFPRESS:
-                    nt.send(cp_repress.data(0, nearest.n))
-                else:
-                    nt.send(cp_repress.data(1, nearest.n))
-        elif event.key == pygame.K_t and control:
-            x, y = pygame.mouse.get_pos()
-            nearest = galaxy.nearest_planet(x, y)
-            if nearest != None:
-                group = 0xc4
-                indiv = 0x01
-                mesg = struct.pack('16B', 1, me.fuel & 0xff | 0x80, # FIXME: normalise
-                                   me.damage & 0xff | 0x80, # FIXME: normalise
-                                   me.shield & 0xff | 0x80, # FIXME: normalise
-                                   me.etemp & 0xff | 0x80, # FIXME: normalise
-                                   
-                                   me.wtemp & 0xff | 0x80, # FIXME: normalise
-                                   me.armies & 0xff | 0x80,
-                                   me.flags & 0xff | 0x80,
-                                   galaxy.closest_planet(me.x, me.y) | 0x80, # closest planet to me
-                                   
-                                   galaxy.closest_enemy(me.x, me.y) | 0x80, # closest enemy to me
-                                   galaxy.nearest_planet(x, y).n | 0x80, # closest planet to cursor
-                                   0 | 0x80, # FIXME: closest enemy to cursor
-                                   galaxy.nearest_ship(x, y).n | 0x80, # closest player to cursor
-                                   
-                                   0 | 0x80, # FIXME: closest player to me
-                                   0 | 0x80, # FIXME: closest friend to cursor
-                                   0 | 0x80  # FIXME: closest friend to me
-                                   )
-                nt.send(cp_message.data(group, indiv, mesg))
-        # FIXME: some of this looks repetitive
-        elif event.key == pygame.K_o: nt.send(cp_orbit.data(1))
+
+        # ignore the shift and control keys on their own
+        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: return
+        if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: return
+
+        # check for control key sequences pressed
+        if (event.mod == pygame.KMOD_CTRL or
+            event.mod == pygame.KMOD_LCTRL or
+            event.mod == pygame.KMOD_RCTRL):
+            if self.keys_control.has_key(event.key):
+                self.keys_control[event.key](event)
+                return
+
+        # check for shift key sequences pressed
+        if (event.mod == pygame.KMOD_SHIFT or
+            event.mod == pygame.KMOD_LSHIFT or
+            event.mod == pygame.KMOD_RSHIFT):
+            if self.keys_shift.has_key(event.key):
+                self.keys_shift[event.key](event)
+                return
+
+        # check for normal keys pressed
+        if self.keys_normal.has_key(event.key):
+            self.keys_normal[event.key](event)
+            return
+
+        return Phase.kb(self, event)
+
+    def set_keys(self):
+        """ define dictionaries to map keys to operations """
+        self.keys_normal = {
+            pygame.K_0: self.op_warp,
+            pygame.K_1: self.op_warp,
+            pygame.K_2: self.op_warp,
+            pygame.K_3: self.op_warp,
+            pygame.K_4: self.op_warp,
+            pygame.K_5: self.op_warp,
+            pygame.K_6: self.op_warp,
+            pygame.K_7: self.op_warp,
+            pygame.K_8: self.op_warp,
+            pygame.K_9: self.op_warp,
+            pygame.K_SEMICOLON: self.op_planet_lock,
+            pygame.K_b: self.op_bomb,
+            pygame.K_c: self.op_cloak_toggle,
+            pygame.K_d: self.op_det,
+            pygame.K_l: self.op_player_lock,
+            pygame.K_o: self.op_orbit,
+            pygame.K_s: self.op_shield_toggle,
+            pygame.K_u: self.op_shield_toggle,
+            pygame.K_x: self.op_beam_down,
+            pygame.K_y: self.op_pressor_toggle,
+            pygame.K_z: self.op_beam_up,
+            }
+        self.keys_control = {
+            pygame.K_t: self.rc_take,
+            }
+        self.keys_shift = {
+            pygame.K_0: self.op_warp_10,    #  )
+            pygame.K_1: self.op_warp_11,    #  !
+            pygame.K_2: self.op_warp_12,    #  @
+            pygame.K_3: self.op_warp_half,  #  #
+            pygame.K_4: self.op_null,       #  $
+            pygame.K_5: self.op_warp_full,  #  %
+            pygame.K_6: self.op_null,       #  ^
+            pygame.K_7: self.op_null,       #  &
+            pygame.K_8: self.op_practice,   #  *
+            pygame.K_d: self.op_det_me,
+            pygame.K_r: self.op_repair,
+            pygame.K_t: self.op_tractor_toggle,
+            }
+
+    def cp_speed(self, warp):
+        nt.send(cp_speed.data(warp))
+
+    def op_null(self, event):
+        pass
+
+    def op_beam_down(self, event):
+        nt.send(cp_beam.data(2))
+
+    def op_beam_up(self, event):
+        nt.send(cp_beam.data(1))
+
+    def op_bomb(self, event):
+        nt.send(cp_bomb.data())
+
+    def op_cloak_toggle(self, event):
+        if not me: return
+        if me.flags & PFCLOAK:
+            nt.send(cp_cloak.data(0))
         else:
-            return Phase.kb(self, event)
-    
+            nt.send(cp_cloak.data(1))
+
+    def op_det(self, event):
+        nt.send(cp_det_torps.data())
+
+    def op_det_me(self, event):
+        if not me: return
+        base = me.n * MAXTORP
+        for x in range(base, base + MAXTORP):
+            torp = galaxy.torp(x)
+            if torp.status == TMOVE or torp.status == TSTRAIGHT:
+                nt.send(cp_det_mytorp.data(x))
+
+    def op_orbit(self, event):
+        nt.send(cp_orbit.data(1))
+
+    def op_planet_lock(self, event):
+        x, y = pygame.mouse.get_pos()
+        nearest = galaxy.nearest_planet(x, y)
+        if nearest != None:
+            nt.send(cp_planlock.data(nearest.n))
+
+    def op_player_lock(self, event):
+        x, y = pygame.mouse.get_pos()
+        nearest = galaxy.nearest_ship(x, y)
+        if nearest != None:
+            nt.send(cp_playlock.data(nearest.n))
+
+    def op_practice(self, event):
+        nt.send(cp_practr.data())
+
+    def op_pressor_toggle(self, event):
+        if not me: return
+        x, y = pygame.mouse.get_pos()
+        nearest = galaxy.nearest_ship(x, y)
+        if nearest != None:
+            if me.flags & PFPRESS:
+                nt.send(cp_repress.data(0, nearest.n))
+            else:
+                nt.send(cp_repress.data(1, nearest.n))
+
+    def op_repair(self, event):
+        nt.send(cp_repair.data(1))
+
+    def op_shield_toggle(self, event):
+        if not me: return
+        if me.flags & PFSHIELD:
+            nt.send(cp_shield.data(0))
+        else:
+            nt.send(cp_shield.data(1))
+
+    def op_tractor_toggle(self, event):
+        if not me: return
+        x, y = pygame.mouse.get_pos()
+        nearest = galaxy.nearest_ship(x, y)
+        if nearest != None:
+            if me.flags & PFTRACT:
+                nt.send(cp_tractor.data(0, nearest.n))
+            else:
+                nt.send(cp_tractor.data(1, nearest.n))
+
+    def op_warp(self, event):
+        key = event.key
+        if key >= pygame.K_0 and key <= pygame.K_9:
+            self.cp_speed(key - pygame.K_0)
+
+    def op_warp_10(self, event):
+        self.cp_speed(10)
+
+    def op_warp_11(self, event):
+        self.cp_speed(11)
+
+    def op_warp_12(self, event):
+        self.cp_speed(12)
+
+    def op_warp_half(self, event):
+        if me: self.cp_speed(me.cap.s_maxspeed / 2)
+
+    def op_warp_full(self, event):
+        if me: self.cp_speed(me.cap.s_maxspeed)
+
+    def rc_take(self, event):
+        """ temporary take rcd send """
+        x, y = pygame.mouse.get_pos()
+        nearest = galaxy.nearest_planet(x, y)
+        if nearest == None: return
+        if not me: return
+        group = 0xc4
+        indiv = 0x01
+        mesg = struct.pack('16B', 1, me.fuel & 0xff | 0x80, # FIXME: normalise
+                           me.damage & 0xff | 0x80, # FIXME: normalise
+                           me.shield & 0xff | 0x80, # FIXME: normalise
+                           me.etemp & 0xff | 0x80, # FIXME: normalise
+
+                           me.wtemp & 0xff | 0x80, # FIXME: normalise
+                           me.armies & 0xff | 0x80,
+                           me.flags & 0xff | 0x80,
+                           galaxy.closest_planet(me.x, me.y) | 0x80, # closest planet to me
+
+                           galaxy.closest_enemy(me.x, me.y) | 0x80, # closest enemy to me
+                           galaxy.nearest_planet(x, y).n | 0x80, # closest planet to cursor
+                           0 | 0x80, # FIXME: closest enemy to cursor
+                           galaxy.nearest_ship(x, y).n | 0x80, # closest player to cursor
+
+                           0 | 0x80, # FIXME: closest player to me
+                           0 | 0x80, # FIXME: closest friend to cursor
+                           0 | 0x80  # FIXME: closest friend to me
+                           )
+        nt.send(cp_message.data(group, indiv, mesg))
+
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self, 'galactic')
