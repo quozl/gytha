@@ -3151,6 +3151,8 @@ class PhaseFlight(Phase):
             pygame.K_t: self.rc_take,
             }
         self.keys_shift = {
+            pygame.K_COMMA: self.op_warp_down,
+            pygame.K_PERIOD: self.op_warp_up,
             pygame.K_0: self.op_warp_10,    #  )
             pygame.K_1: self.op_warp_11,    #  !
             pygame.K_2: self.op_warp_12,    #  @
@@ -3272,6 +3274,12 @@ class PhaseFlight(Phase):
 
     def op_warp_full(self, event):
         if me: self.cp_speed(me.cap.s_maxspeed)
+
+    def op_warp_down(self, event):
+        if me: self.cp_speed(me.speed - 1)
+
+    def op_warp_up(self, event):
+        if me: self.cp_speed(me.speed + 1)
 
     def rc_take(self, event):
         """ temporary take rcd send """
