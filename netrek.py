@@ -275,6 +275,7 @@ class Ship(Local):
         self.team = 0
         # sp_kills
         self.kills = 0
+        self.sp_kills_me_shown = False
         # sp_player
         self.dir = 0
         self.speed = 0
@@ -331,6 +332,10 @@ class Ship(Local):
         # FIXME: display this data, on player list
 
     def sp_kills(self, kills):
+        global me
+        if me == self:
+            if self.kills != kills:
+                self.sp_kills_me_shown = False
         self.kills = kills
         # FIXME: display this data, on player list
         # FIXME: show kills on tactical sprite for ship
@@ -1020,9 +1025,10 @@ class ReportSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(centerx=500, bottom=999)
 
     def update(self):
-        if me.sp_you_shown and me.sp_player_me_speed_shown: return
+        if me.sp_you_shown and me.sp_player_me_speed_shown and me.sp_kills_me_shown: return
         me.sp_you_shown = True
         me.sp_player_me_speed_shown = True
+        me.sp_kills_me_shown = True
         self.pick()
 
     def flags(self):
@@ -1046,6 +1052,7 @@ class ReportSprite(pygame.sprite.Sprite):
     def pick(self):
         x = ' '
         if me.armies > 0:                  x += "A %d " % me.armies
+        if me.kills  > 0:                  x += "K %.2f " % (me.kills / 100.0)
         if me.speed  > 0:                  x += "S %d " % me.speed
         if me.fuel   < me.cap.s_maxfuel:   x += "F %d " % me.fuel
         if me.damage > 0:                  x += "D %d " % me.damage
