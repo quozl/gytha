@@ -877,27 +877,36 @@ class ShipTacticalSprite(ShipSprite):
                 self.mi_add_image(ic.get_rotated('netrek.png', rotation))
 
         # FIXME: filter for visibility by distance from me
-        
+        status = self.ship.status
+        flags = self.ship.flags
+
         # ship number
         image = pygame.Surface((40, 40), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 24)
         message = slot_decode(self.ship.n)
-        text = font.render(message, 1, (255, 255, 255))
+        colour = (255, 255, 255)
+        if flags & PFPRACTR:
+            colour = (0, 255, 0)
+        elif flags & PFROBOT:
+            colour = (255, 0, 0)
+        elif flags & PFBPROBOT:
+            colour = (0, 0, 255)
+        elif flags & PFDOCKOK:
+            colour = (0, 255, 255)
+        text = font.render(message, 1, colour)
         rect = text.get_rect(center=(20, 20))
         # FIXME: cache this surface here, it will never change
         image.blit(text, rect)
         self.mi_add_image(image)
-        
-        if self.ship.status == PALIVE and self.ship.flags & PFSHIELD:
-            # IMAGERY: shield-80x80.png
-            self.mi_add_image(ic.get('shield-80x80.png'))
-        
-        if self.ship.status == PALIVE and self.ship.flags & PFCLOAK:
-            # IMAGERY: ship-cloak.png
-            self.mi_add_image(ic.get('ship-cloak.png'))
-        
-        # FIXME: show flag for PFROBOT, PFPRACTR or PFBPROBOT
-        # FIXME: show flag for PFDOCKOK
+
+        if status == PALIVE:
+            if flags & PFCLOAK:
+                # IMAGERY: ship-cloak.png
+                self.mi_add_image(ic.get('ship-cloak.png'))
+            if flags & PFSHIELD and (self.ship == me or not flags & PFCLOAK):
+                # IMAGERY: shield-80x80.png
+                self.mi_add_image(ic.get('shield-80x80.png'))
+
         # FIXME: not show or show differently if PFCLOAK
         self.mi_commit()
         
