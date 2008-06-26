@@ -2586,7 +2586,7 @@ class PhaseSplash(Phase):
         self.ue_set(100)
         self.fuse_was = self.fuse = opt.splashtime / self.ue_delay
         self.run = True
-        self.cycle_wait_display()
+        self.cycle_wait_display() # returns after self.leave is called
         self.ue_clear()
 
     def ue(self, event):
@@ -2633,7 +2633,7 @@ class PhaseServers(Phase):
         self.ue_set(100)
         self.fuse_was = opt.metaserver_refresh_interval * 1000 / self.ue_delay
         self.fuse = self.fuse_was / 2
-        self.cycle_wait()
+        self.cycle_wait() # returns after self.leave is called
         self.ue_clear()
 
     def server_icon(self, y):
@@ -2781,7 +2781,7 @@ class PhaseLogin(Phase):
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-login.tga")
         self.cancelled = False
-        self.cycle()
+        self.cycle() # returns when login is complete, or cancelled
 
     def tab(self):
         # FIXME: just press enter for guest
@@ -2949,7 +2949,7 @@ class PhaseOutfit(Phase):
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-outfit.tga")
         self.auto()
-        self.cycle()
+        self.cycle() # returns when choice accepted by server, or user cancels
         sp_mask.uncatch()
 
     def mask(self, mask):
@@ -3074,6 +3074,7 @@ class PhaseFlight(Phase):
         print "%s: frames=%d elapsed=%d rate=%d events=%d" % (self.name, self.frames, elapsed, fps, self.events)
 
     def cycle(self):
+        """ main in-flight event loop, returns when no longer flying """
         self.update()
         self.frames += 1
         while self.run:
@@ -3084,7 +3085,7 @@ class PhaseFlight(Phase):
             if packets:
                 self.update()
                 self.frames += 1
-            if me.status == POUTFIT: break
+            if me.status == POUTFIT: break # no longer flying
 
     def update(self):
         raise NotImplemented
@@ -3333,7 +3334,8 @@ class PhaseFlightGalactic(PhaseFlight):
         g_planets.clear(screen, background)
         g_planets.update()
         pygame.display.update(g_planets.draw(screen))
-        self.bg = screen.copy()
+        self.bg = screen.copy() # static planet background
+        # FIXME: planets are not redrawn if changed
         self.cycle()
         
     def kb(self, event):
@@ -3680,12 +3682,13 @@ def main(args=[]):
         if not nt.connect(opt.chosen, opt.port):
             print "connection failed"
             # server was requested on command line, but not available
-            sys.exit(1)
+            return 1
     screen = pg_init()
 
     nt_play()
     ic.statistics()
     pg_quit()
+    return 0
 
 if __name__ == '__main__':
     import sys
