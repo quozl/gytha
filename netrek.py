@@ -199,8 +199,8 @@ class Local:
     """ netrek game objects, corresponding to objects in the game """
     def __init__(self, n):
         self.n = n
-        self.tactical = None
-        self.galactic = None
+        self.tactical = None # pygame sprite on tactical
+        self.galactic = None # pygame sprite on galactic
 
 class Planet(Local):
     """ netrek planets
@@ -707,7 +707,7 @@ class PlanetGalacticSprite(PlanetSprite):
     def __init__(self, planet):
         PlanetSprite.__init__(self, planet)
         self.pick()
-        galactic.add(self)
+        g_planets.add(self)
 
     def pick(self):
         self.mi_begin()
@@ -835,10 +835,10 @@ class ShipGalacticSprite(ShipSprite):
         self.rect = self.image.get_rect()
         
     def show(self):
-        galactic.add(self)
+        g_players.add(self)
 
     def hide(self):
-        galactic.remove(self)
+        g_players.remove(self)
 
 class ShipTacticalSprite(ShipSprite):
     """ netrek ship sprites
@@ -2382,6 +2382,7 @@ sp_ship_cap = SP_SHIP_CAP()
 """
 
 class Phase:
+    """ display phases common code """
     def __init__(self):
         self.warn_on = False
         self.warn_fuse = 0
@@ -3329,6 +3330,10 @@ class PhaseFlightGalactic(PhaseFlight):
     def do(self):
         self.run = True
         screen.blit(background, (0, 0))
+        g_planets.clear(screen, background)
+        g_planets.update()
+        pygame.display.update(g_planets.draw(screen))
+        self.bg = screen.copy()
         self.cycle()
         
     def kb(self, event):
@@ -3340,10 +3345,10 @@ class PhaseFlightGalactic(PhaseFlight):
             return PhaseFlight.kb(self, event)
 
     def update(self):
-        galactic.clear(screen, background)
-        galactic.update()
-        pygame.display.update(galactic.draw(screen))
-
+        g_players.clear(screen, self.bg)
+        g_players.update()
+        r_players = g_players.draw(screen)
+        pygame.display.update(r_players)
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
@@ -3576,7 +3581,7 @@ def pg_fd():
     if mc: mc.set_pg_fd(n)
 
 def pg_init():
-    global t_planets, t_players, t_torps, galactic, background
+    global t_planets, t_players, t_torps, g_planets, g_players, background
     
     pygame.init()
     size = width, height = 1000, 1000
@@ -3595,7 +3600,8 @@ def pg_init():
     t_planets = pygame.sprite.OrderedUpdates(())
     t_players = pygame.sprite.OrderedUpdates(())
     t_torps = pygame.sprite.OrderedUpdates(())
-    galactic = pygame.sprite.OrderedUpdates(())
+    g_planets = pygame.sprite.OrderedUpdates(())
+    g_players = pygame.sprite.OrderedUpdates(())
 
     background = screen.copy()
     background.fill((0, 0, 0))
