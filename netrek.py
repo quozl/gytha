@@ -1349,234 +1349,175 @@ class Bouncer():
 """ client originated packets
 """
 
-class CP:
-    def tabulate(self, number, format):
-        global cp_table
-        cp_table[number] = (struct.calcsize(format), format)
-
 cp_table = {}
 
+class ClientPacket(type):
+    def __new__(cls, name, bases, dct):
+        client_packet = type.__new__(cls, name, bases, dct)
+
+        if name.startswith('CP_'):
+            cp_table[client_packet.code] = client_packet.format
+            globals()[name.lower()] = client_packet()
+
+        return client_packet
+
+class CP:
+    __metaclass__ = ClientPacket
+
+    code = -1
+    format = ''
+
+    def data(self, *args):
+        if opt.cp: print self.__class__.__name__, args
+        return struct.pack(self.format, self.code, *args)
+
 class CP_SOCKET(CP):
-    def __init__(self):
-        self.code = 27
-        self.format = '!bbbxI'
-        self.tabulate(self.code, self.format)
+    code = 27
+    format = '!bbbxI'
 
     def data(self):
         if opt.cp: print "CP_SOCKET"
         return struct.pack(self.format, self.code, 4, 10, 0)
 
-cp_socket = CP_SOCKET()
-
 class CP_BYE(CP):
-    def __init__(self):
-        self.code = 29
-        self.format = '!bxxx'
-        self.tabulate(self.code, self.format)
+    code = 29
+    format = '!bxxx'
 
     def data(self):
         if opt.cp: print "CP_BYE"
         return struct.pack(self.format, self.code)
 
-cp_bye = CP_BYE()
-
 class CP_LOGIN(CP):
-    def __init__(self):
-        self.code = 8
-        self.format = '!bbxx16s16s16s' 
-        self.tabulate(self.code, self.format)
+    code = 8
+    format = '!bbxx16s16s16s' 
 
     def data(self, query, name, password, login):
         if opt.cp: print "CP_LOGIN query=",query,"name=",name
         return struct.pack(self.format, self.code, query, name, password, login)
 
-cp_login = CP_LOGIN()
-
 class CP_OUTFIT(CP):
-    def __init__(self):
-        self.code = 9
-        self.format = '!bbbx'
-        self.tabulate(self.code, self.format)
+    code = 9
+    format = '!bbbx'
 
     def data(self, race, ship=ASSAULT):
         if opt.cp: print "CP_OUTFIT team=",race_decode(race),"ship=",ship
         return struct.pack(self.format, self.code, race, ship)
 
-cp_outfit = CP_OUTFIT()
-
 class CP_SPEED(CP):
-    def __init__(self):
-        self.code = 2
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 2
+    format = '!bbxx'
 
     def data(self, speed):
         if opt.cp: print "CP_SPEED speed=",speed
         return struct.pack(self.format, self.code, speed)
 
-cp_speed = CP_SPEED()
-
 class CP_DIRECTION(CP):
-    def __init__(self):
-        self.code = 3
-        self.format = '!bBxx'
-        self.tabulate(self.code, self.format)
+    code = 3
+    format = '!bBxx'
 
     def data(self, direction):
         if opt.cp: print "CP_DIRECTION direction=",direction
         return struct.pack(self.format, self.code, direction & 255)
 
-cp_direction = CP_DIRECTION()
-
 class CP_PLANLOCK(CP):
-    def __init__(self):
-        self.code = 15
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 15
+    format = '!bbxx'
 
     def data(self, pnum):
         if opt.cp: print "CP_PLANLOCK pnum=",pnum
         return struct.pack(self.format, self.code, pnum)
 
-cp_planlock = CP_PLANLOCK()
-
 class CP_PLAYLOCK(CP):
-    def __init__(self):
-        self.code = 16
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 16
+    format = '!bbxx'
 
     def data(self, pnum):
         if opt.cp: print "CP_PLAYLOCK pnum=",pnum
         return struct.pack(self.format, self.code, pnum)
 
-cp_playlock = CP_PLAYLOCK()
-
 class CP_UPDATES(CP):
-    def __init__(self):
-        self.code = 31
-        self.format = '!bxxxI'
-        self.tabulate(self.code, self.format)
+    code = 31
+    format = '!bxxxI'
 
     def data(self, usecs):
         if opt.cp: print "CP_UPDATES usecs=",usecs
         return struct.pack(self.format, self.code, usecs)
 
-cp_updates = CP_UPDATES()
-
 class CP_BOMB(CP):
-    def __init__(self):
-        self.code = 17
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 17
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_BOMB state=",state
         return struct.pack(self.format, self.code, state)
 
-cp_bomb = CP_BOMB()
-
 class CP_BEAM(CP):
-    def __init__(self):
-        self.code = 18
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 18
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_BEAM state=",state
         return struct.pack(self.format, self.code, state)
 
-cp_beam = CP_BEAM()
-
 class CP_CLOAK(CP):
-    def __init__(self):
-        self.code = 19
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 19
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_CLOAK state=",state
         return struct.pack(self.format, self.code, state)
 
-cp_cloak = CP_CLOAK()
-
 class CP_REPAIR(CP):
-    def __init__(self):
-        self.code = 13
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 13
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_REPAIR state=",state
         return struct.pack(self.format, self.code, state)
 
-cp_repair = CP_REPAIR()
-
 class CP_SHIELD(CP):
-    def __init__(self):
-        self.code = 12
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 12
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_SHIELD state=",state
         return struct.pack(self.format, self.code, state)
 
-cp_shield = CP_SHIELD()
-
 class CP_MESSAGE(CP):
-    def __init__(self):
-        self.code = 1
-        self.format = "!bBBx80s"
-        self.tabulate(self.code, self.format)
+    code = 1
+    format = "!bBBx80s"
 
     def data(self, group, indiv, mesg):
         if opt.cp: print "CP_MESSAGE group=",group,"indiv=",indiv,"mesg=",mesg
         return struct.pack(self.format, self.code, group, indiv, mesg)
 
-cp_message = CP_MESSAGE()
-
 class CP_PHASER(CP):
-    def __init__(self):
-        self.code = 4
-        self.format = '!bBxx'
-        self.tabulate(self.code, self.format)
+    code = 4
+    format = '!bBxx'
 
     def data(self, direction):
         if opt.cp: print "CP_PHASER direction=",direction
         return struct.pack(self.format, self.code, direction & 255)
 
-cp_phaser = CP_PHASER()
-
 class CP_PLASMA(CP):
-    def __init__(self):
-        self.code = 5
-        self.format = '!bBxx'
-        self.tabulate(self.code, self.format)
+    code = 5
+    format = '!bBxx'
 
     def data(self, direction):
         if opt.cp: print "CP_PLASMA direction=",direction
         return struct.pack(self.format, self.code, direction)
 
-cp_plasma = CP_PLASMA()
-
 class CP_TORP(CP):
-    def __init__(self):
-        self.code = 6
-        self.format = '!bBxx'
-        self.tabulate(self.code, self.format)
+    code = 6
+    format = '!bBxx'
 
     def data(self, direction):
         if opt.cp: print "CP_TORP direction=",direction
         return struct.pack(self.format, self.code, direction & 255)
 
-cp_torp = CP_TORP()
-
 class CP_QUIT(CP):
-    def __init__(self):
-        self.code = 7
-        self.format = '!bxxx'
-        self.tabulate(self.code, self.format)
+    code = 7
+    format = '!bxxx'
 
     def data(self):
         if opt.cp: print "CP_QUIT"
@@ -1584,237 +1525,177 @@ class CP_QUIT(CP):
         # FIXME: on quit, no teams available for selection, should
         # drop out rather than show outfit window.
 
-cp_quit = CP_QUIT()
-
 class CP_WAR(CP):
-    def __init__(self):
-        self.code = 10
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 10
+    format = '!bbxx'
 
     def data(self, newmask):
         if opt.cp: print "CP_WAR newmask=",newmask
         return struct.pack(self.format, self.code, newmask)
 
-cp_war = CP_WAR()
-
 class CP_PRACTR(CP):
-    def __init__(self):
-        self.code = 11
-        self.format = '!bxxx'
-        self.tabulate(self.code, self.format)
+    code = 11
+    format = '!bxxx'
 
     def data(self):
         if opt.cp: print "CP_PRACTR"
         return struct.pack(self.format, self.code)
 
-cp_practr = CP_PRACTR()
-
 class CP_ORBIT(CP):
-    def __init__(self):
-        self.code = 14
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 14
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_ORBIT =",state
         return struct.pack(self.format, self.code, state)
 
-cp_orbit = CP_ORBIT()
-
 class CP_DET_TORPS(CP):
-    def __init__(self):
-        self.code = 20
-        self.format = '!bxxx'
-        self.tabulate(self.code, self.format)
+    code = 20
+    format = '!bxxx'
 
     def data(self):
         if opt.cp: print "CP_DET_TORPS"
         return struct.pack(self.format, self.code)
 
-cp_det_torps = CP_DET_TORPS()
-
 class CP_DET_MYTORP(CP):
-    def __init__(self):
-        self.code = 21
-        self.format = '!bxh'
-        self.tabulate(self.code, self.format)
+    code = 21
+    format = '!bxh'
 
     def data(self, tnum):
         if opt.cp: print "CP_DET_MYTORP"
         return struct.pack(self.format, self.code, tnum)
 
-cp_det_mytorp = CP_DET_MYTORP()
-
 class CP_COPILOT(CP):
-    def __init__(self):
-        self.code = 22
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 22
+    format = '!bbxx'
 
     def data(self, state=1):
         if opt.cp: print "CP_COPILOT"
         return struct.pack(self.format, self.code, state)
 
-cp_copilot = CP_COPILOT()
-
 class CP_REFIT(CP):
-    def __init__(self):
-        self.code = 23
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 23
+    format = '!bbxx'
 
     def data(self, ship):
         if opt.cp: print "CP_REFIT ship=",ship
         return struct.pack(self.format, self.code, ship)
 
-cp_refit = CP_REFIT()
-
 class CP_TRACTOR(CP):
-    def __init__(self):
-        self.code = 24
-        self.format = '!bbbx'
-        self.tabulate(self.code, self.format)
+    code = 24
+    format = '!bbbx'
 
     def data(self, state, pnum):
         if opt.cp: print "CP_TRACTOR state=",state,"pnum=",pnum
         return struct.pack(self.format, self.code, state, pnum)
 
-cp_tractor = CP_TRACTOR()
-
 class CP_REPRESS(CP):
-    def __init__(self):
-        self.code = 25
-        self.format = '!bbbx'
-        self.tabulate(self.code, self.format)
+    code = 25
+    format = '!bbbx'
 
     def data(self, state, pnum):
         if opt.cp: print "CP_REPRESS state=",state,"pnum=",pnum
         return struct.pack(self.format, self.code, state, pnum)
 
-cp_repress = CP_REPRESS()
-
 class CP_COUP(CP):
-    def __init__(self):
-        self.code = 26
-        self.format = '!bxxx'
-        self.tabulate(self.code, self.format)
+    code = 26
+    format = '!bxxx'
 
     def data(self):
         if opt.cp: print "CP_COUP"
         return struct.pack(self.format, self.code)
 
-cp_coup = CP_COUP()
-
 class CP_OPTIONS(CP):
-    def __init__(self):
-        self.code = 28
-        self.format = "!bxxxI96s"
-        self.tabulate(self.code, self.format)
+    code = 28
+    format = "!bxxxI96s"
 
     def data(self, flags, keymap):
         if opt.cp: print "CP_OPTIONS flags=",flags,"keymap=",keymap
         return struct.pack(self.format, self.code, flags, keymap)
 
-cp_options = CP_OPTIONS()
-
 class CP_DOCKPERM(CP):
-    def __init__(self):
-        self.code = 30
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 30
+    format = '!bbxx'
 
     def data(self, state):
         if opt.cp: print "CP_DOCKPERM state=",state
         return struct.pack(self.format, self.code, state)
 
-cp_dockperm = CP_DOCKPERM()
-
 class CP_RESETSTATS(CP):
-    def __init__(self):
-        self.code = 32
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 32
+    format = '!bbxx'
 
     def data(self, verify):
         if opt.cp: print "CP_RESETSTATS verify=",verify
         return struct.pack(self.format, self.code, verify)
 
-cp_resetstats = CP_RESETSTATS()
-
 class CP_RESERVED(CP):
-    def __init__(self):
-        self.code = 33
-        self.format = "!bxxx16s16s" 
-        self.tabulate(self.code, self.format)
+    code = 33
+    format = "!bxxx16s16s" 
 
     def data(self, data, resp):
         if opt.cp: print "CP_RESERVED"
         return struct.pack(self.format, self.code, data, resp)
 
-cp_reserved = CP_RESERVED()
-
 class CP_SCAN(CP):
-    def __init__(self):
-        self.code = 34
-        self.format = '!bbxx'
-        self.tabulate(self.code, self.format)
+    code = 34
+    format = '!bbxx'
 
     def data(self, pnum):
         if opt.cp: print "CP_SCAN pnum=",pnum
         return struct.pack(self.format, self.code, pnum)
 
-cp_scan = CP_SCAN()
-
 class CP_UDP_REQ(CP):
-    def __init__(self):
-        self.code = 35
-        self.format = '!bbbxi'
-        self.tabulate(self.code, self.format)
+    code = 35
+    format = '!bbbxi'
 
     def data(self, request, connmode, port):
         if opt.cp: print "CP_UDP_REQ request=%d connmode=%d port=%d" % (request, connmode, port)
         return struct.pack(self.format, self.code, request, connmode, port)
 
-cp_udp_req = CP_UDP_REQ()
-
 class CP_FEATURE(CP):
-    def __init__(self):
-        self.code = 60
-        self.format = "!bcbbi80s"
-        self.tabulate(self.code, self.format)
+    code = 60
+    format = "!bcbbi80s"
 
     def data(self, type, arg1, arg2, value, name):
         if opt.cp: print "CP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",name
         return struct.pack(self.format, self.code, type, arg1, arg2, value, name)
 
-cp_feature = CP_FEATURE()
-
 class CP_PING_RESPONSE(CP):
-    def __init__(self):
-        self.code = 42
-        self.format = "!bBbxll"
-        self.tabulate(self.code, self.format)
+    code = 42
+    format = "!bBbxll"
 
     def data(self, number, pingme, cp_sent, cp_recv):
         if opt.cp: print "CP_PING_RESPONSE pingme=", pingme
         return struct.pack(self.format, self.code, number, pingme, cp_sent, cp_recv)
 
-cp_ping_response = CP_PING_RESPONSE()
-
 """ server originated packets
 """
 
+sp_table = {}
+
+class ServerPacket(type):
+    def __new__(cls, name, bases, dct):
+        server_packet = type.__new__(cls, name, bases, dct)
+
+        if dct['code'] not in sp_table:
+            obj = server_packet()
+            sp_table[server_packet.code] = (
+                struct.calcsize(server_packet.format), obj)
+            if name.lower() not in globals():
+                globals()[name.lower()] = obj
+
+        return server_packet
+
 class SP:
-    def tabulate(self, number, format, instance):
-        global sp_table
-        sp_table[number] = (struct.calcsize(format), instance)
+    __metaclass__ = ServerPacket
+    code = -1
+    format = ''
 
     def find(self, number):
         """ given a packet type return a tuple consisting of
             (size, instance), or (1, self) if type not known
         """
-        global sp_table
         if not sp_table.has_key(number):
             return (1, self)
         return sp_table[number]
@@ -1822,14 +1703,10 @@ class SP:
     def handler(self, data):
         raise NotImplemented
 
-sp_table = {}
-sp = SP()
 
 class SP_MOTD(SP):
-    def __init__(self):
-        self.code = 11
-        self.format = '!bxxx80s'
-        self.tabulate(self.code, self.format, self)
+    code = 11
+    format = '!bxxx80s'
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
@@ -1837,13 +1714,9 @@ class SP_MOTD(SP):
         if opt.sp: print "SP_MOTD message=", message
         galaxy.motd.add(message)
 
-sp_motd = SP_MOTD()
-
 class SP_YOU(SP):
-    def __init__(self):
-        self.code = 12
-        self.format = '!bbbbbbxxIlllhhhh'
-        self.tabulate(self.code, self.format, self)
+    code = 12
+    format = '!bbbbbbxxIlllhhhh'
 
     def handler(self, data):
         global opt
@@ -1859,26 +1732,18 @@ class SP_YOU(SP):
             nt.send(cp_login.data(0, opt.name, opt.password, opt.login))
             opt.name = None
 
-sp_you = SP_YOU()
-
 class SP_QUEUE(SP):
-    def __init__(self):
-        self.code = 13
-        self.format = '!bxh'
-        self.tabulate(self.code, self.format, self)
+    code = 13
+    format = '!bxh'
 
     def handler(self, data):
         (ignored, pos) = struct.unpack(self.format, data)
         if opt.sp: print "SP_QUEUE pos=",pos
         # FIXME: present on pygame screen
 
-sp_queue = SP_QUEUE()
-
 class SP_PL_LOGIN(SP):
-    def __init__(self):
-        self.code = 24
-        self.format = "!bbbx16s16s16s" 
-        self.tabulate(self.code, self.format, self)
+    code = 24
+    format = "!bbbx16s16s16s" 
 
     def handler(self, data):
         (ignored, pnum, rank, name, monitor,
@@ -1887,13 +1752,9 @@ class SP_PL_LOGIN(SP):
         ship = galaxy.ship(pnum)
         ship.sp_pl_login(rank, name, monitor, login)
 
-sp_pl_login = SP_PL_LOGIN()
-
 class SP_HOSTILE(SP):
-    def __init__(self):
-        self.code = 22
-        self.format = "!bbbb"
-        self.tabulate(self.code, self.format, self)
+    code = 22
+    format = "!bbbb"
 
     def handler(self, data):
         (ignored, pnum, war, hostile) = struct.unpack(self.format, data)
@@ -1901,13 +1762,9 @@ class SP_HOSTILE(SP):
         ship = galaxy.ship(pnum)
         ship.sp_hostile(war, hostile)
 
-sp_hostile = SP_HOSTILE()
-
 class SP_PLAYER_INFO(SP):
-    def __init__(self):
-        self.code = 2
-        self.format = "!bbbb"
-        self.tabulate(self.code, self.format, self)
+    code = 2
+    format = "!bbbb"
 
     def handler(self, data):
         (ignored, pnum, shiptype, team) = struct.unpack(self.format, data)
@@ -1915,13 +1772,9 @@ class SP_PLAYER_INFO(SP):
         ship = galaxy.ship(pnum)
         ship.sp_player_info(shiptype, team)
 
-sp_player_info = SP_PLAYER_INFO()
-
 class SP_KILLS(SP):
-    def __init__(self):
-        self.code = 3
-        self.format = "!bbxxI"
-        self.tabulate(self.code, self.format, self)
+    code = 3
+    format = "!bbxxI"
 
     def handler(self, data):
         (ignored, pnum, kills) = struct.unpack(self.format, data)
@@ -1929,13 +1782,9 @@ class SP_KILLS(SP):
         ship = galaxy.ship(pnum)
         ship.sp_kills(kills)
 
-sp_kills = SP_KILLS()
-
 class SP_PSTATUS(SP):
-    def __init__(self):
-        self.code = 20
-        self.format = "!bbbx"
-        self.tabulate(self.code, self.format, self)
+    code = 20
+    format = "!bbbx"
 
     def handler(self, data):
         (ignored, pnum, status) = struct.unpack(self.format, data)
@@ -1943,13 +1792,9 @@ class SP_PSTATUS(SP):
         ship = galaxy.ship(pnum)
         ship.sp_pstatus(status)
 
-sp_pstatus = SP_PSTATUS()
-
 class SP_PLAYER(SP):
-    def __init__(self):
-        self.code = 4
-        self.format = "!bbBbll"
-        self.tabulate(self.code, self.format, self)
+    code = 4
+    format = "!bbBbll"
 
     def handler(self, data):
         (ignored, pnum, dir, speed, x, y) = struct.unpack(self.format, data)
@@ -1959,13 +1804,9 @@ class SP_PLAYER(SP):
         if nt.mode == COMM_TCP and ship == me:
             galaxy.torp_aging()
 
-sp_player = SP_PLAYER()
-
 class SP_FLAGS(SP):
-    def __init__(self):
-        self.code = 18
-        self.format = "!bbbxI"
-        self.tabulate(self.code, self.format, self)
+    code = 18
+    format = "!bbbxI"
 
     def handler(self, data):
         (ignored, pnum, tractor, flags) = struct.unpack(self.format, data)
@@ -1973,13 +1814,9 @@ class SP_FLAGS(SP):
         ship = galaxy.ship(pnum)
         ship.sp_flags(tractor, flags)
 
-sp_flags = SP_FLAGS()
-
 class SP_PLANET_LOC(SP):
-    def __init__(self):
-        self.code = 26
-        self.format = "!bbxxll16s" 
-        self.tabulate(self.code, self.format, self)
+    code = 26
+    format = "!bbxxll16s" 
 
     def handler(self, data):
         (ignored, pnum, x, y, name) = struct.unpack(self.format, data)
@@ -1987,14 +1824,10 @@ class SP_PLANET_LOC(SP):
         planet = galaxy.planet(pnum)
         planet.sp_planet_loc(x, y, name)
 
-sp_planet_loc = SP_PLANET_LOC()
-
 class SP_LOGIN(SP):
-    def __init__(self):
-        self.code = 17
-        self.format = "!bbxxl96s"
-        self.tabulate(self.code, self.format, self)
-        self.uncatch()
+    code = 17
+    format = "!bbxxl96s"
+    callback = None
 
     def uncatch(self):
         self.callback = None
@@ -2011,14 +1844,10 @@ class SP_LOGIN(SP):
         if accept == 1:
             nt.send(cp_ping_response.data(0, 1, 0, 0))
 
-sp_login = SP_LOGIN()
-
 class SP_MASK(SP):
-    def __init__(self):
-        self.code = 19
-        self.format = "!bbxx"
-        self.tabulate(self.code, self.format, self)
-        self.uncatch()
+    code = 19
+    format = "!bbxx"
+    callback = None
 
     def uncatch(self):
         self.callback = None
@@ -2033,14 +1862,10 @@ class SP_MASK(SP):
             self.callback(mask)
         # FIXME: #1187683470 update team selection icons in response to SP_MASK
 
-sp_mask = SP_MASK()
-
 class SP_PICKOK(SP):
-    def __init__(self):
-        self.code = 16
-        self.format = "!bbxx"
-        self.tabulate(self.code, self.format, self)
-        self.uncatch()
+    code = 16
+    format = "!bbxx"
+    callback = None
 
     def uncatch(self):
         self.callback = None
@@ -2056,13 +1881,9 @@ class SP_PICKOK(SP):
             self.callback(state)
             self.uncatch()
 
-sp_pickok = SP_PICKOK()
-
 class SP_RESERVED(SP):
-    def __init__(self):
-        self.code = 25
-        self.format = "!bxxx16s"
-        self.tabulate(self.code, self.format, self)
+    code = 25
+    format = "!bxxx16s"
 
     def handler(self, data):
         (ignored, data) = struct.unpack(self.format, data)
@@ -2072,13 +1893,9 @@ class SP_RESERVED(SP):
         # FIXME: generate correct response data
         nt.send(cp_reserved.data(data, resp))
 
-sp_reserved = SP_RESERVED()
-
 class SP_TORP_INFO(SP):
-    def __init__(self):
-        self.code = 5
-        self.format = "!bbbxhxx"
-        self.tabulate(self.code, self.format, self)
+    code = 5
+    format = "!bbbxhxx"
 
     def handler(self, data):
         (ignored, war, status, tnum) = struct.unpack(self.format, data)
@@ -2086,13 +1903,9 @@ class SP_TORP_INFO(SP):
         torp = galaxy.torp(tnum)
         torp.sp_torp_info(war, status)
 
-sp_torp_info = SP_TORP_INFO()
-
 class SP_TORP(SP):
-    def __init__(self):
-        self.code = 6
-        self.format = "!bBhll"
-        self.tabulate(self.code, self.format, self)
+    code = 6
+    format = "!bBhll"
 
     def handler(self, data):
         (ignored, dir, tnum, x, y) = struct.unpack(self.format, data)
@@ -2100,13 +1913,9 @@ class SP_TORP(SP):
         torp = galaxy.torp(tnum)
         torp.sp_torp(dir, x, y)
 
-sp_torp = SP_TORP()
-
 class SP_PLASMA_INFO(SP):
-    def __init__(self):
-        self.code = 8
-        self.format = "!bbbxhxx"
-        self.tabulate(self.code, self.format, self)
+    code = 8
+    format = "!bbbxhxx"
 
     def handler(self, data):
         (ignored, war, status, pnum) = struct.unpack(self.format, data)
@@ -2114,13 +1923,9 @@ class SP_PLASMA_INFO(SP):
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma_info(war, status)
 
-sp_plasma_info = SP_PLASMA_INFO()
-
 class SP_PLASMA(SP):
-    def __init__(self):
-        self.code = 9
-        self.format = "!bxhll"
-        self.tabulate(self.code, self.format, self)
+    code = 9
+    format = "!bxhll"
 
     def handler(self, data):
         (ignored, pnum, x, y) = struct.unpack(self.format, data)
@@ -2128,26 +1933,18 @@ class SP_PLASMA(SP):
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma(x, y)
 
-sp_plasma = SP_PLASMA()
-
 class SP_STATUS(SP):
-    def __init__(self):
-        self.code = 14
-        self.format = "!bbxxIIIIIL"
-        self.tabulate(self.code, self.format, self)
+    code = 14
+    format = "!bbxxIIIIIL"
 
     def handler(self, data):
         (ignored, tourn, armsbomb, planets, kills, losses, time, timeprod) = struct.unpack(self.format, data)
         if opt.sp: print "SP_STATUS tourn=",tourn,"armsbomb=",armsbomb,"planets=",planets,"kills=",kills,"losses=",losses,"time=",time,"timepro=",timeprod
         # FIXME: display t-mode state, and hey, the other things might be fun
 
-sp_status = SP_STATUS()
-
 class SP_PHASER(SP):
-    def __init__(self):
-        self.code = 7
-        self.format = "!bbbBlll" 
-        self.tabulate(self.code, self.format, self)
+    code = 7
+    format = "!bbbBlll" 
 
     def handler(self, data):
         (ignored, pnum, status, dir, x, y, target) = struct.unpack(self.format, data)
@@ -2155,13 +1952,9 @@ class SP_PHASER(SP):
         phaser = galaxy.phaser(pnum)
         phaser.sp_phaser(status, dir, x, y, target)
 
-sp_phaser = SP_PHASER()
-
 class SP_PLANET(SP):
-    def __init__(self):
-        self.code = 15
-        self.format = "!bbbbhxxl" 
-        self.tabulate(self.code, self.format, self)
+    code = 15
+    format = "!bbbbhxxl" 
 
     def handler(self, data):
         (ignored, pnum, owner, info, flags, armies) = struct.unpack(self.format, data)
@@ -2169,13 +1962,9 @@ class SP_PLANET(SP):
         planet = galaxy.planet(pnum)
         planet.sp_planet(owner, info, flags, armies)
 
-sp_planet = SP_PLANET()
-
 class SP_MESSAGE(SP):
-    def __init__(self):
-        self.code = 1
-        self.format = "!bBBB80s"
-        self.tabulate(self.code, self.format, self)
+    code = 1
+    format = "!bBBB80s"
 
     def handler(self, data):
         (ignored, m_flags, m_recpt, m_from, mesg) = struct.unpack(self.format, data)
@@ -2230,27 +2019,19 @@ class SP_MESSAGE(SP):
             print strnul(mesg)
         # FIXME: display the message
 
-sp_message = SP_MESSAGE()
-
 class SP_STATS(SP):
-    def __init__(self):
-        self.code = 23
-        self.format = "!bbxx13l"
-        self.tabulate(self.code, self.format, self)
+    code = 23
+    format = "!bbxx13l"
 
     def handler(self, data):
         (ignored, pnum, tkills, tlosses, kills, losses, tticks, tplanets, tarmies, sbkills, sblosses, armies, planets, maxkills, sbmaxkills) = struct.unpack(self.format, data)
         if opt.sp: print "SP_STATS pnum=",pnum,"tkills=",tkills,"tlosses=",tlosses,"kills=",kills,"losses=",losses,"tticks=",tticks,"tplanets=",tplanets,"tarmies=",tarmies,"sbkills=",sbkills,"sblosses=",sblosses,"armies=",armies,"planets=",planets,"maxkills=",maxkills,"sbmaxkills=",sbmaxkills
 
-sp_stats = SP_STATS()
-
 class SP_WARNING(SP):
-    def __init__(self):
-        self.code = 10
-        self.format = '!bxxx80s'
-        self.tabulate(self.code, self.format, self)
-        self.text = ''
-        self.seen = False
+    code = 10
+    format = '!bxxx80s'
+    text = ''
+    seen = False
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
@@ -2258,13 +2039,9 @@ class SP_WARNING(SP):
         self.text = strnul(message)
         self.seen = False
 
-sp_warning = SP_WARNING()
-
 class SP_FEATURE(SP):
-    def __init__(self):
-        self.code = 60
-        self.format = "!bcbbi80s"
-        self.tabulate(self.code, self.format, self)
+    code = 60
+    format = "!bcbbi80s"
 
     def handler(self, data):
         (ignored, type, arg1, arg2, value, name) = struct.unpack(self.format, data)
@@ -2280,69 +2057,49 @@ class SP_FEATURE(SP):
             galaxy.ups = value
         # FIXME: process the other feature packets received
 
-sp_feature = SP_FEATURE()
-
 class SP_BADVERSION(SP):
-    def __init__(self):
-        self.code = 21
-        self.format = "!bbxx"
-        self.tabulate(self.code, self.format, self)
-        self.why = None
+    code = 21
+    format = "!bbxx"
+    why = None
 
     def handler(self, data):
         (ignored, why) = struct.unpack(self.format, data)
         self.why = why
 
-sp_badversion = SP_BADVERSION()
-
 class SP_PING(SP):
     """ only received if client sends CP_PING_RESPONSE after SP_LOGIN """
-    def __init__(self):
-        self.code = 46
-        self.format = "!bBHBBBB" 
-        self.tabulate(self.code, self.format, self)
+    code = 46
+    format = "!bBHBBBB" 
 
     def handler(self, data):
         (ignored, number, lag, tloss_sc, tloss_cs, iloss_sc, iloss_cs) = struct.unpack(self.format, data)
         if opt.sp: print "SP_PING"
         nt.send(cp_ping_response.data(0, 1, 0, 0))
 
-sp_ping = SP_PING()
-
 class SP_UDP_REPLY(SP):
     """ only received if client sends CP_UDP_REQ """
-    def __init__(self):
-        self.code = 28
-        self.format = "!bbxxi" 
-        self.tabulate(self.code, self.format, self)
+    code = 28
+    format = "!bbxxi" 
 
     def handler(self, data):
         (ignored, reply, port) = struct.unpack(self.format, data)
         if opt.sp: print "SP_UDP_REPLY reply=%d port=%d" % (reply, port)
         nt.sp_udp_reply(reply, port)
 
-sp_udp_reply = SP_UDP_REPLY()
-
 class SP_SEQUENCE(SP):
     """ only received if client sends CP_UDP_REQ requesting COMM_UDP """
-    def __init__(self):
-        self.code = 29
-        self.format = "!bBH" 
-        self.tabulate(self.code, self.format, self)
+    code = 29
+    format = "!bBH" 
 
     def handler(self, data):
         (ignored, flag, sequence) = struct.unpack(self.format, data)
         galaxy.torp_aging()
         if opt.sp: print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
 
-sp_sequence = SP_SEQUENCE()
-
 class SP_SHIP_CAP(SP):
     """ only received if client sends CP_FEATURE feature packet SHIP_CAP """
-    def __init__(self):
-        self.code = 39
-        self.format = "!bbHHHiiiiiiHHH1sx16s2sH"
-        self.tabulate(self.code, self.format, self)
+    code = 39
+    format = "!bbHHHiiiiiiHHH1sx16s2sH"
 
     def handler(self, data):
         (ignored, operation, s_type, s_torpspeed, s_phaserrange, s_maxspeed, s_maxfuel, s_maxshield, s_maxdamage, s_maxwpntemp, s_maxegntemp, s_width, s_height, s_maxarmies, s_letter, s_name, s_desig, s_bitmap) = struct.unpack(self.format, data)
@@ -2375,8 +2132,6 @@ class SP_SHIP_CAP(SP):
         cap.s_name = s_name
         cap.s_desig = s_desig
         cap.s_bitmap = s_bitmap
-
-sp_ship_cap = SP_SHIP_CAP()
 
 """ user interface display phases
 """
