@@ -138,7 +138,7 @@ from Client import Client, ServerDisconnectedError
 from MOTD import MOTD
 from Cap import Cap
 from pygame.locals import *
-from Options import opt
+import Options
 
 WELCOME = [
 "Netrek Client Pygame",
@@ -2475,6 +2475,7 @@ class Phase:
             self.kb(event)
         elif event.type == pygame.QUIT:
             nt.send(cp_bye.data())
+            # FIXME: exit main instead of calling sys.exit
             sys.exit(0)
         elif event.type == pygame.MOUSEMOTION:
             self.mm(event)
@@ -2529,6 +2530,8 @@ class Phase:
         screen.fill((0, 0, 0))
         pygame.display.flip()
         ic.statistics()
+        pg_quit()
+        # FIXME: exit main instead of calling sys.exit
         sys.exit(status)
 
     def quit(self, event):
@@ -3603,6 +3606,9 @@ def pg_init():
     pg_fd()
     return screen
 
+def pg_quit():
+    pygame.quit()
+
 def mc_choose_first():
     ph_splash = PhaseSplash(screen)
     ph_servers = PhaseServers(screen, mc)
@@ -3657,8 +3663,9 @@ def nt_play():
         mc_choose_again()
 
 def main(args=[]):
-    global screen, mc, nt
+    global opt, screen, mc, nt
 
+    opt = Options.Parser(args).values
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()
@@ -3672,6 +3679,7 @@ def main(args=[]):
 
     nt_play()
     ic.statistics()
+    pg_quit()
 
 if __name__ == '__main__':
     import sys
