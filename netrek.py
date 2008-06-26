@@ -3553,6 +3553,7 @@ class PhaseDisconnected(Phase):
 """
 
 def mc_init():
+    """ metaserver client socket initialisation """
     mc = MetaClient()
     # query metaserver early,
     # to make good use of pygame startup and splash delay
@@ -3560,6 +3561,7 @@ def mc_init():
     return mc
 
 def nt_init():
+    """ netrek client socket initialisation """
     nt = Client(sp)
     if opt.tcp_only:
         nt.mode_requested = COMM_TCP
@@ -3583,6 +3585,7 @@ def pg_fd():
     if mc: mc.set_pg_fd(n)
 
 def pg_init():
+    """ pygame initialisation """
     global t_planets, t_players, t_torps, g_planets, g_players, background
     
     pygame.init()
@@ -3599,6 +3602,7 @@ def pg_init():
 
     # FIXME: #1187736407 support screen resolutions below 1000x1000
 
+    # sprite groups
     t_planets = pygame.sprite.OrderedUpdates(())
     t_players = pygame.sprite.OrderedUpdates(())
     t_torps = pygame.sprite.OrderedUpdates(())
@@ -3615,17 +3619,22 @@ def pg_init():
     return screen
 
 def pg_quit():
+    """ pygame termination """
     pygame.quit()
 
 def mc_choose_first():
+    """ show splash screen, then server list, accept a choice, connect """
     ph_splash = PhaseSplash(screen)
     ph_servers = PhaseServers(screen, mc)
 
 def mc_choose_again():
+    """ requery metaserver, show server list, accept a choice, connect """
     mc.query(opt.metaserver)
     ph_servers = PhaseServers(screen, mc)
 
 def nt_play_a_slot():
+    """ keep playing on a server, until user chooses a quit option, or
+    a list option to return to the server list """
     global ph_flight, ph_galactic, ph_tactical
     
     ph_outfit = PhaseOutfit(screen)
@@ -3633,19 +3642,23 @@ def nt_play_a_slot():
     ph_tactical = PhaseFlightTactical()
 
     while True:
+        # choose a team and ship
         ph_outfit.do()
-        if ph_outfit.cancelled: break
+        if ph_outfit.cancelled: break # quit or list chosen during outfit
+        # at this point, team and ship choice is accepted by server
         while me.status == POUTFIT: nt.recv()
         ph_flight = ph_tactical
         while True:
             screen.blit(background, (0, 0))
             pygame.display.flip()
             ph_flight.do()
-            if me.status == POUTFIT: break
+            if me.status == POUTFIT: break # ship has died
 
 def nt_play():
+    """ keep playing, until user chooses a quit option """
     if opt.server == None: mc_choose_first()
     while True:
+        # at this point, a new connection to a server has just been established
         try:
             nt.send(cp_socket.data())
             nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
