@@ -1,4 +1,4 @@
-from Constants import *
+from constants import *
 
 class Cap:
     """ ship capabilities, indexed by ship type """

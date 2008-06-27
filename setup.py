@@ -20,7 +20,8 @@ setup(
     download_url = "http://james.tooraweenah.com/darcs/netrek-client-pygame/",
     entry_points = {},
     py_modules=[],
-    packages=["netrek-client-pygame"],
+    scripts=["netrek-client-pygame"],
+    packages=["netrek"],
     install_requires = [
 	'Pygame>=1.7.1',
     ],

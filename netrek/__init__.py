@@ -129,16 +129,16 @@ markiel@callisto.pas.rochester.edu
 import sys, time, socket, errno, select, struct, pygame, math, ctypes
 
 # a global namespace until complexity grows too far
-from Cache import *
-from Constants import *
-from MultipleImageSprite import *
-from Util import *
-from MetaClient import MetaClient
-from Client import Client, ServerDisconnectedError
-from MOTD import MOTD
-from Cap import Cap
+from netrek.cache import *
+from netrek.constants import *
+from netrek.mis import MultipleImageSprite
+from netrek.util import *
+from netrek.meta import MetaClient
+from netrek.client import Client, ServerDisconnectedError
+from netrek.motd import MOTD
+from netrek.cap import Cap
 from pygame.locals import *
-import Options
+import netrek.opt
 
 WELCOME = [
 "Netrek Client Pygame",
@@ -3441,7 +3441,7 @@ def nt_play():
 def main(args=[]):
     global opt, screen, mc, nt
 
-    opt = Options.Parser(args).values
+    opt = opt.Parser(args).values
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()

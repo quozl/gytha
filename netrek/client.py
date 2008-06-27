@@ -1,5 +1,5 @@
 import sys, socket, select, errno, time, struct, array
-from Constants import *
+from constants import *
 
 class Error(Exception):
     pass
