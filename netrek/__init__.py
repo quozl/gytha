@@ -2821,6 +2821,7 @@ class PhaseFlight(Phase):
         self.start = time.time()
         self.name = name
         self.set_keys()
+        self.eh_ue.append(b_warning_sprite.ue)
 
     def __del__(self):
         end = time.time()
@@ -3102,10 +3103,16 @@ class PhaseFlightGalactic(PhaseFlight):
             return PhaseFlight.kb(self, event)
 
     def update(self):
+        b_reports.clear(screen, self.bg)
+        b_warning.clear(screen, self.bg)
         g_players.clear(screen, self.bg)
         g_players.update()
+        b_warning.update()
+        b_reports.update()
         r_players = g_players.draw(screen)
-        pygame.display.update(r_players)
+        r_reports = b_reports.draw(screen)
+        r_warning = b_warning.draw(screen)
+        pygame.display.update(r_players+r_reports+r_warning)
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
@@ -3113,12 +3120,6 @@ class PhaseFlightTactical(PhaseFlight):
 
         PhaseFlight.__init__(self, 'tactical')
         self.borders = Borders()
-        self.reports = pygame.sprite.OrderedUpdates()
-        self.reports.add(ReportSprite())
-        self.warning_sprite = WarningSprite()
-        self.warning = pygame.sprite.OrderedUpdates()
-        self.warning.add(self.warning_sprite)
-        self.eh_ue.append(self.warning_sprite.ue)
 
         self.co_g = (0, 15, 15) # cyan
         self.co_y = (15, 15, 0) # yellow
@@ -3178,8 +3179,8 @@ class PhaseFlightTactical(PhaseFlight):
 
         o_phasers = galaxy.phasers_undraw(self.co)
         o_borders = self.borders.undraw(self.co)
-        self.reports.clear(screen, self.bg)
-        self.warning.clear(screen, self.bg)
+        b_reports.clear(screen, self.bg)
+        b_warning.clear(screen, self.bg)
         t_torps.clear(screen, self.bg)
         t_players.clear(screen, self.bg)
         t_planets.clear(screen, self.bg)
@@ -3188,16 +3189,16 @@ class PhaseFlightTactical(PhaseFlight):
         t_planets.update()
         t_players.update()
         t_torps.update()
-        self.warning.update()
-        self.reports.update()
+        b_warning.update()
+        b_reports.update()
         
         r_planets = t_planets.draw(screen)
         r_players = t_players.draw(screen)
         r_weapons = t_torps.draw(screen)
         r_phasers = galaxy.phasers_draw()
         r_borders = self.borders.draw()
-        r_reports = self.reports.draw(screen)
-        r_warning = self.warning.draw(screen)
+        r_reports = b_reports.draw(screen)
+        r_warning = b_warning.draw(screen)
         
         pygame.display.update(o_phasers+o_borders+r_planets+r_players+r_weapons+r_phasers+r_borders+r_reports+r_warning)
 
@@ -3341,7 +3342,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, background
+    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, background
     
     pygame.init()
     size = width, height = 1000, 1000
@@ -3363,6 +3364,11 @@ def pg_init():
     t_torps = pygame.sprite.OrderedUpdates(())
     g_planets = pygame.sprite.OrderedUpdates(())
     g_players = pygame.sprite.OrderedUpdates(())
+    b_warning = pygame.sprite.OrderedUpdates()
+    b_warning_sprite = WarningSprite()
+    b_warning.add(b_warning_sprite)
+    b_reports = pygame.sprite.OrderedUpdates()
+    b_reports.add(ReportSprite())
 
     background = screen.copy()
     background.fill((0, 0, 0))
