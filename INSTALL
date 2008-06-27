@@ -1,0 +1,15 @@
+Dependencies
+
+	Install Pygame
+
+Building
+
+	Not required
+
+Running
+
+	Run the script netrek-client-pygame
+
+Installing
+
+	Use the install target of the Makefile

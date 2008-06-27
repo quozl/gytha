@@ -4,7 +4,7 @@ VERSION=`head -1 debian/changelog|cut -f2 -d\(|cut -f1 -d-`
 all: 
 	@echo $(PACKAGE)-$(VERSION)
 	chmod +x netrek.py
-	echo "To start this Netrek client, run the program file netrek.py"
+	echo "To start this Netrek client, run the file netrek-client-pygame"
 
 clean:
 	rm -rf debian/netrek-client-pygame/ build-stamp debian/files
@@ -13,16 +13,18 @@ distclean:
 
 dist:
 	mkdir $(PACKAGE)-$(VERSION)
+	cp -p ChangeLog Makefile COPYING INSTALL $(PACKAGE)-$(VERSION)/
 	mkdir $(PACKAGE)-$(VERSION)/images
-	cp -p netrek.py Makefile COPYING $(PACKAGE)-$(VERSION)/
-	cp -p ChangeLog $(PACKAGE)-$(VERSION)/
 	cp -p images/*.png images/*.jpg $(PACKAGE)-$(VERSION)/images/
+	mkdir $(PACKAGE)-$(VERSION)/netrek
+	cp -p netrek/*.py $(PACKAGE)-$(VERSION)/netrek
+	cp -p netrek-client-pygame $(PACKAGE)-$(VERSION)/
 	GZIP=--best tar cfz $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
 	rm -rf $(PACKAGE)-$(VERSION)
 
 install:
 	mkdir -p $(DESTDIR)/usr/bin/
-	cp -p netrek.py $(DESTDIR)/usr/bin/netrek-client-pygame
+	cp -p netrek-client-pygame $(DESTDIR)/usr/bin/
 	chmod +x $(DESTDIR)/usr/bin/netrek-client-pygame
 	mkdir -p $(DESTDIR)/usr/share/netrek-client-pygame/images
 	cp -p images/*.png $(DESTDIR)/usr/share/netrek-client-pygame/images/
