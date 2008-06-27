@@ -150,9 +150,6 @@ WELCOME = [
 "conditions; see source for details."
 ]
 
-for line in WELCOME: print line
-print
-
 ic = IC()
 fc = FC()
 
@@ -3440,7 +3437,10 @@ def nt_play():
 def main(args=[]):
     global opt, screen, mc, nt
 
-    opt = opt.Parser(args).values
+    for line in WELCOME: print line
+    print
+
+    opt = netrek.opt.Parser(args).values
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()
@@ -3456,6 +3456,10 @@ def main(args=[]):
     ic.statistics()
     pg_quit()
     return 0
+
+if __name__ == '__main__':
+    import sys
+    main(sys.argv[1:])
 
 # FIXME: very little reason for outfit phase, default to automatically re-enter
 # FIXME: planets to be partial alpha in tactical view as ships close in?
