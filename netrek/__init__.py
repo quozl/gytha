@@ -1164,7 +1164,22 @@ class Icon(SpriteBacked):
         self.image = ic.get(name)
         self.rect = self.image.get_rect(centerx=x, centery=y)
         SpriteBacked.__init__(self)
-        
+
+class RotatingIcon(SpriteBacked):
+    """ a sprite for rotating icons """
+    def __init__(self, name, x, y, angle):
+        self.name = name
+        self.x = x
+        self.y = y
+        self.angle = angle / 5 * 5
+        self.rotate(angle)
+        SpriteBacked.__init__(self)
+
+    def rotate(self, angle):
+        self.angle = angle / 5 * 5
+        self.image = ic.get_rotated(self.name, angle)
+        self.rect = self.image.get_rect(centerx=self.x, centery=self.y)
+
 class Text(SpriteBacked):
     def __init__(self, text, x, y, size=18, colour=(255, 255, 255)):
         font = fc.get('DejaVuSans.ttf', size)
