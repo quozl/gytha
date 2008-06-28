@@ -2386,12 +2386,13 @@ class PhaseServers(Phase):
     def __init__(self, screen, mc):
         Phase.__init__(self)
         self.background("hubble-orion.jpg")
-        self.text('netrek', 500, 100, 92)
-        self.text('server list', 500, 175, 64)
+        x = screen.get_width()/2
+        self.text('netrek', x, 100, 92)
+        self.text('server list', x, 175, 64)
         self.welcome()
         self.add_quit_button(self.quit)
         pygame.display.flip()
-        self.bouncer = Bouncer(225, 20, 500, 240)
+        self.bouncer = Bouncer(225, 20, x, 240)
         self.dy = 40 # vertical spacing
         self.n = 0 # number of servers shown so far
         self.run = True
@@ -2528,8 +2529,9 @@ class PhaseLogin(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
-        self.text('netrek', 500, 100, 92)
-        self.text(opt.chosen, 500, 185, 64)
+        x = screen.get_width()/2
+        self.text('netrek', x, 100, 92)
+        self.text(opt.chosen, x, 185, 64)
         self.blame()
         self.warn('connected, waiting for slot, standby')
         pygame.display.flip()
@@ -2544,7 +2546,7 @@ class PhaseLogin(Phase):
         self.warn('connected, as slot %s, ready to login' % slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
         pygame.display.flip()
-        self.name = Field("type a name ? ", "", 500, 750)
+        self.name = Field("type a name ? ", "", x, 750)
         self.focused = self.name
         self.password = None
         self.run = True
@@ -2674,9 +2676,10 @@ class PhaseOutfit(Phase):
     def do(self):
         self.run = True
         self.background("hubble-spire.jpg")
-        self.text('netrek', 500, 100, 92)
-        self.text(opt.chosen, 500, 185, 64)
-        self.text('ship and race', 500, 255, 64)
+        x = screen.get_width()/2
+        self.text('netrek', x, 100, 92)
+        self.text(opt.chosen, x, 185, 64)
+        self.text('ship and race', x, 255, 64)
         self.blame()
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
@@ -3226,9 +3229,10 @@ class PhaseDisconnected(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
-        self.text('netrek', 500, 100, 92)
-        self.text(opt.chosen, 500, 185, 64)
-        self.text('disconnected', 500, 255, 64)
+        x = screen.get_width()/2
+        self.text('netrek', x, 100, 92)
+        self.text(opt.chosen, x, 185, 64)
+        self.text('disconnected', x, 255, 64)
         self.texts = Texts(self.diagnosis(), 50, 455, 12, 18)
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
