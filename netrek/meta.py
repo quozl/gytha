@@ -36,7 +36,8 @@ class MetaClient:
                 for family, socktype, proto, canonname, sockaddr in addresses:
                     try:
                         self.socket.sendto('?', sockaddr)
-                        print "queried", hostname
+                        (ip, port) = sockaddr
+                        print "queried", hostname, "aka", ip
                     except socket.error:
                         print "unable to query %s, proceeding" % sockaddr
             except socket.gaierror:

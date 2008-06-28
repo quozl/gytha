@@ -2672,6 +2672,8 @@ class PhaseOutfit(Phase):
         self.last_team = None
         self.last_ship = CRUISER
         self.cancelled = False
+        self.visible = pygame.sprite.OrderedUpdates(())
+        self.angle = 0
         
     def do(self):
         self.run = True
@@ -2689,7 +2691,7 @@ class PhaseOutfit(Phase):
         box_r = 788
         box_b = 875
         r = []
-        self.boxes = []
+        self.sprites = []
         # FIXME: display number of players on each team
         # FIXME: make these sprites rather than paint on screen
         table = [[FED, -1, +1], [ROM, -1, -1], [KLI, +1, -1], [ORI, +1, +1]]
@@ -2704,11 +2706,14 @@ class PhaseOutfit(Phase):
                 x = x + dx * 60
                 y = y + dy * 60
                 # IMAGERY: ???-??.png
-                rs = ic.get(teams[team]+'-'+ships[ship]+'.png')
-                rr = rs.get_rect(center=(x, y))
-                r.append(screen.blit(rs, rr))
-                description = teams_long[team] + ' ' + ships_long[ship] + ', ' + ships_use[ship]
-                self.boxes.append([x, y, ship, team, description])
+                sprite = RotatingIcon(teams[team]+'-'+ships[ship]+'.png', x, y, self.angle)
+                sprite.description = teams_long[team] + ' ' + ships_long[ship] + ', ' + ships_use[ship]
+                sprite.x = x
+                sprite.y = y
+                sprite.ship = ship
+                sprite.team = team
+                sprite.visible = False
+                self.sprites.append(sprite)
         # FIXME: add minature galactic, showing ownership, player
         # positions if any, with ships to choose in each race space or
         # just outside the corner.
@@ -2726,8 +2731,22 @@ class PhaseOutfit(Phase):
         sp_mask.uncatch()
 
     def mask(self, mask):
-        # FIXME: if mask changes, update available races
-        pass
+        r = []
+        for sprite in self.sprites:
+            if mask & sprite.team:
+                if not sprite.visible:
+                    self.visible.add(sprite)
+                    r.append(sprite.draw())
+                    sprite.visible = True
+            else:
+                if sprite.visible:
+                    self.visible.remote(sprite)
+                    r.append(sprite.clear())
+                    sprite.visible = False
+        if len(r) > 0:
+            pygame.display.update(r)
+        # FIXME: display SP_WARNING packets (confirm team change)
+        # using WarningSprite
 
     def auto(self):
         # attempt auto-refit if command line arguments are supplied
@@ -2760,21 +2779,20 @@ class PhaseOutfit(Phase):
         (x, y) = pos
         nearest = None
         minimum = 70**2
-        for box in self.boxes:
-            (bx, by, ship, team, description) = box
-            distance = (bx - x)**2 + (by - y)**2
+        for sprite in self.sprites:
+            if not sprite.visible: continue
+            distance = (sprite.x - x)**2 + (sprite.y - y)**2
             if distance < minimum:
-                nearest = box
+                nearest = sprite
                 minimum = distance
         return nearest
-    
+
     def md(self, event):
         if Phase.md(self, event): return
         self.unwarn()
         nearest = self.nearest(event.pos)
         if nearest != None:
-            (bx, by, ship, team, description) = nearest
-            self.team(teams_numeric[team], ship)
+            self.team(teams_numeric[nearest.team], nearest.ship)
         else:
             self.warn('click on a ship, mate')
         # FIXME: click on team icon sends CP_OUTFIT most recent ship
@@ -2785,9 +2803,24 @@ class PhaseOutfit(Phase):
         if nearest != self.box:
             self.unwarn()
             if nearest != None:
-                (bx, by, ship, team, description) = nearest
-                self.warn(description)
+                self.warn(nearest.description)
             self.box = nearest
+
+        if not self.box: return
+        # mouse-over rotation
+        (x, y) = event.pos
+        self.angle += 1
+        if not self.angle % 5: return
+        angle = int((math.atan2(x - self.box.x, self.box.y - y) / math.pi * 180.0))
+        try:
+            r = []
+            r.append(self.box.clear())
+            self.box.rotate(angle)
+            r.append(self.box.draw())
+            pygame.display.update(r)
+        except:
+            pass
+        # FIXME: image artifacts appear, event without this exception handler
         
     def kb(self, event):
         self.unwarn()
