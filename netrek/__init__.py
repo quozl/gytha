@@ -1122,9 +1122,15 @@ class SpriteBacked(pygame.sprite.Sprite):
     def clear(self):
         return screen.blit(self.background, self.rect)
 
-    def draw(self):
+    def suck(self):
         self.background = screen.subsurface(self.rect).copy()
+
+    def blit(self):
         return screen.blit(self.image, self.rect)
+
+    def draw(self):
+        self.suck()
+        return self.blit()
 
     def move(self, x, y):
         self.rect.x = x
