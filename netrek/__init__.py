@@ -2442,6 +2442,11 @@ class PhaseServers(Phase):
     def update(self, name):
         """ called by MetaClient for each server for which a packet is received
         """
+        # FIXME: seen once, placement problem, a newly available
+        # multicast server is placed at first position despite first
+        # position being taken already by a metaserver entry.
+        # FIXME: old multicast entries not expired when they leave.
+        redraw = []
         server = self.mc.servers[name]
         if self.timing and server['source'] == 'r':
             self.lag = pygame.time.get_ticks() - self.sent
@@ -2453,21 +2458,20 @@ class PhaseServers(Phase):
         else:
             y = server['y']
             for sprite in server['sprites']:
-                sprite.clear()
-        s = []
-        s.append(self.server_icon(y))
-        s.append(self.server_name(y, server))
+                redraw.append(sprite.clear())
+        sprites = []
+        sprites.append(self.server_icon(y))
+        sprites.append(self.server_name(y, server))
         if server['queue'] > 0:
-            s.append(self.server_queue(y, server))
+            sprites.append(self.server_queue(y, server))
         else:
-            s += self.server_players(y, server)
+            sprites += self.server_players(y, server)
         self.mc.servers[name]['y'] = y
-        self.mc.servers[name]['sprites'] = s
+        self.mc.servers[name]['sprites'] = sprites
         
-        r = []
-        for sprite in s:
-            r.append(sprite.draw())
-        pygame.display.update(r)
+        for sprite in sprites:
+            redraw.append(sprite.draw())
+        pygame.display.update(redraw)
     
     def network_sink(self):
         self.mc.recv()
