@@ -2708,7 +2708,6 @@ class PhaseOutfit(Phase):
         for row in table:
             (team, dx, dy) = row
             # box centre
-            # FIXME: show SP_MASK by hiding or covering a team axis
             # FIXME: slide ships into race on race positions, omitting other races
             x = (box_r - box_l) / 2 + box_l
             y = (box_b - box_t) / 2 + box_t
@@ -2723,6 +2722,7 @@ class PhaseOutfit(Phase):
                 sprite.ship = ship
                 sprite.team = team
                 sprite.visible = False
+                sprite.suck()
                 self.sprites.append(sprite)
         # FIXME: add minature galactic, showing ownership, player
         # positions if any, with ships to choose in each race space or
@@ -2746,7 +2746,7 @@ class PhaseOutfit(Phase):
             if mask & sprite.team:
                 if not sprite.visible:
                     self.visible.add(sprite)
-                    r.append(sprite.draw())
+                    r.append(sprite.blit())
                     sprite.visible = True
             else:
                 if sprite.visible:
@@ -2815,22 +2815,6 @@ class PhaseOutfit(Phase):
             if nearest != None:
                 self.warn(nearest.description)
             self.box = nearest
-
-        if not self.box: return
-        # mouse-over rotation
-        (x, y) = event.pos
-        self.angle += 1
-        if not self.angle % 5: return
-        angle = int((math.atan2(x - self.box.x, self.box.y - y) / math.pi * 180.0))
-        try:
-            r = []
-            r.append(self.box.clear())
-            self.box.rotate(angle)
-            r.append(self.box.draw())
-            pygame.display.update(r)
-        except:
-            pass
-        # FIXME: image artifacts appear, event without this exception handler
         
     def kb(self, event):
         self.unwarn()
