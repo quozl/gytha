@@ -3457,10 +3457,6 @@ def main(args=[]):
     pg_quit()
     return 0
 
-if __name__ == '__main__':
-    import sys
-    main(sys.argv[1:])
-
 # FIXME: very little reason for outfit phase, default to automatically re-enter
 # FIXME: planets to be partial alpha in tactical view as ships close in?
 
