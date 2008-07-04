@@ -181,7 +181,12 @@ def descale(x, y):
         return galactic_descale(x, y)
     else:
         return tactical_descale(x, y)
-    
+
+def cursor():
+    """ return the galactic coordinates of the mouse cursor """
+    x, y = pygame.mouse.get_pos()
+    return descale(x, y)
+
 def dir_to_angle(dir):
     """ convert netrek direction to angle, approximate
     (determines how many different ship rotation images are held)
@@ -642,53 +647,56 @@ class Galaxy:
             self.caps[n] = Cap(n)
         return self.caps[n]
 
-    def nearest(self, x, y, things):
-        """ return the nearest thing to galactic coordinates,
+    def is_enemy(self, thing):
+        return thing.team != me.team
+
+    def is_friend(self, thing):
+        return thing.team == me.team
+
+    def is_alive(self, thing):
+        return thing.status == PALIVE
+
+    def closest(self, xy, things, checks):
+        """ return the closest thing to galactic coordinates,
             ignoring me,
             but return me if nothing found.
         """
-        nearest = me
+        x, y = xy
+        closest = me
         minimum = GWIDTH**2
         for n, thing in things.iteritems():
             if thing == me: continue
+            disinterest = False
+            for check in checks:
+                if not check(thing):
+                    disinterest = True
+                    break
+            if disinterest: continue
             distance = (thing.x - x)**2 + (thing.y - y)**2
             if distance < minimum:
-                nearest = thing
+                closest = thing
                 minimum = distance
-        return nearest
+        return closest
 
-    def nearest_planet(self, x, y):
-        """ return the nearest planet to input screen coordinates
-        """
-        x, y = descale(x, y)
-        return self.nearest(x, y, self.planets)
+    def closest_planet(self, xy):
+        """ return the closest planet to galactic coordinates """
+        return self.closest(xy, self.planets, [])
 
-    def nearest_ship(self, x, y):
-        """ return the nearest ship to input screen coordinates
-        """
-        x, y = descale(x, y)
-        return self.nearest(x, y, self.ships)
-        # FIXME: can attempt to tractor exploding ships,
-        # need to filter by status, check how other clients do it.
+    def closest_ship(self, xy):
+        """ return the closest ship to galactic coordinates """
+        return self.closest(xy, self.ships, [self.is_alive])
 
-    def closest_planet(self, x, y):
-        """ return the nearest planet to galactic coordinates
-        """
-        return self.nearest(x, y, self.planets)
+    def closest_planet(self, xy):
+        """ return the closest planet to galactic coordinates """
+        return self.closest(xy, self.planets, [])
 
-    def closest_enemy(self, x, y):
-        """ return the number of the nearest hostile player to coordinates
-        """
-        nearest = me
-        minimum = GWIDTH**2
-        for n, thing in galaxy.ships.iteritems():
-            if thing == me: continue
-            if thing.team == me.team: continue
-            distance = (thing.x - x)**2 + (thing.y - y)**2
-            if distance < minimum:
-                nearest = thing
-                minimum = distance
-        return nearest
+    def closest_enemy(self, xy):
+        """ return the closest hostile player to coordinates """
+        return self.closest(xy, self.ships, [self.is_enemy, self.is_alive])
+
+    def closest_friend(self, xy):
+        """ return the closest friendly player to coordinates """
+        return self.closest(xy, self.ships, [self.is_friend, self.is_alive])
 
     def sp_message(self, m_flags, m_recipt, m_from, mesg):
         # FIXME: this is temporary processing of distress messages,
@@ -2992,14 +3000,12 @@ class PhaseFlight(Phase):
         nt.send(cp_orbit.data(1))
 
     def op_planet_lock(self, event):
-        x, y = pygame.mouse.get_pos()
-        nearest = galaxy.nearest_planet(x, y)
+        nearest = galaxy.closest_planet(cursor())
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
 
     def op_player_lock(self, event):
-        x, y = pygame.mouse.get_pos()
-        nearest = galaxy.nearest_ship(x, y)
+        nearest = galaxy.closest_ship(cursor())
         if nearest != me:
             nt.send(cp_playlock.data(nearest.n))
 
@@ -3008,8 +3014,7 @@ class PhaseFlight(Phase):
 
     def op_pressor_toggle(self, event):
         if not me: return
-        x, y = pygame.mouse.get_pos()
-        nearest = galaxy.nearest_ship(x, y)
+        nearest = galaxy.closest_ship(cursor())
         if nearest != me:
             if me.flags & PFPRESS:
                 nt.send(cp_repress.data(0, nearest.n))
@@ -3028,8 +3033,7 @@ class PhaseFlight(Phase):
 
     def op_tractor_toggle(self, event):
         if not me: return
-        x, y = pygame.mouse.get_pos()
-        nearest = galaxy.nearest_ship(x, y)
+        nearest = galaxy.closest_ship(cursor())
         if nearest != me:
             if me.flags & PFTRACT:
                 nt.send(cp_tractor.data(0, nearest.n))
@@ -3065,7 +3069,7 @@ class PhaseFlight(Phase):
     def rc_take(self, event):
         """ temporary take rcd send """
         if not me: return
-        mesg = rcd.pack(rcd.dist_type_take, pygame.mouse.get_pos(), me, galaxy)
+        mesg = rcd.pack(rcd.dist_type_take, cursor(), me, galaxy)
         if mesg: nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
 
 class PhaseFlightGalactic(PhaseFlight):

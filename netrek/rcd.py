@@ -106,21 +106,18 @@ def norm(value, maximum):
     if x > 0x7f: x = 0x7f
     return x & 0xff | 0x80
 
-def pack(type, position, me, galaxy):
+def pack(type, cursor, me, galaxy):
     """ pack current game state into a binary message """
-    cpm = galaxy.closest_planet(me.x, me.y) # closest planet to me
-    csm = me # FIXME: closest player to me
-    cem = galaxy.closest_enemy(me.x, me.y) # closest enemy to me
-    cfm = me # FIXME: closest friend to me
+    xy = (me.x, me.y)
+    cpm = galaxy.closest_planet(xy) # closest planet to me
+    csm = galaxy.closest_ship(xy)   # closest ship to me
+    cem = galaxy.closest_enemy(xy)  # closest enemy to me
+    cfm = galaxy.closest_friend(xy) # closest friend to me
+    cpc = galaxy.closest_planet(cursor) # closest planet to cursor
+    csc = galaxy.closest_ship(cursor)   # closest ship to cursor
+    cec = galaxy.closest_enemy(cursor)  # closest enemy to cursor
+    cfc = galaxy.closest_friend(cursor) # closest friend to cursor
 
-    x, y = position
-    cpc = galaxy.nearest_planet(x, y) # closest planet to cursor
-    csc = galaxy.nearest_ship(x, y) # closest ship to cursor
-    cec = me # FIXME: closest enemy to cursor
-    cfc = me # FIXME: closest friend to cursor
-
-    # FIXME: ship or enemy should all default to me if not found
-    if not cpc: return
     mesg = struct.pack('16B',
                        type,
                        norm(me.fuel, me.cap.s_maxfuel),
@@ -130,21 +127,13 @@ def pack(type, position, me, galaxy):
                        norm(me.wtemp, me.cap.s_maxwpntemp),
                        byte(me.armies),
                        byte(me.flags),
-                       # closest planet to me
                        byte(cpm.n),
-                       # closest enemy to me
                        byte(cem.n),
-                       # closest planet to cursor
                        byte(cpc.n),
-                       # closest enemy to cursor
                        byte(cec.n),
-                       # closest player to cursor
                        byte(csc.n),
-                       # closest player to me
                        byte(csm.n),
-                       # closest friend to cursor
                        byte(cfc.n),
-                       # closest friend to me
                        byte(cfm.n),
                        )
     return mesg
