@@ -139,6 +139,7 @@ from netrek.motd import MOTD
 from netrek.cap import Cap
 from pygame.locals import *
 import netrek.opt
+import netrek.rcd
 
 WELCOME = [
 "Netrek Client Pygame",
@@ -642,9 +643,11 @@ class Galaxy:
         return self.caps[n]
 
     def nearest(self, x, y, things):
-        """ return the nearest thing to input screen coordinates
+        """ return the nearest thing to galactic coordinates,
+            ignoring me,
+            but return me if nothing found.
         """
-        nearest = None
+        nearest = me
         minimum = GWIDTH**2
         for n, thing in things.iteritems():
             if thing == me: continue
@@ -665,15 +668,16 @@ class Galaxy:
         """
         x, y = descale(x, y)
         return self.nearest(x, y, self.ships)
+        # FIXME: can attempt to tractor exploding ships,
+        # need to filter by status, check how other clients do it.
 
     def closest_planet(self, x, y):
-        """ return the number of the nearest planet to me
+        """ return the nearest planet to galactic coordinates
         """
-        planet = self.nearest(x, y, self.planets)
-        return planet.n
+        return self.nearest(x, y, self.planets)
 
     def closest_enemy(self, x, y):
-        """ return the number of the nearest hostile player to me
+        """ return the number of the nearest hostile player to coordinates
         """
         nearest = me
         minimum = GWIDTH**2
@@ -684,7 +688,17 @@ class Galaxy:
             if distance < minimum:
                 nearest = thing
                 minimum = distance
-        return nearest.n
+        return nearest
+
+    def sp_message(self, m_flags, m_recipt, m_from, mesg):
+        # FIXME: this is temporary processing of distress messages,
+        # depending on the type of message it should be portrayed.
+        if m_flags == (MVALID | MTEAM | MDISTR):
+            d = rcd.msg()
+            d.unpack(mesg)
+        else:
+            print strnul(mesg)
+        # FIXME: display the message
 
 galaxy = Galaxy()
 me = None
@@ -1990,55 +2004,7 @@ class SP_MESSAGE(SP):
     def handler(self, data):
         (ignored, m_flags, m_recpt, m_from, mesg) = struct.unpack(self.format, data)
         if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",strnul(mesg)
-        # FIXME: this is temporary processing of distress messages,
-        # depending on the type of message it should be portrayed.
-        if m_flags == (MVALID | MTEAM | MDISTR):
-            ( distypenflag, fuelp, dam, shld,
-              etmp, wtmp, arms, sts,
-              close_pl, close_en, tclose_pl, tclose_en,
-              tclose_j, close_j, tclose_fr, close_fr ) = \
-              struct.unpack('16B', mesg[10:26])
-            distype = distypenflag & 0x1f
-            fuelp = fuelp & 0x7f
-            dam = dam & 0x7f
-            shld  = shld & 0x7f
-            etmp = etmp & 0x7f
-            wtmp = wtmp & 0x7f
-            arms = arms & 0x7f
-            sts  = sts & 0x7f
-            close_pl = close_pl & 0x7f # closest planet to me
-            close_en = close_en & 0x7f # closest enemy to me
-            tclose_pl = tclose_pl & 0x7f # closest planet to cursor
-            tclose_en  = tclose_en & 0x7f # closest enemy to cursor
-            tclose_j = tclose_j & 0x7f # closest player to cursor
-            close_j = close_j & 0x7f # closest player to me
-            tclose_fr = tclose_fr & 0x7f # closest friend to cursor
-            close_fr  = close_fr & 0x7f # closest friend to me
-
-            print "RCD distype=", distype, \
-                  "fuelp=", fuelp, \
-                  "dam=", dam, \
-                  "shld=", shld, \
-                  "etmp=", etmp, \
-                  "wtmp=", wtmp, \
-                  "arms=", arms, \
-                  "sts=", sts, \
-                  "close_pl=", close_pl, \
-                  "close_en=", close_en, \
-                  "tclose_pl=", tclose_pl, \
-                  "tclose_en=", tclose_en, \
-                  "tclose_j=", tclose_j, \
-                  "close_j=", close_j, \
-                  "tclose_fr=", tclose_fr, \
-                  "close_fr=", close_fr
-            # (and all this info is sent by the other client
-            # automatically on every distress signal, like control/t,
-            # it is magnificent in its borgishness -- Quozl)
-
-            # FIXME: send control/t ;-)
-        else:
-            print strnul(mesg)
-        # FIXME: display the message
+        galaxy.sp_message(m_flags, m_recpt, m_from, mesg)
 
 class SP_STATS(SP):
     code = 23
@@ -3028,13 +2994,13 @@ class PhaseFlight(Phase):
     def op_planet_lock(self, event):
         x, y = pygame.mouse.get_pos()
         nearest = galaxy.nearest_planet(x, y)
-        if nearest != None:
+        if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
 
     def op_player_lock(self, event):
         x, y = pygame.mouse.get_pos()
         nearest = galaxy.nearest_ship(x, y)
-        if nearest != None:
+        if nearest != me:
             nt.send(cp_playlock.data(nearest.n))
 
     def op_practice(self, event):
@@ -3044,7 +3010,7 @@ class PhaseFlight(Phase):
         if not me: return
         x, y = pygame.mouse.get_pos()
         nearest = galaxy.nearest_ship(x, y)
-        if nearest != None:
+        if nearest != me:
             if me.flags & PFPRESS:
                 nt.send(cp_repress.data(0, nearest.n))
             else:
@@ -3064,7 +3030,7 @@ class PhaseFlight(Phase):
         if not me: return
         x, y = pygame.mouse.get_pos()
         nearest = galaxy.nearest_ship(x, y)
-        if nearest != None:
+        if nearest != me:
             if me.flags & PFTRACT:
                 nt.send(cp_tractor.data(0, nearest.n))
             else:
@@ -3098,32 +3064,9 @@ class PhaseFlight(Phase):
 
     def rc_take(self, event):
         """ temporary take rcd send """
-        x, y = pygame.mouse.get_pos()
-        nearest = galaxy.nearest_planet(x, y)
-        if nearest == None: return
         if not me: return
-        group = 0xc4
-        indiv = 0x01
-        mesg = struct.pack('16B', 1, me.fuel & 0xff | 0x80, # FIXME: normalise
-                           me.damage & 0xff | 0x80, # FIXME: normalise
-                           me.shield & 0xff | 0x80, # FIXME: normalise
-                           me.etemp & 0xff | 0x80, # FIXME: normalise
-
-                           me.wtemp & 0xff | 0x80, # FIXME: normalise
-                           me.armies & 0xff | 0x80,
-                           me.flags & 0xff | 0x80,
-                           galaxy.closest_planet(me.x, me.y) | 0x80, # closest planet to me
-
-                           galaxy.closest_enemy(me.x, me.y) | 0x80, # closest enemy to me
-                           galaxy.nearest_planet(x, y).n | 0x80, # closest planet to cursor
-                           0 | 0x80, # FIXME: closest enemy to cursor
-                           galaxy.nearest_ship(x, y).n | 0x80, # closest player to cursor
-
-                           0 | 0x80, # FIXME: closest player to me
-                           0 | 0x80, # FIXME: closest friend to cursor
-                           0 | 0x80  # FIXME: closest friend to me
-                           )
-        nt.send(cp_message.data(group, indiv, mesg))
+        mesg = rcd.pack(rcd.dist_type_take, pygame.mouse.get_pos(), me, galaxy)
+        if mesg: nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
 
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
