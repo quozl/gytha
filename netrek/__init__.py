@@ -280,6 +280,7 @@ class Ship(Local):
         self.shiptype = CRUISER
         self.cap = galaxy.caps[CRUISER]
         self.team = 0
+        self.mapchars = ''
         # sp_kills
         self.kills = 0
         self.sp_kills_me_shown = False
@@ -336,6 +337,7 @@ class Ship(Local):
         self.shiptype = shiptype
         self.cap = galaxy.caps[shiptype]
         self.team = team
+        self.mapchars = '%s%s' % (teams[team][:1].upper(), slot_decode(self.n))
         # FIXME: display this data, on player list
 
     def sp_kills(self, kills):
@@ -492,8 +494,8 @@ class Phaser(Local):
             phasedist = 6000
             factor = phasedist * s_phaserrange / 100
             angle = ( self.dir - 64 ) / 128.0 * math.pi
-            tx = factor * math.cos(angle)
-            ty = factor * math.sin(angle)
+            tx = int(factor * math.cos(angle))
+            ty = int(factor * math.sin(angle))
             (fx, fy) = (self.ship.x, self.ship.y)
             (tx, ty) = tactical_scale(fx + tx, fy + ty)
             (fx, fy) = tactical_scale(fx, fy)
@@ -700,7 +702,8 @@ class Galaxy:
         # depending on the type of message it should be portrayed.
         if m_flags == (MVALID | MTEAM | MDISTR):
             d = rcd.msg()
-            d.unpack(mesg)
+            d.unpack(m_recipt, m_from, mesg)
+            print d.text(galaxy)
         else:
             print strnul(mesg)
         # FIXME: display the message
@@ -2041,8 +2044,10 @@ class SP_FEATURE(SP):
         if opt.sp:
             print "SP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name)
         if (type, arg1, arg2, value, name) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
-            # send client features
-            nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
+            # server says features packets are okay to send,
+            # so send this client's features
+            if rcd.cp_feature: # we want binary RCDs in SP_MESSAGE packets
+                nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
             nt.send(cp_feature.data('S', 0, 0, 1, 'SHIP_CAP'))
 
         if name == 'UPS':

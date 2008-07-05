@@ -22,6 +22,13 @@ netrek-client-vanilla, input.c,
 """
 
 import struct
+from constants import *
+
+# The binary messages will only be delivered to us if we send a
+# CP_FEATURE packet of RC_DISTRESS.  We may send binary messages
+# regardless.
+
+cp_feature = False # FIXME: disabled until rcd.msg.text() method fully written
 
 # from enum dist_type
 # /* help me do series */
@@ -58,8 +65,10 @@ dist_type_other2 = 24
 dist_type_generic = 25
 
 class msg:
-    def unpack(self, mesg):
+    def unpack(self, m_recipt, m_from, mesg):
         """ unpack a binary message into attributes """
+        self.m_recipt = m_recipt
+        self.m_from = m_from
         ( distypenflag, fuelp, dam, shld,
           etmp, wtmp, arms, sts,
           close_pl, close_en, tclose_pl, tclose_en,
@@ -83,6 +92,60 @@ class msg:
         self.tclose_fr = tclose_fr & 0x7f # closest friend to cursor
         self.close_fr  = close_fr & 0x7f # closest friend to me
 
+        # (and all this info is sent by the other client
+        # automatically on every distress signal, like control/t,
+        # it is magnificent in its borgishness -- Quozl)
+
+    def text(self, galaxy):
+        ship = galaxy.ship(self.m_from)
+        orig = ship.mapchars
+        targ = teams[self.m_recipt].upper()
+
+        # FIXME: create a formatter for the netrek standard macro
+        # format strings used by RCDs.  Meanwhile this code manually
+        # translates the critical first few, as a demonstration of
+        # capability.  Probably will not be called if rcd.cp_feature
+        # is False.
+
+        if self.dist_type == dist_type_take:
+            # " %T%c->%O (%S) Carrying %a to %l%?%n>-1%{ @ %n%}\0"
+            return '%s->%s (%s) Carrying %d to %s' % \
+                   (orig, targ, ships[ship.shiptype].upper(), self.arms, \
+                    galaxy.planet(self.tclose_pl).name[:3])
+
+        if self.dist_type == dist_type_ogg:
+            # " %T%c->%O Help Ogg %p at %l\0"
+            return '%s->%s Help Ogg %s at %s' % \
+                   (orig, targ, galaxy.planet(self.tclose_j).mapchars, \
+                    galaxy.planet(self.tclose_pl).name[:3])
+
+        if self.dist_type == dist_type_bomb:
+            # " %T%c->%O %?%n>4%{bomb %l @ %n%!bomb%}\0"
+            p = galaxy.planet(self.tclose_pl)
+            if p.armies > 4:
+                return '%s->%s bomb %s @ %d' % \
+                   (orig, targ, p.name[:3], p.armies)
+            else:
+                return '%s->%s bomb %s' % \
+                   (orig, targ, p.name)
+
+        if self.dist_type == dist_type_space_control:
+            # " %T%c->%O Help Control at %L\0"
+            return '%s->%s Help Control at %s' % \
+                   (orig, targ, galaxy.planet(self.tclose_pl).name[:3].upper())
+
+        if self.dist_type == dist_type_save_planet:
+            # " %T%c->%O Emergency at %L!!!!\0"
+            return '%s->%s Emergency at %s!!!!' % \
+                   (orig, targ, galaxy.planet(self.tclose_pl).name[:3].upper())
+
+        if self.dist_type == dist_type_base_ogg:
+            # " %T%c->%O Sync with --]> %g <[-- OGG ogg OGG base!!\0"
+            return '%s->%s Sync with --]> %s <[-- OGG ogg OGG base!!' % \
+                   (orig, targ, galaxy.ship(self.tclose_fr).mapchars[1:])
+            # FIXME: ogg sync ring, radius on sync target ship, centre
+            # on enemy base or LPS target, only if one planet.
+
         print "RCD dist_type=", self.dist_type, \
               "target_type=", self.target_type, \
               "fuelp=", self.fuelp, \
@@ -100,9 +163,8 @@ class msg:
               "close_j=", self.close_j, \
               "tclose_fr=", self.tclose_fr, \
               "close_fr=", self.close_fr
-        # (and all this info is sent by the other client
-        # automatically on every distress signal, like control/t,
-        # it is magnificent in its borgishness -- Quozl)
+
+        return None
 
 def byte(value):
     return value & 0xff | 0x80
