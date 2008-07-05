@@ -13,6 +13,12 @@ netrek-server-vanilla, include/struct.h,
     enum target_type for the target types (none, planet, player)
     plus following comments
 
+netrek-client-vanilla, struct.h,
+    enum dist_type for the distress types known by client (different to above)
+
+netrek-client-vanilla, input.c,
+    default mapping from keyboard to distress types
+
 """
 
 import struct
@@ -23,8 +29,8 @@ dist_type_take = 1
 dist_type_ogg = 2
 dist_type_bomb = 3
 dist_type_space_control = 4
-dist_type_help1 = 5
-dist_type_help2 = 6
+dist_type_save_planet = 5
+dist_type_base_ogg = 6
 dist_type_help3 = 7
 dist_type_help4 = 8
 
@@ -33,8 +39,8 @@ dist_type_escorting = 9
 dist_type_ogging = 10
 dist_type_bombing = 11
 dist_type_controlling = 12
-dist_type_doing1 = 13
-dist_type_doing2 = 14
+dist_type_asw = 13
+dist_type_asbomb = 14
 dist_type_doing3 = 15
 dist_type_doing4 = 16
 
