@@ -31,8 +31,8 @@ dist_type_bomb = 3
 dist_type_space_control = 4
 dist_type_save_planet = 5
 dist_type_base_ogg = 6
-dist_type_help3 = 7
-dist_type_help4 = 8
+dist_type_help1 = 7
+dist_type_help2 = 8
 
 # /* doing series */
 dist_type_escorting = 9
@@ -41,8 +41,8 @@ dist_type_bombing = 11
 dist_type_controlling = 12
 dist_type_asw = 13
 dist_type_asbomb = 14
-dist_type_doing3 = 15
-dist_type_doing4 = 16
+dist_type_doing1 = 15
+dist_type_doing2 = 16
 
 # /* other info series */
 dist_type_free_beer = 17 # /* ie. player x is totally hosed now */

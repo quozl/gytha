@@ -2889,7 +2889,8 @@ class PhaseFlight(Phase):
             event.mod == pygame.KMOD_LCTRL or
             event.mod == pygame.KMOD_RCTRL):
             if self.keys_control.has_key(event.key):
-                self.keys_control[event.key](event)
+                (handler, argument) = self.keys_control[event.key]
+                handler(event, argument)
                 return
 
         # check for shift key sequences pressed
@@ -2897,12 +2898,14 @@ class PhaseFlight(Phase):
             event.mod == pygame.KMOD_LSHIFT or
             event.mod == pygame.KMOD_RSHIFT):
             if self.keys_shift.has_key(event.key):
-                self.keys_shift[event.key](event)
+                (handler, argument) = self.keys_shift[event.key]
+                handler(event, argument)
                 return
 
         # check for normal keys pressed
         if self.keys_normal.has_key(event.key):
-            self.keys_normal[event.key](event)
+            (handler, argument) = self.keys_normal[event.key]
+            handler(event, argument)
             return
 
         return Phase.kb(self, event)
@@ -2910,75 +2913,97 @@ class PhaseFlight(Phase):
     def set_keys(self):
         """ define dictionaries to map keys to operations """
         self.keys_normal = {
-            pygame.K_0: self.op_warp,
-            pygame.K_1: self.op_warp,
-            pygame.K_2: self.op_warp,
-            pygame.K_3: self.op_warp,
-            pygame.K_4: self.op_warp,
-            pygame.K_5: self.op_warp,
-            pygame.K_6: self.op_warp,
-            pygame.K_7: self.op_warp,
-            pygame.K_8: self.op_warp,
-            pygame.K_9: self.op_warp,
-            pygame.K_SEMICOLON: self.op_planet_lock,
-            pygame.K_b: self.op_bomb,
-            pygame.K_c: self.op_cloak_toggle,
-            pygame.K_d: self.op_det,
-            pygame.K_e: self.op_docking_toggle,
-            pygame.K_l: self.op_player_lock,
-            pygame.K_o: self.op_orbit,
-            pygame.K_s: self.op_shield_toggle,
-            pygame.K_u: self.op_shield_toggle,
-            pygame.K_x: self.op_beam_down,
-            pygame.K_y: self.op_pressor_toggle,
-            pygame.K_z: self.op_beam_up,
+            pygame.K_0: (self.op_warp, 0),
+            pygame.K_1: (self.op_warp, 1),
+            pygame.K_2: (self.op_warp, 2),
+            pygame.K_3: (self.op_warp, 3),
+            pygame.K_4: (self.op_warp, 4),
+            pygame.K_5: (self.op_warp, 5),
+            pygame.K_6: (self.op_warp, 6),
+            pygame.K_7: (self.op_warp, 7),
+            pygame.K_8: (self.op_warp, 8),
+            pygame.K_9: (self.op_warp, 9),
+            pygame.K_SEMICOLON: (self.op_planet_lock, None),
+            pygame.K_b: (self.op_bomb, None),
+            pygame.K_c: (self.op_cloak_toggle, None),
+            pygame.K_d: (self.op_det, None),
+            pygame.K_e: (self.op_docking_toggle, None),
+            pygame.K_l: (self.op_player_lock, None),
+            pygame.K_o: (self.op_orbit, None),
+            pygame.K_s: (self.op_shield_toggle, None),
+            pygame.K_u: (self.op_shield_toggle, None),
+            pygame.K_x: (self.op_beam_down, None),
+            pygame.K_y: (self.op_pressor_toggle, None),
+            pygame.K_z: (self.op_beam_up, None),
             }
         self.keys_control = {
-            pygame.K_t: self.rc_take,
+            pygame.K_HASH: (self.op_distress, rcd.dist_type_other2),
+            pygame.K_0: (self.op_distress, rcd.dist_type_pop),
+            pygame.K_1: (self.op_distress, rcd.dist_type_save_planet),
+            pygame.K_2: (self.op_distress, rcd.dist_type_base_ogg),
+            pygame.K_3: (self.op_distress, rcd.dist_type_help1),
+            pygame.K_4: (self.op_distress, rcd.dist_type_help2),
+            pygame.K_5: (self.op_distress, rcd.dist_type_asw),
+            pygame.K_6: (self.op_distress, rcd.dist_type_asbomb),
+            pygame.K_7: (self.op_distress, rcd.dist_type_doing1),
+            pygame.K_8: (self.op_distress, rcd.dist_type_doing2),
+            pygame.K_9: (self.op_distress, rcd.dist_type_pickup),
+            pygame.K_AT: (self.op_distress, rcd.dist_type_other1),
+            pygame.K_b: (self.op_distress, rcd.dist_type_bomb),
+            pygame.K_c: (self.op_distress, rcd.dist_type_space_control),
+            pygame.K_e: (self.op_distress, rcd.dist_type_escorting),
+            pygame.K_f: (self.op_distress, rcd.dist_type_free_beer),
+            pygame.K_h: (self.op_distress, rcd.dist_type_crippled),
+            pygame.K_l: (self.op_distress, rcd.dist_type_controlling),
+            pygame.K_m: (self.op_distress, rcd.dist_type_bombing),
+            pygame.K_n: (self.op_distress, rcd.dist_type_no_gas),
+            pygame.K_o: (self.op_distress, rcd.dist_type_ogg),
+            pygame.K_p: (self.op_distress, rcd.dist_type_ogging),
+            pygame.K_t: (self.op_distress, rcd.dist_type_take),
             }
         self.keys_shift = {
-            pygame.K_COMMA: self.op_warp_down,
-            pygame.K_PERIOD: self.op_warp_up,
-            pygame.K_0: self.op_warp_10,    #  )
-            pygame.K_1: self.op_warp_11,    #  !
-            pygame.K_2: self.op_warp_12,    #  @
-            pygame.K_3: self.op_warp_half,  #  #
-            pygame.K_4: self.op_null,       #  $
-            pygame.K_5: self.op_warp_full,  #  %
-            pygame.K_6: self.op_null,       #  ^
-            pygame.K_7: self.op_null,       #  &
-            pygame.K_8: self.op_practice,   #  *
-            pygame.K_d: self.op_det_me,
-            pygame.K_r: self.op_repair,
-            pygame.K_t: self.op_tractor_toggle,
+            pygame.K_COMMA: (self.op_warp_down, None),
+            pygame.K_PERIOD: (self.op_warp_up, None),
+            pygame.K_0: (self.op_warp, 10),
+            pygame.K_1: (self.op_warp, 11),
+            pygame.K_2: (self.op_warp, 12),
+            pygame.K_3: (self.op_warp_half, None),
+            pygame.K_4: (self.op_null, None),
+            pygame.K_5: (self.op_warp_full, None),
+            pygame.K_6: (self.op_null, None),
+            pygame.K_7: (self.op_null, None),
+            pygame.K_8: (self.op_practice, None),
+            pygame.K_9: (self.op_warp, 10),
+            pygame.K_d: (self.op_det_me, None),
+            pygame.K_e: (self.op_distress, rcd.dist_type_generic),
+            pygame.K_f: (self.op_distress, rcd.dist_type_carrying),
+            pygame.K_r: (self.op_repair, None),
+            pygame.K_t: (self.op_tractor_toggle, None),
             }
 
-    def cp_speed(self, warp):
-        nt.send(cp_speed.data(warp))
-
-    def op_null(self, event):
+    def op_null(self, event, arg):
         pass
 
-    def op_beam_down(self, event):
+    def op_beam_down(self, event, arg):
         nt.send(cp_beam.data(2))
 
-    def op_beam_up(self, event):
+    def op_beam_up(self, event, arg):
         nt.send(cp_beam.data(1))
 
-    def op_bomb(self, event):
+    def op_bomb(self, event, arg):
         nt.send(cp_bomb.data())
 
-    def op_cloak_toggle(self, event):
+    def op_cloak_toggle(self, event, arg):
         if not me: return
         if me.flags & PFCLOAK:
             nt.send(cp_cloak.data(0))
         else:
             nt.send(cp_cloak.data(1))
 
-    def op_det(self, event):
+    def op_det(self, event, arg):
         nt.send(cp_det_torps.data())
 
-    def op_det_me(self, event):
+    def op_det_me(self, event, arg):
         if not me: return
         base = me.n * MAXTORP
         for x in range(base, base + MAXTORP):
@@ -2986,30 +3011,35 @@ class PhaseFlight(Phase):
             if torp.status == TMOVE or torp.status == TSTRAIGHT:
                 nt.send(cp_det_mytorp.data(x))
 
-    def op_docking_toggle(self, event):
+    def op_distress(self, event, arg):
+        if not me: return
+        mesg = rcd.pack(arg, cursor(), me, galaxy)
+        if mesg: nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
+
+    def op_docking_toggle(self, event, arg):
         if not me: return
         if me.flags & PFDOCKOK:
             nt.send(cp_dockperm.data(0))
         else:
             nt.send(cp_dockperm.data(1))
 
-    def op_orbit(self, event):
+    def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
 
-    def op_planet_lock(self, event):
+    def op_planet_lock(self, event, arg):
         nearest = galaxy.closest_planet(cursor())
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
 
-    def op_player_lock(self, event):
+    def op_player_lock(self, event, arg):
         nearest = galaxy.closest_ship(cursor())
         if nearest != me:
             nt.send(cp_playlock.data(nearest.n))
 
-    def op_practice(self, event):
+    def op_practice(self, event, arg):
         nt.send(cp_practr.data())
 
-    def op_pressor_toggle(self, event):
+    def op_pressor_toggle(self, event, arg):
         if not me: return
         nearest = galaxy.closest_ship(cursor())
         if nearest != me:
@@ -3018,17 +3048,17 @@ class PhaseFlight(Phase):
             else:
                 nt.send(cp_repress.data(1, nearest.n))
 
-    def op_repair(self, event):
+    def op_repair(self, event, arg):
         nt.send(cp_repair.data(1))
 
-    def op_shield_toggle(self, event):
+    def op_shield_toggle(self, event, arg):
         if not me: return
         if me.flags & PFSHIELD:
             nt.send(cp_shield.data(0))
         else:
             nt.send(cp_shield.data(1))
 
-    def op_tractor_toggle(self, event):
+    def op_tractor_toggle(self, event, arg):
         if not me: return
         nearest = galaxy.closest_ship(cursor())
         if nearest != me:
@@ -3037,37 +3067,20 @@ class PhaseFlight(Phase):
             else:
                 nt.send(cp_tractor.data(1, nearest.n))
 
-    def op_warp(self, event):
-        key = event.key
-        if key >= pygame.K_0 and key <= pygame.K_9:
-            self.cp_speed(key - pygame.K_0)
+    def op_warp(self, event, arg):
+        nt.send(cp_speed.data(arg))
 
-    def op_warp_10(self, event):
-        self.cp_speed(10)
+    def op_warp_half(self, event, arg):
+        if me: self.op_warp(event, me.cap.s_maxspeed / 2)
 
-    def op_warp_11(self, event):
-        self.cp_speed(11)
+    def op_warp_full(self, event, arg):
+        if me: self.op_warp(event, me.cap.s_maxspeed)
 
-    def op_warp_12(self, event):
-        self.cp_speed(12)
+    def op_warp_down(self, event, arg):
+        if me: self.op_warp(event, me.speed - 1)
 
-    def op_warp_half(self, event):
-        if me: self.cp_speed(me.cap.s_maxspeed / 2)
-
-    def op_warp_full(self, event):
-        if me: self.cp_speed(me.cap.s_maxspeed)
-
-    def op_warp_down(self, event):
-        if me: self.cp_speed(me.speed - 1)
-
-    def op_warp_up(self, event):
-        if me: self.cp_speed(me.speed + 1)
-
-    def rc_take(self, event):
-        """ temporary take rcd send """
-        if not me: return
-        mesg = rcd.pack(rcd.dist_type_take, cursor(), me, galaxy)
-        if mesg: nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
+    def op_warp_up(self, event, arg):
+        if me: self.op_warp(event, me.speed + 1)
 
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
