@@ -1,0 +1,14 @@
+visualisation
+	graph of game history, planets and armies over time,
+	flowchart for tasks like taking,
+	heatmap of enemy concentration,
+	ways to damage, 
+	isosurfaces of distance to targets,
+	halo of distance to targets.
+
+strategic advisor
+	input, operating mode,
+		{want explosions, maximise my stats, help my team win the game}
+	input, planet ownership, ship positions, number of kills.
+	input, team ship classes, positions, stated roles based on RCDs.
+	output, priority list of roles, which roles are in use, on screen.
