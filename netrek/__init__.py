@@ -3170,6 +3170,9 @@ class PhaseFlightTactical(PhaseFlight):
             bg = self.bg_y
         elif me.flags & PFRED:
             bg = self.bg_r
+        else:
+            # no flags available, ignore
+            return
         if bg != background:
             background = bg
             self.bg = bg
