@@ -412,6 +412,10 @@ class Ship(Local):
         q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx - 200, ty))
         return pygame.Rect.union(p, q)
 
+    def __repr__(self):
+        return 'Ship(x=%r, y=%r, team=%r)' % (self.x, self.y, self.team)
+        
+
 class Torp(Local):
     """ netrek torps
         each netrek ship has eight netrek torps
