@@ -138,7 +138,7 @@ from netrek.client import Client, ServerDisconnectedError
 from netrek.motd import MOTD
 from netrek.cap import Cap
 from pygame.locals import *
-import netrek.opt
+from netrek import options
 import netrek.rcd
 
 WELCOME = [
@@ -3451,13 +3451,13 @@ def nt_play():
         # return to metaserver list
         mc_choose_again()
 
-def main(args=[]):
+def main():
     global opt, screen, mc, nt
 
     for line in WELCOME: print line
     print
 
-    opt = netrek.opt.Parser(args).values
+    opt, args = options.parser.parse_args()
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()
