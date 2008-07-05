@@ -830,11 +830,7 @@ class PlanetTacticalSprite(PlanetSprite):
 class ShipSprite(MultipleImageSprite):
     def __init__(self, ship):
         self.ship = ship
-        self.old_dir = ship.dir
-        self.old_team = ship.team
-        self.old_shiptype = ship.shiptype
-        self.old_status = ship.status
-        self.old_flags = ship.flags
+        self.old_status_tuple = None
         MultipleImageSprite.__init__(self)
 
 class ShipGalacticSprite(ShipSprite):
@@ -846,11 +842,9 @@ class ShipGalacticSprite(ShipSprite):
         self.pick()
 
     def update(self):
-        if self.ship.dir != self.old_dir or self.ship.team != self.old_team or self.ship.shiptype != self.old_shiptype or self.ship.status != self.old_status:
-            self.old_dir = self.ship.dir
-            self.old_team = self.ship.team
-            self.old_shiptype = self.ship.shiptype
-            self.old_status = self.ship.status
+        status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags
+        if status_tuple != self.old_status_tuple:
+            self.old_status_tuple = status_tuple
             self.pick()
         self.rect.center = galactic_scale(self.ship.x, self.ship.y)
 
@@ -874,12 +868,9 @@ class ShipTacticalSprite(ShipSprite):
         self.pick()
 
     def update(self):
-        if self.ship.dir != self.old_dir or self.ship.team != self.old_team or self.ship.shiptype != self.old_shiptype or self.ship.status != self.old_status or self.ship.flags != self.old_flags:
-            self.old_dir = self.ship.dir
-            self.old_team = self.ship.team
-            self.old_shiptype = self.ship.shiptype
-            self.old_status = self.ship.status
-            self.old_flags = self.ship.flags
+        status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags
+        if status_tuple != self.old_status_tuple:
+            self.old_status_tuple = status_tuple
             self.pick()
         self.rect.center = tactical_scale(self.ship.x, self.ship.y)
 
