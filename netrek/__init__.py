@@ -3345,6 +3345,11 @@ def pg_fd():
     except:
         print "unable to identify file descriptor of X socket, slowing"
         return
+
+    if n > 255:
+        print "the fd was too large, abondoning that line of reasoning, just guessing"
+        n = 4
+        
     nt.set_pg_fd(n)
     if mc: mc.set_pg_fd(n)
 
@@ -3384,7 +3389,6 @@ def pg_init():
     # FIXME: allow user to select graphics theme, default on XO is to
     # be white with oysters, otherwise use stars, planets, and ships.
     pygame.display.flip()
-    pg_fd()
     return screen
 
 def pg_quit():
@@ -3469,6 +3473,7 @@ def main(args=[]):
             # server was requested on command line, but not available
             return 1
     screen = pg_init()
+    pg_fd()
 
     nt_play()
     ic.statistics()
