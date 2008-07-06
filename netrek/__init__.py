@@ -1798,6 +1798,10 @@ class CP_PING_RESPONSE(CP):
     def data(self, number, pingme, cp_sent, cp_recv):
         if opt.cp: print "CP_PING_RESPONSE pingme=", pingme
         return struct.pack(self.format, self.code, number, pingme, cp_sent, cp_recv)
+        # FIXME: bug #1215317195 reported by Zach, pinging the player
+        # using "!" results in O0 PING stats: Avg: 364 ms, Stdv: 19
+        # ms, Loss: ^@100.0%/nan% s->c/c->s
+
 
 """ server originated packets
 """
