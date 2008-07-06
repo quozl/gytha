@@ -290,6 +290,7 @@ class Ship(Local):
         self.sp_player_me_speed_shown = False
         self.x = self.px = -10000
         self.y = self.py = -10000
+        self.nearby = False
         # sp_flags
         self.tractor = 0
         self.flags = 0
@@ -297,7 +298,7 @@ class Ship(Local):
         self.status = PFREE
         self.tactical = ShipTacticalSprite(self) # forward reference
         self.galactic = ShipGalacticSprite(self) # forward reference
-        self.ppcf = 1
+        self.ppcf = 1 # planet proximity check fuse
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
@@ -314,6 +315,7 @@ class Ship(Local):
         self.whydead = whydead # FIXME: display this data, on death
         self.whodead = whodead # FIXME: display this data, on death
         self.sp_you_shown = False
+        self.nearby = True
         global me
         if not me:
             me = self
@@ -358,6 +360,12 @@ class Ship(Local):
                 galaxy.planets_proximity_check() # forward reference to enclosing class
             if self.speed != speed:
                 self.sp_player_me_speed_shown = False
+        elif me:
+            limit = TWIDTH / 2 + TWIDTH / 4
+            if (abs(me.x - x) < limit) or (abs(me.x - x) < limit):
+                self.nearby = True
+            else:
+                self.nearby = False
         self.dir = dir_to_angle(dir)
         self.speed = speed
         self.x = x
@@ -868,6 +876,10 @@ class ShipTacticalSprite(ShipSprite):
         self.pick()
 
     def update(self):
+        # FIXME: this needs a better place, if done here it leaves
+        # explosions on tactical (since the ship appears not nearby
+        # when it rejoins)
+        #if not self.ship.nearby: return
         status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags
         if status_tuple != self.old_status_tuple:
             self.old_status_tuple = status_tuple
@@ -989,6 +1001,86 @@ class TorpTacticalSprite(TorpSprite):
 
     def hide(self):
         t_torps.remove(self)
+
+class Halos:
+    def __init__(self):
+        self.arcs = []
+        self.rect = []
+
+    def arc(self, surface, colour, xy, r, w):
+        self.arcs.append((xy, r, w))
+        return pygame.draw.circle(surface, colour, xy, r, w)
+
+    def draw(self, surface):
+        self.arcs = []
+        self.rect = []
+
+        # do not draw if *we* are off galactic
+        if me.x < 0 or me.y < 0: return self.rect
+
+        # how close to edge to draw arcs, in galactic distance from me
+        threshold = 9700
+
+        # temporary highlight of my planets
+        for n, planet in galaxy.planets.iteritems():
+            if planet.owner != me.team: continue
+            # colour depends on team
+            colour = (0, 64, 0)
+            # do not draw if off galactic
+            if planet.x < 0: continue
+            if planet.y < 0: continue
+            # do not draw if on tactical
+            offset_x = abs(planet.x - me.x)
+            offset_y = abs(planet.y - me.y)
+            if offset_x < 10000 and offset_x < 10000: continue
+            # calculate distance to object
+            distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+            # radius is to be distance less tactical edge
+            radius = distance - threshold
+            if radius < 100: continue
+            # scale radius down to graphics
+            radius = radius / 20
+            # thickness relates to kills
+            cx, cy = tactical_scale(planet.x, planet.y)
+            width = 1
+            #if planet.armies > 4: width += 1
+            #if planet.armies > 6: width += 1
+            #if planet.armies > 10: width += 1
+            self.rect.append(self.arc(surface, colour, (cx, cy), radius,
+                                      width))
+
+        # highlight of ships in game
+        for n, ship in galaxy.ships.iteritems():
+            if ship.status != PALIVE: continue
+            if ship == me: continue
+            # colour depends on team
+            colour = (255, 0, 0)
+            if ship.team == me.team: colour = (0, 255, 0)
+            # do not draw if off galactic
+            if ship.x < 0: continue
+            if ship.y < 0: continue
+            # do not draw if on tactical
+            offset_x = abs(ship.x - me.x)
+            offset_y = abs(ship.y - me.y)
+            if offset_x < 10000 and offset_x < 10000: continue
+            # calculate distance to object
+            distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+            # radius is to be distance less tactical edge
+            radius = distance - threshold
+            if radius < 100: continue
+            # scale radius down to graphics
+            radius = radius / 20
+            # thickness relates to kills
+            cx, cy = tactical_scale(ship.x, ship.y)
+            self.rect.append(self.arc(surface, colour, (cx, cy), radius,
+                                      min(max(int(ship.kills), 1),3)))
+
+        return self.rect
+
+    def undraw(self, surface, colour):
+        for (xy, r, w) in self.arcs:
+            pygame.draw.circle(surface, colour, xy, r, w)
+        return self.rect
 
 class Borders:
     """ netrek borders
@@ -3122,6 +3214,7 @@ class PhaseFlightTactical(PhaseFlight):
 
         PhaseFlight.__init__(self, 'tactical')
         self.borders = Borders()
+        self.halos = Halos()
 
         self.co_g = (0, 15, 15) # cyan
         self.co_y = (15, 15, 0) # yellow
@@ -3136,6 +3229,8 @@ class PhaseFlightTactical(PhaseFlight):
 
         self.bg = self.bg_g
         self.co = self.co_g
+
+        self.pace = 0
 
     def do(self):
         global background
@@ -3164,48 +3259,83 @@ class PhaseFlightTactical(PhaseFlight):
         """ if the alert status has changed, adjust the background colour """
         global background
 
+        self.pace += 1
+        # FIXME: tune automatically how much extra graphics are done
+        # according to the amount of time we have waited for a network
+        # packet ... once we fall behind in graphics update the
+        # network packet will be already waiting, and we shall begin
+        # to display-lag.
+        if self.pace < 10: return []
+        self.pace = 0
+
         if me.flags & PFGREEN:
             bg = self.bg_g
+            co = self.co_g
         elif me.flags & PFYELLOW:
             bg = self.bg_y
+            co = self.co_y
         elif me.flags & PFRED:
             bg = self.bg_r
+            co = self.co_r
         else:
             # no flags available, ignore
-            return
+            return []
+
+        # has background been changed?
         if bg != background:
             background = bg
-            self.bg = bg
+            self.bg = bg.copy()
+            self.co = co
+            if not me.flags & PFRED: self.halos.draw(self.bg)
             screen.blit(self.bg, (0, 0))
             pygame.display.flip()
+            return []
+
+        # no halos in red alert
+        if me.flags & PFRED: return []
+
+        # no background change, just update halos
+        r = []
+        self.halos.undraw(screen, self.co)
+        r += self.halos.undraw(self.bg, self.co)
+        self.halos.draw(screen)
+        r += self.halos.draw(self.bg)
+        return r
 
     def update(self):
         """ clear, update, and redraw all tactical sprites and non-sprites """
 
-        o_phasers = galaxy.phasers_undraw(self.co)
-        o_borders = self.borders.undraw(self.co)
+        r = [] # sequence of dirty rectangles for update
+        r += galaxy.phasers_undraw(self.co)
+        r += self.borders.undraw(self.co)
+
+        # design note, the sprite clear method does not return a dirty
+        # rectangle, because it is merged with the dirty rectangle
+        # returned by the sprite draw method, per group class
+        # RenderUpdates, which is a subclass of the group class
+        # OrderedUpdates that we use here.
         b_reports.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
         t_torps.clear(screen, self.bg)
         t_players.clear(screen, self.bg)
         t_planets.clear(screen, self.bg)
-        
-        self.alert()
+
+        r += self.alert()
         t_planets.update()
         t_players.update()
         t_torps.update()
         b_warning.update()
         b_reports.update()
         
-        r_planets = t_planets.draw(screen)
-        r_players = t_players.draw(screen)
-        r_weapons = t_torps.draw(screen)
-        r_phasers = galaxy.phasers_draw()
-        r_borders = self.borders.draw()
-        r_reports = b_reports.draw(screen)
-        r_warning = b_warning.draw(screen)
+        r += t_planets.draw(screen)
+        r += t_players.draw(screen)
+        r += t_torps.draw(screen)
+        r += galaxy.phasers_draw()
+        r += self.borders.draw()
+        r += b_reports.draw(screen)
+        r += b_warning.draw(screen)
         
-        pygame.display.update(o_phasers+o_borders+r_planets+r_players+r_weapons+r_phasers+r_borders+r_reports+r_warning)
+        pygame.display.update(r)
 
         #r_debug = galaxy.torp_debug_draw()
         #pygame.display.update(r_debug)

@@ -32,6 +32,7 @@
 # planets are 60 x 60 on this tactical
 
 GWIDTH=100000
+TWIDTH=20000
 
 IND=0x0
 FED=0x1
