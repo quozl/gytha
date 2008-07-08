@@ -296,6 +296,12 @@ class Ship(Local):
         self.flags = 0
         # sp_pstatus
         self.status = PFREE
+        # sp_generic_32
+        self.repair_time = 0
+        self.pl_orbit = -1
+        self.repair_time_shown = False
+        self.sp_generic_32_wanted = False
+
         self.tactical = ShipTacticalSprite(self) # forward reference
         self.galactic = ShipGalacticSprite(self) # forward reference
         self.ppcf = 1 # planet proximity check fuse
@@ -410,6 +416,16 @@ class Ship(Local):
             # FIXME: check for attribute existence rather that use
             # brute force of exception handling
             pass
+
+    def sp_generic_32(self, repair_time, pl_orbit):
+        self.repair_time = repair_time
+        self.pl_orbit = pl_orbit
+        self.repair_time_shown = False
+        # ask the server to stop sending SP_GENERIC_32 once repair
+        # appears to be done
+        if self.repair_time == 0:
+            nt.send(cp_feature.data('S', 0, 0, 0, 'SP_GENERIC_32'))
+            self.sp_generic_32_wanted = False
 
     def debug_draw(self):
         fx = 900
@@ -1147,11 +1163,15 @@ class ReportSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(centerx=500, bottom=999)
 
     def update(self):
-        if me.sp_you_shown and me.sp_player_me_speed_shown and me.sp_kills_me_shown: return
+        if me.sp_you_shown and \
+           me.sp_player_me_speed_shown and \
+           me.sp_kills_me_shown and \
+           me.repair_time_shown: return
+        self.pick()
         me.sp_you_shown = True
         me.sp_player_me_speed_shown = True
         me.sp_kills_me_shown = True
-        self.pick()
+        me.repair_time_shown = True
 
     def flags(self):
         f = me.flags
@@ -1185,6 +1205,8 @@ class ReportSprite(pygame.sprite.Sprite):
         if me.etemp  > 0:                  x += "E %d " % (me.etemp / 10)
         if me.wtemp  > 0:                  x += "W %d " % (me.wtemp / 10)
         x += self.flags()
+        if me.flags & PFREPAIR:
+            x += '[%d]' % me.repair_time
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(centerx=500, bottom=999)
@@ -2221,6 +2243,17 @@ class SP_SHIP_CAP(SP):
         cap.s_desig = s_desig
         cap.s_bitmap = s_bitmap
 
+class SP_GENERIC_32(SP):
+    """ only received if client sends CP_FEATURE of SP_GENERIC_32 """
+    code = 32
+    format = "bbhh26x" # note no byte swap !
+
+    def handler(self, data):
+        (ignored, version, repair_time, pl_orbit) = struct.unpack(self.format, data)
+        if opt.sp: print "SP_GENERIC_32 version=%d repair_time=%d pl_orbit=%d" % (version, repair_time, pl_orbit)
+        if me:
+            me.sp_generic_32(repair_time, pl_orbit)
+
 """ user interface display phases
 """
 
@@ -3145,7 +3178,11 @@ class PhaseFlight(Phase):
                 nt.send(cp_repress.data(1, nearest.n))
 
     def op_repair(self, event, arg):
+        if not me: return
         nt.send(cp_repair.data(1))
+        if not me.sp_generic_32_wanted:
+            nt.send(cp_feature.data('S', 0, 0, 1, 'SP_GENERIC_32'))
+            me.sp_generic_32_wanted = True
 
     def op_shield_toggle(self, event, arg):
         if not me: return
