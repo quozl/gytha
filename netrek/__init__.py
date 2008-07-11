@@ -1810,7 +1810,7 @@ class CP_FEATURE(CP):
     format = "!bcbbi80s"
 
     def data(self, type, arg1, arg2, value, name):
-        if opt.cp: print "CP_FEATURE type=",type,"arg1=",arg1,"arg2=",arg2,"value=",value,"name=",name
+        if opt.cp: print "CP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name)
         return struct.pack(self.format, self.code, type, arg1, arg2, value, name)
 
 class CP_PING_RESPONSE(CP):
@@ -2246,11 +2246,24 @@ class SP_SHIP_CAP(SP):
 class SP_GENERIC_32(SP):
     """ only received if client sends CP_FEATURE of SP_GENERIC_32 """
     code = 32
-    format = "bbhh26x" # note no byte swap !
+    format = "!b1s30x"
 
     def handler(self, data):
-        (ignored, version, repair_time, pl_orbit) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_GENERIC_32 version=%d repair_time=%d pl_orbit=%d" % (version, repair_time, pl_orbit)
+        (ignored, version) = struct.unpack(self.format, data)
+        if version == 'a':
+            (ignored, version, repair_time, pl_orbit) = struct.unpack("b1shh26x", data)
+            if opt.sp: print "SP_GENERIC_32 rt=%d or=%d" \
+               % (repair_time, pl_orbit)
+        elif version == 'b':
+            (ignored, version, repair_time, pl_orbit, gameup, \
+             tournament_teams, tournament_age, tournament_age_units, \
+             tournament_remain, tournament_remain_units, starbase_remain, \
+             team_remain) = struct.unpack("!b1sHbHBBsBsBB18x", data)
+            if opt.sp: print "SP_GENERIC_32 rt=%d or=%d gu=0x%x " \
+               "tt=%x ta=%d%s tr=%d%s sr=%d su=%d" % \
+               (repair_time, pl_orbit, gameup, tournament_teams, \
+                tournament_age, tournament_age_units, tournament_remain, \
+                tournament_remain_units, starbase_remain, team_remain)
         if me:
             me.sp_generic_32(repair_time, pl_orbit)
 
@@ -3181,7 +3194,7 @@ class PhaseFlight(Phase):
         if not me: return
         nt.send(cp_repair.data(1))
         if not me.sp_generic_32_wanted:
-            nt.send(cp_feature.data('S', 0, 0, 1, 'SP_GENERIC_32'))
+            nt.send(cp_feature.data('S', 2, 0, 1, 'SP_GENERIC_32'))
             me.sp_generic_32_wanted = True
 
     def op_shield_toggle(self, event, arg):
