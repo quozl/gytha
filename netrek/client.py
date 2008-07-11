@@ -149,6 +149,11 @@ class Client:
         if pbytes > 1024:
             return self.tcp_readable_stream()
 
+        # FIXME: at this point, on a server where queue has no slot,
+        # server emits ntserv/main.c: Quitting: No slot available on
+        # queue 0 and client experiences socket.error: (104,
+        # 'Connection reset by peer')
+
         # read all the data available right now
         try:
             length = self.tcp.recv_into(self.buffer, pbytes)
