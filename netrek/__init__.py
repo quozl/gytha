@@ -951,8 +951,6 @@ class ShipTacticalSprite(ShipSprite):
             colour = (255, 0, 0)
         elif flags & PFBPROBOT:
             colour = (0, 0, 255)
-        elif flags & PFDOCKOK:
-            colour = (0, 255, 255)
         text = font.render(message, 1, colour)
         rect = text.get_rect(center=(20, 20))
         # FIXME: cache this surface here, it will never change
