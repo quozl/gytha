@@ -1040,16 +1040,7 @@ class Halos:
         self.arcs.append((xy, r, w))
         return pygame.draw.circle(surface, colour, xy, r, w)
 
-    def draw(self, surface):
-        self.arcs = []
-        self.rect = []
-
-        # do not draw if *we* are off galactic
-        if me.x < 0 or me.y < 0: return self.rect
-
-        # how close to edge to draw arcs, in galactic distance from me
-        threshold = 9700
-
+    def draw_planets(self, surface, threshold):
         # temporary highlight of my planets
         for n, planet in galaxy.planets.iteritems():
             if planet.owner != me.team: continue
@@ -1078,6 +1069,7 @@ class Halos:
             self.rect.append(self.arc(surface, colour, (cx, cy), radius,
                                       width))
 
+    def draw_ships(self, surface, threshold):
         # highlight of ships in game
         for n, ship in galaxy.ships.iteritems():
             if ship.status != PALIVE: continue
@@ -1099,10 +1091,25 @@ class Halos:
             if radius < 100: continue
             # scale radius down to graphics
             radius = radius / 20
-            # thickness relates to kills
             cx, cy = tactical_scale(ship.x, ship.y)
+            width = 1
+            # thickness relates to kills
+            #width = min(max(int(ship.kills),1),3)
             self.rect.append(self.arc(surface, colour, (cx, cy), radius,
-                                      min(max(int(ship.kills), 1),3)))
+                                      width))
+
+    def draw(self, surface):
+        self.arcs = []
+        self.rect = []
+
+        # do not draw if *we* are off galactic
+        if me.x < 0 or me.y < 0: return self.rect
+
+        # how close to edge to draw arcs, in galactic distance from me
+        threshold = 9700
+
+        #self.draw_planets(surface, threshold)
+        self.draw_ships(surface, threshold)
 
         return self.rect
 
