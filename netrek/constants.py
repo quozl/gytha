@@ -198,3 +198,18 @@ BADVERSION_BANNED  = 3 # banned
 BADVERSION_DOWN    = 4 # game shutdown by server
 BADVERSION_SILENCE = 5 # daemon stalled
 BADVERSION_SELECT  = 6 # internal error
+
+GU_GAMEOK       =    0x1
+GU_PRACTICE     =    0x2 # Basepractice robot is present, also set by INL robot
+                         # during a pause, in pre-game, or post-game
+GU_CHAOS        =    0x4 # also set by INL robot in post-game
+GU_PAUSED       =    0x8
+GU_INROBOT      =   0x10 # INL robot is present
+GU_NEWBIE       =   0x20 # Newbie robot is present
+GU_PRET         =   0x40 # Pre-t robot is present
+GU_BOT_IN_GAME  =   0x80 # Pre-t robot + bots are present
+GU_CONQUER      =  0x100 # conquest parade in progress
+GU_PUCK         =  0x200 # Hockey robot is present
+GU_DOG          =  0x400 # Dogfight robot is present
+GU_INL_DRAFTING =  0x800 # INL draft pre-game is in progress
+GU_INL_DRAFTED  = 0x1000 # INL draft game is in progress

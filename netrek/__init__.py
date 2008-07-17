@@ -1186,17 +1186,19 @@ class ReportSprite(pygame.sprite.Sprite):
         if me.sp_you_shown and \
            me.sp_player_me_speed_shown and \
            me.sp_kills_me_shown and \
-           me.repair_time_shown: return
+           me.repair_time_shown and \
+           galaxy.sp_generic_32_shown: return
         self.pick()
         me.sp_you_shown = True
         me.sp_player_me_speed_shown = True
         me.sp_kills_me_shown = True
         me.repair_time_shown = True
+        galaxy.sp_generic_32_shown = True
 
     def flags(self):
+        r = ''
         f = me.flags
         if f & PFPRESS: f ^= PFTRACT
-        r = ''
         x = ['SHIELDS',      'REPAIRING',     'BOMBING',       'ORBITING',
              'CLOAKED',      'WEAPONS-HOT',   'ENGINES-HOT',   'ROBOT',
              'BEAM-UP',      'BEAM-DOWN',     'SELF-DESTRUCT', None,
@@ -1209,6 +1211,31 @@ class ReportSprite(pygame.sprite.Sprite):
             if f & (1 << n):
                 if x[n]:
                     r += x[n] + ' '
+        f = galaxy.gameup
+        # turn off pre-t if pre-t-bots is on, as it is superfluous
+        if f & GU_BOT_IN_GAME: f ^= GU_PRET
+        # turn off chaos if practice is on, as it is superfluous
+        if f & GU_PRACTICE: f ^= GU_CHAOS
+        x = [None, # GU_GAMEOK
+             'practice', # GU_PRACTICE
+             # also set by INL robot during a pause, in pre-game, or post-game
+             'chaos', # GU_CHAOS
+# also set by INL robot in post-game
+             'paused', # GU_PAUSED
+             'league', # GU_INROBOT
+             'newbie', # GU_NEWBIE
+             'pre-t', # GU_PRET
+             'pre-t-bots', # GU_BOT_IN_GAME
+             'conquer-parade', # GU_CONQUER
+             'puck', # GU_PUCK
+             'dog', # GU_DOG
+             'drafting', # GU_INL_DRAFTING
+             'drafted', # GU_INL_DRAFTED
+             ]
+        for n in range(32):
+            if f & (1 << n):
+                if x[n]:
+                    r += '(' + x[n] + ') '
         return r
 
     def pick(self):
@@ -1226,7 +1253,9 @@ class ReportSprite(pygame.sprite.Sprite):
         if me.wtemp  > 0:                  x += "W %d " % (me.wtemp / 10)
         x += self.flags()
         if me.flags & PFREPAIR:
-            x += '[%d]' % me.repair_time
+            x += '[%d] ' % me.repair_time
+        if galaxy.tournament_remain != 0:
+            x += '{%d%s} ' % (galaxy.tournament_remain, galaxy.tournament_remain_units)
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(centerx=500, bottom=999)
