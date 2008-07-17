@@ -1216,6 +1216,8 @@ class ReportSprite(pygame.sprite.Sprite):
         if f & GU_BOT_IN_GAME: f ^= GU_PRET
         # turn off chaos if practice is on, as it is superfluous
         if f & GU_PRACTICE: f ^= GU_CHAOS
+        # turn off pause if parade is on, as it is superfluous
+        if f & GU_CONQUER: f ^= GU_PAUSED
         x = [None, # GU_GAMEOK
              'practice', # GU_PRACTICE
              # also set by INL robot during a pause, in pre-game, or post-game
