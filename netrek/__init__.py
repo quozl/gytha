@@ -300,7 +300,6 @@ class Ship(Local):
         self.repair_time = 0
         self.pl_orbit = -1
         self.repair_time_shown = False
-        self.sp_generic_32_wanted = False
 
         self.tactical = ShipTacticalSprite(self) # forward reference
         self.galactic = ShipGalacticSprite(self) # forward reference
@@ -421,11 +420,6 @@ class Ship(Local):
         self.repair_time = repair_time
         self.pl_orbit = pl_orbit
         self.repair_time_shown = False
-        # ask the server to stop sending SP_GENERIC_32 once repair
-        # appears to be done
-        if self.repair_time == 0:
-            nt.send(cp_feature.data('S', 0, 0, 0, 'SP_GENERIC_32'))
-            self.sp_generic_32_wanted = False
 
     def debug_draw(self):
         fx = 900
@@ -610,6 +604,15 @@ class Galaxy:
             self.caps[n] = Cap(n)
         self.motd = MOTD()
         self.ups = 5 # default if SP_FEATURE UPS is not received
+        # sp_generic_32
+        self.gameup = 0
+        self.tournament_teams = 0
+        self.tournament_age = 0
+        self.tournament_age_units = 's'
+        self.tournament_remain = 0
+        self.tournament_remain_units = 's'
+        self.starbase_remain = 0
+        self.team_remain = 0
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -735,6 +738,18 @@ class Galaxy:
         else:
             print strnul(mesg)
         # FIXME: display the message
+
+    def sp_generic_32(self, gameup, tournament_teams, \
+                tournament_age, tournament_age_units, tournament_remain, \
+                tournament_remain_units, starbase_remain, team_remain):
+        self.gameup = gameup
+        self.tournament_teams = tournament_teams
+        self.tournament_age = tournament_age
+        self.tournament_age_units = tournament_age_units
+        self.tournament_remain = tournament_remain
+        self.tournament_remain_units = tournament_remain_units
+        self.starbase_remain = starbase_remain
+        self.team_remain = team_remain
 
 galaxy = Galaxy()
 me = None
@@ -2162,6 +2177,7 @@ class SP_FEATURE(SP):
             if rcd.cp_feature: # we want binary RCDs in SP_MESSAGE packets
                 nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
             nt.send(cp_feature.data('S', 0, 0, 1, 'SHIP_CAP'))
+            nt.send(cp_feature.data('S', 2, 0, 1, 'SP_GENERIC_32'))
 
         if name == 'UPS':
             galaxy.ups = value
@@ -2254,6 +2270,8 @@ class SP_GENERIC_32(SP):
             (ignored, version, repair_time, pl_orbit) = struct.unpack("b1shh26x", data)
             if opt.sp: print "SP_GENERIC_32 rt=%d or=%d" \
                % (repair_time, pl_orbit)
+            if me:
+                me.sp_generic_32(repair_time, pl_orbit)
         elif version == 'b':
             (ignored, version, repair_time, pl_orbit, gameup, \
              tournament_teams, tournament_age, tournament_age_units, \
@@ -2264,8 +2282,11 @@ class SP_GENERIC_32(SP):
                (repair_time, pl_orbit, gameup, tournament_teams, \
                 tournament_age, tournament_age_units, tournament_remain, \
                 tournament_remain_units, starbase_remain, team_remain)
-        if me:
-            me.sp_generic_32(repair_time, pl_orbit)
+            if me:
+                me.sp_generic_32(repair_time, pl_orbit)
+            galaxy.sp_generic_32(gameup, tournament_teams, \
+                tournament_age, tournament_age_units, tournament_remain, \
+                tournament_remain_units, starbase_remain, team_remain)
 
 """ user interface display phases
 """
@@ -3193,9 +3214,6 @@ class PhaseFlight(Phase):
     def op_repair(self, event, arg):
         if not me: return
         nt.send(cp_repair.data(1))
-        if not me.sp_generic_32_wanted:
-            nt.send(cp_feature.data('S', 2, 0, 1, 'SP_GENERIC_32'))
-            me.sp_generic_32_wanted = True
 
     def op_shield_toggle(self, event, arg):
         if not me: return
