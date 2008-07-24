@@ -215,6 +215,7 @@ class Planet(Local):
         Local.__init__(self, n)
         self.x = -10001
         self.y = -10001
+        self.g_shown = False
         self.name = ''
         self.sp_planet(0, 0, 0, 0)
         self.tactical = PlanetTacticalSprite(self) # forward reference
@@ -227,12 +228,14 @@ class Planet(Local):
             self.y = y
             self.set_box(x, y)
         self.name = name
+        self.g_shown = False
 
     def sp_planet(self, owner, info, flags, armies):
         self.owner = owner
         self.info = info
         self.flags = flags
         self.armies = armies
+        self.g_shown = False
 
     def set_box(self, x, y):
         """ create a proximity bounding box around the planet """
@@ -785,7 +788,18 @@ class PlanetGalacticSprite(PlanetSprite):
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 8)
         message = "%s" % (self.planet.name)
-        text = font.render(message, 1, (128, 128, 128))
+        colour = (128, 128, 128)
+        if self.planet.armies > 4:
+            if self.planet.owner == FED: colour = (255, 255, 0)
+            if self.planet.owner == ROM: colour = (255, 0, 0)
+            if self.planet.owner == KLI: colour = (0, 255, 0)
+            if self.planet.owner == ORI: colour = (0, 255, 255)
+        else:
+            if self.planet.owner == FED: colour = (128, 128, 0)
+            if self.planet.owner == ROM: colour = (128, 0, 0)
+            if self.planet.owner == KLI: colour = (0, 128, 0)
+            if self.planet.owner == ORI: colour = (0, 128, 128)
+        text = font.render(message, 1, colour)
         rect = text.get_rect(centerx=60, bottom=90)
         image.blit(text, rect)
         self.mi_add_image(image)
@@ -1318,7 +1332,7 @@ class SpriteBacked(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-class Clickable():
+class Clickable:
     """ a clickable screen object """
     def __init__(self, clicked):
         self.clicked = clicked
@@ -1480,7 +1494,7 @@ class Button(Text, Clickable):
 """ animations
 """
 
-class Bouncer():
+class Bouncer:
     """ two torps following an orbital ellipse around an invisible mass """
     def __init__(self, ex, ey, cx, cy, n1='torp-me.png', n2='torp-me.png'):
         self.ex = ex
@@ -3305,16 +3319,29 @@ class PhaseFlightGalactic(PhaseFlight):
             return PhaseFlight.kb(self, event)
 
     def update(self):
+        r = [] # sequence of dirty rectangles for update
         b_reports.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
         g_players.clear(screen, self.bg)
+        for n, planet in galaxy.planets.iteritems():
+            if not planet.g_shown:
+                print planet.name
+                r_clear = planet.galactic.rect
+                screen.blit(background, planet.galactic.rect)
+                planet.galactic.update()
+                self.bg.blit(planet.galactic.image, planet.galactic.rect)
+                screen.blit(planet.galactic.image, planet.galactic.rect)
+                r_draw = planet.galactic.rect
+                r += [pygame.Rect.union(r_clear, r_draw)]
+                planet.g_shown = True
+                break # one per update
         g_players.update()
         b_warning.update()
         b_reports.update()
-        r_players = g_players.draw(screen)
-        r_reports = b_reports.draw(screen)
-        r_warning = b_warning.draw(screen)
-        pygame.display.update(r_players+r_reports+r_warning)
+        r += g_players.draw(screen)
+        r += b_reports.draw(screen)
+        r += b_warning.draw(screen)
+        pygame.display.update(r)
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):

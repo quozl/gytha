@@ -30,5 +30,5 @@ class MultipleImageSprite(pygame.sprite.Sprite):
             (image, rect) = x
             rect.center = (width/2, height/2)
             self.image.blit(image, rect)
-        self.rect = self.image.get_rect()
+        self.rect = pygame.Rect(self.image.get_rect())
     
