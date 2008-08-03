@@ -200,6 +200,7 @@ BADVERSION_SILENCE = 5 # daemon stalled
 BADVERSION_SELECT  = 6 # internal error
 
 GU_GAMEOK       =    0x1
+GU_UNSAFE       =    0x1 # not currently safe due idle
 GU_PRACTICE     =    0x2 # Basepractice robot is present, also set by INL robot
                          # during a pause, in pre-game, or post-game
 GU_CHAOS        =    0x4 # also set by INL robot in post-game
