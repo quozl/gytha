@@ -1115,6 +1115,8 @@ class Halos:
                                       width))
 
     def draw(self, surface):
+        # temporarily disabled
+        return []
         self.arcs = []
         self.rect = []
 
@@ -1130,6 +1132,8 @@ class Halos:
         return self.rect
 
     def undraw(self, surface, colour):
+        # temporarily disabled
+        return []
         for (xy, r, w) in self.arcs:
             pygame.draw.circle(surface, colour, xy, r, w)
         return self.rect
@@ -2339,6 +2343,7 @@ class SP_GENERIC_32(SP):
             galaxy.sp_generic_32(gameup, tournament_teams, \
                 tournament_age, tournament_age_units, tournament_remain, \
                 tournament_remain_units, starbase_remain, team_remain)
+            # FIXME: lower update rate while ^GU_UNSAFE
 
 """ user interface display phases
 """
