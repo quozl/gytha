@@ -616,6 +616,8 @@ class Galaxy:
         self.tournament_remain_units = 's'
         self.starbase_remain = 0
         self.team_remain = 0
+        # sp_queue
+        self.sp_queue_pos = 0
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -753,6 +755,9 @@ class Galaxy:
         self.tournament_remain_units = tournament_remain_units
         self.starbase_remain = starbase_remain
         self.team_remain = team_remain
+
+    def sp_queue(self, pos):
+        self.sp_queue_pos = pos
 
 galaxy = Galaxy()
 me = None
@@ -1966,7 +1971,7 @@ class SP_QUEUE(SP):
     def handler(self, data):
         (ignored, pos) = struct.unpack(self.format, data)
         if opt.sp: print "SP_QUEUE pos=",pos
-        # FIXME: present on pygame screen
+        galaxy.sp_queue(pos);
 
 class SP_PL_LOGIN(SP):
     code = 24
@@ -2723,6 +2728,56 @@ class PhaseServers(Phase):
         pygame.display.update(self.b_quit.clear())
         self.run = False
 
+class PhaseQueue(Phase):
+    """ queue, the player is told their position in the queue, the
+    position updates as other players leave, or our player may
+    quit. """
+    def __init__(self, screen):
+        self.cancelled = False
+        if me != None:
+            return
+        Phase.__init__(self)
+        self.background("hubble-crab.jpg")
+        x = screen.get_width()/2
+        self.text('netrek', x, 100, 92)
+        self.text(opt.chosen, x, 185, 64)
+        self.blame()
+        self.add_quit_button(self.quit)
+        self.add_list_button(self.list)
+        pygame.display.flip()
+        self.run = True
+        if opt.screenshots:
+            pygame.image.save(screen, "netrek-client-pygame-queue.tga")
+        while self.run:
+            packets = self.network_sink()
+            if packets > 0: self.data()
+            self.display_sink()
+
+    def data(self):
+        if me != None:
+            self.proceed()
+            return
+        self.unwarn()
+        self.warn('standby, you are at queue position ' +
+                  str(galaxy.sp_queue_pos))
+        pygame.display.flip()
+
+    def list(self, event):
+        self.cancelled = True
+        nt.send(cp_bye.data())
+        nt.shutdown()
+        self.proceed()
+
+    def quit(self, event):
+        self.list(event)
+        Phase.quit(self, event)
+
+    def proceed(self):
+        self.b_quit.clear()
+        self.b_list.clear()
+        pygame.display.flip()
+        self.run = False
+
 class PhaseLogin(Phase):
     """ login, the server message of the day (MOTD) is displayed, and
     the player is to type a character name and password, the name may
@@ -2734,13 +2789,7 @@ class PhaseLogin(Phase):
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.blame()
-        self.warn('connected, waiting for slot, standby')
         pygame.display.flip()
-        # pause until SP_YOU is received, which marks end of SP_MOTD
-        # (while on queue, this pauses)
-        while me == None:
-            nt.recv()
-            # FIXME: allow QUIT here
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
         self.unwarn()
@@ -3705,10 +3754,15 @@ def nt_play():
         try:
             nt.send(cp_socket.data())
             nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
-            # PhaseQueue?
-            # FIXME: if an SP_QUEUE packet is received, present this phase
-            # FIXME: allow play on another server even while queued? [grin]
+            # FIXME: allow play on another server while queued
             if opt.name == '':
+                ph_queue = PhaseQueue(screen)
+                if ph_queue.cancelled:
+                    if mc == None: break
+                    # return to metaserver list
+                    mc_choose_again()
+                    continue
+
                 ph_login = PhaseLogin(screen)
                 if ph_login.cancelled:
                     if mc == None: break
