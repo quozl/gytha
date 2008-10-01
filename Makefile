@@ -3,7 +3,6 @@ VERSION=`head -1 debian/changelog|cut -f2 -d\(|cut -f1 -d-`
 
 all: 
 	@echo $(PACKAGE)-$(VERSION)
-	chmod +x netrek.py
 	echo "To start this Netrek client, run the file netrek-client-pygame"
 
 clean:
