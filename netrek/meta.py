@@ -34,9 +34,11 @@ class MetaClient:
                 addresses = socket.getaddrinfo(
                         hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
                 for family, socktype, proto, canonname, sockaddr in addresses:
+                    (ip, port) = sockaddr
+                    if ip == '65.193.17.240':
+                        continue
                     try:
                         self.socket.sendto('?', sockaddr)
-                        (ip, port) = sockaddr
                         print "queried", hostname, "aka", ip
                     except socket.error:
                         print "unable to query %s, proceeding" % sockaddr
