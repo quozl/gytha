@@ -16,6 +16,8 @@ parser.add_option("--login", dest="login", default="pynt",
                   help="username to show on player list")
 parser.add_option("--team", dest="team",
                   help="team to join")
+parser.add_option("--mercenary", dest="mercenary",
+                  help="automatically join the least represented team")
 parser.add_option("--ship", dest="ship",
                   help="ship class to request")
 parser.add_option("--updates",

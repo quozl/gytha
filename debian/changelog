@@ -1,8 +1,9 @@
 netrek-client-pygame (0.4-0) unstable; urgency=low
 
   * new upstream version
+  * remove halos temporarily
 
- -- James Cameron <quozl@us.netrek.org>  Fri, 27 Jun 2008 19:41:55 +1000
+ -- James Cameron <quozl@us.netrek.org>  Fri, 19 Sep 2008 16:46:48 +1000
 
 netrek-client-pygame (0.3-0) unstable; urgency=low
 

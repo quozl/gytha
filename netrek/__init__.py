@@ -617,7 +617,7 @@ class Galaxy:
         self.starbase_remain = 0
         self.team_remain = 0
         # sp_queue
-        self.sp_queue_pos = 0
+        self.sp_queue_pos = None
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -2692,7 +2692,7 @@ class PhaseServers(Phase):
     def md(self, event):
         if Phase.md(self, event): return
         self.unwarn()
-        if event.button != 1:
+        if event.button != 1 and event.button != 2:
             self.warn('not that button, mate', 500)
             return
         y = event.pos[1]
@@ -2714,6 +2714,9 @@ class PhaseServers(Phase):
         pygame.display.update(self.b_quit.clear())
         self.warn('connecting, standby')
         opt.chosen = chosen
+        if event.button == 2:
+            opt.name = 'guest'
+            opt.mercenary = True
         # FIXME: do not block and hang during connect, do it asynchronously
         if not nt.connect(opt.chosen, opt.port):
             # FIXME: handle connection failure more gracefully by
@@ -2744,6 +2747,7 @@ class PhaseQueue(Phase):
         self.blame()
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
+        self.warn('connected, standby')
         pygame.display.flip()
         self.run = True
         if opt.screenshots:
@@ -2756,6 +2760,8 @@ class PhaseQueue(Phase):
     def data(self):
         if me != None:
             self.proceed()
+            return
+        if galaxy.sp_queue_pos == None:
             return
         self.unwarn()
         self.warn('standby, you are at queue position ' +
@@ -2976,7 +2982,6 @@ class PhaseOutfit(Phase):
         sp_mask.catch(self.mask)
         if opt.screenshots:
             pygame.image.save(screen, "netrek-client-pygame-outfit.tga")
-        self.auto()
         self.cycle() # returns when choice accepted by server, or user cancels
         sp_mask.uncatch()
 
@@ -2995,21 +3000,32 @@ class PhaseOutfit(Phase):
                     sprite.visible = False
         if len(r) > 0:
             pygame.display.update(r)
+        if opt.mercenary:
+            opt.team = "fed"
+            opt.ship = "cruiser"
+            opt.mercenary = False
+            # FIXME: choose a useful team, see cow, newwin.c, mercenary()
         # FIXME: display SP_WARNING packets (confirm team change)
         # using WarningSprite
+        self.auto()
 
     def auto(self):
         # attempt auto-refit if command line arguments are supplied
-        # FIXME: this appears to be persistent, even if we quit
         if opt.team != None and opt.ship != None:
             while me == None:
                 nt.recv()
+                # FIXME: potential CPU loop at this point
             for team, name in teams_long.iteritems():
                 if opt.team == name[:len(opt.team)]:
+                    opt.team = None
                     for ship, name in ships.iteritems():
                         if opt.ship == name[:len(opt.ship)]:
                             self.team(teams_numeric[team], ship)
-                            break
+                            return
+                    for ship, name in ships_long.iteritems():
+                        if opt.ship == name[:len(opt.ship)]:
+                            self.team(teams_numeric[team], ship)
+                            return
                     break
 
     def team(self, team, ship):
@@ -3829,3 +3845,5 @@ def main():
 # rendering them.
 
 # FIXME: 'k' key, 'p' key
+
+# FIXME: new version notification
