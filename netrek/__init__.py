@@ -3847,3 +3847,5 @@ def main():
 # FIXME: 'k' key, 'p' key
 
 # FIXME: new version notification
+
+# FIXME: explanation of how to get an account on a netrek server
