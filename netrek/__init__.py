@@ -3670,7 +3670,14 @@ def nt_init():
 def pg_fd():
     """ lift the hood on pygame and find the file descriptor that it
     expects graphics events to arrive from, so that it can be used in
-    select, contributed by coderanger on #pygame and #olpc-devel """
+    select, contributed by coderanger on #pygame and #olpc-devel ...
+
+SDL_VideoDevice -> SDL_PrivateVideoData (is a pointer, way deep in the
+parent structure) -> X11_Display (is a pointer, offset after one prior
+int) . member fd (is an int, offset after two prior structure members,
+which are pointers).
+
+"""
     try:
         w = pygame.display.get_wm_info()
         w = w['display']
@@ -3849,3 +3856,7 @@ def main():
 # FIXME: new version notification
 
 # FIXME: explanation of how to get an account on a netrek server
+
+# FIXME: adopt ditz for these fixme entries
+
+# FIXME: configuration settings, store in a YAML
