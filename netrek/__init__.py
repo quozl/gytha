@@ -3344,6 +3344,8 @@ class PhaseFlight(Phase):
         else:
             nt.send(cp_shield.data(1))
 
+# FIXME: adopt netrek-client-cow tractor off, and reapply keys, $ (all
+# off) _ (tractor off and reapply), ^ (pressor off and reapply)
     def op_tractor_toggle(self, event, arg):
         if not me: return
         nearest = galaxy.closest_ship(cursor())
@@ -3860,3 +3862,7 @@ def main():
 # FIXME: adopt ditz for these fixme entries
 
 # FIXME: configuration settings, store in a YAML
+
+# FIXME: dual display
+
+# FIXME: keymap feature, allow use of function keys for actions.
