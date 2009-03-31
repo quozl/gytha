@@ -1,0 +1,26 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: sync ogg ring
+desc: |-
+  Render a ring on tactical and galactic with radius set by position of
+  ogg sync player, centre set by position of ogg target.
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 08:52:02.953101 Z
+references: []
+
+id: 3ca871091237c67a42573caf56aadd24fa88a33c
+log_events: 
+- - 2009-03-31 08:52:04.640674 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""
+- - 2009-03-31 08:52:30.872622 Z
+  - James Cameron <quozl@us.netrek.org>
+  - commented
+  - |-
+    # FIXME: ogg sync ring, radius on sync target ship, centre
+    # on enemy base or LPS target, only if one planet.

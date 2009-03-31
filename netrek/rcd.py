@@ -143,8 +143,6 @@ class msg:
             # " %T%c->%O Sync with --]> %g <[-- OGG ogg OGG base!!\0"
             return '%s->%s Sync with --]> %s <[-- OGG ogg OGG base!!' % \
                    (orig, targ, galaxy.ship(self.tclose_fr).mapchars[1:])
-            # FIXME: ogg sync ring, radius on sync target ship, centre
-            # on enemy base or LPS target, only if one planet.
 
         print "RCD dist_type=", self.dist_type, \
               "target_type=", self.target_type, \
