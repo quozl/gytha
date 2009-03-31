@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: password, no echo
+desc: "FIXME: #1187683521 force no echo for password"
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:45:32.241198 Z
+references: []
+
+id: 11aa3893cbbb5c6d7bf7b704edcb9b283a4dc65f
+log_events: 
+- - 2009-03-31 09:45:33.561624 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

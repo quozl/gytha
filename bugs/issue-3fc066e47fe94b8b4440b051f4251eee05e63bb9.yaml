@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: mercenary join
+desc: "FIXME: choose a useful team, see cow, newwin.c, mercenary()"
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:48:08.770920 Z
+references: []
+
+id: 3fc066e47fe94b8b4440b051f4251eee05e63bb9
+log_events: 
+- - 2009-03-31 09:48:09.451692 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

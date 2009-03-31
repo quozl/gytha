@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: dual display
+desc: Open two displays, use one for tactical, one for galactic
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:54:36.024719 Z
+references: []
+
+id: 6e950318b8d833313944433b75d2950a465dfc19
+log_events: 
+- - 2009-03-31 09:54:36.958090 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

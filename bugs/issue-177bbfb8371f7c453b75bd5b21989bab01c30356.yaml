@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: fix torpedo explosion animation
+desc: animation is currently update rate based, perhaps it should be real time.
+type: :bugfix
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:27:13.509818 Z
+references: []
+
+id: 177bbfb8371f7c453b75bd5b21989bab01c30356
+log_events: 
+- - 2009-03-31 09:27:14.306714 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: local stats, how i died, who i died to
+desc: display local session stats of how i died and who i died to
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:21:27.144665 Z
+references: []
+
+id: 7bb0f161c45cb77858d3835ff58d1a4d42f5bcc6
+log_events: 
+- - 2009-03-31 09:21:28.014038 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

@@ -1,0 +1,22 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: plasma
+desc: |-
+  track plasma packets
+  render phaser hit on plasma
+  show plasma on tactical
+  add plasma fire key
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:29:16.168572 Z
+references: []
+
+id: ed5a4555aecb00806cd045ad5415f4b77e0097ef
+log_events: 
+- - 2009-03-31 09:29:17.671453 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

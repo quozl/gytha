@@ -1750,8 +1750,6 @@ class CP_QUIT(CP):
     def data(self):
         if opt.cp: print "CP_QUIT"
         return struct.pack(self.format, self.code)
-        # FIXME: on quit, no teams available for selection, should
-        # drop out rather than show outfit window.
 
 class CP_WAR(CP):
     code = 10
@@ -3858,8 +3856,6 @@ def main():
 # FIXME: new version notification
 
 # FIXME: explanation of how to get an account on a netrek server
-
-# FIXME: adopt ditz for these fixme entries
 
 # FIXME: configuration settings, store in a YAML
 

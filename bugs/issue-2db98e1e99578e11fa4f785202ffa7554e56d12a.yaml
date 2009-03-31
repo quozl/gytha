@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: tractor off keys
+desc: |-
+  # FIXME: adopt netrek-client-cow tractor off, and reapply keys, $ (all
+  # off) _ (tractor off and reapply), ^ (pressor off and reapply)
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:48:38.431799 Z
+references: []
+
+id: 2db98e1e99578e11fa4f785202ffa7554e56d12a
+log_events: 
+- - 2009-03-31 09:48:39.462049 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

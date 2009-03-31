@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: tactical, mouseover report hints
+desc: |-
+  add mouseover hints to explain the abbreviations used for the
+  ReportSprite class
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:36:01.411113 Z
+references: []
+
+id: 9fd08a728f96c37327c9fad08243abec459ccfb5
+log_events: 
+- - 2009-03-31 09:36:02.206933 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

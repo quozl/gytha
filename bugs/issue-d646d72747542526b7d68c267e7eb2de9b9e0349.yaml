@@ -1,0 +1,21 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: new player documentation
+desc: |-
+  # FIXME: add a help aka documentation button on metaserver list, also
+  # accessible from other modes but will force a disconnection from
+  # server, to contain tutorial, ship classes, and rank information.
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:53:47.087345 Z
+references: []
+
+id: d646d72747542526b7d68c267e7eb2de9b9e0349
+log_events: 
+- - 2009-03-31 09:53:47.954489 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: asynchronous connect
+desc: |-
+  FIXME: do not block and hang during connect, do it asynchronously
+  nt.connect() call in PhaseServers.md() [mouse down]
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:44:53.334578 Z
+references: []
+
+id: 5f90370341695fd2280157238bd1edcda3dd4ab1
+log_events: 
+- - 2009-03-31 09:44:54.641109 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

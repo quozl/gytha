@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: galactic, planets not redrawn when changed
+desc: ""
+type: :bugfix
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:49:05.896968 Z
+references: []
+
+id: 484d105fddefe55831bdb39d3944fe3b5422e15d
+log_events: 
+- - 2009-03-31 09:49:07.029993 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

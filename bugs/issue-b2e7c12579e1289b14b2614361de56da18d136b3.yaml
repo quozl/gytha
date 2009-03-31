@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: lower update rate in safe-idle ^GU_UNSAFE
+desc: netrek-client-cow does this.
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:43:05.540876 Z
+references: []
+
+id: b2e7c12579e1289b14b2614361de56da18d136b3
+log_events: 
+- - 2009-03-31 09:43:06.353175 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

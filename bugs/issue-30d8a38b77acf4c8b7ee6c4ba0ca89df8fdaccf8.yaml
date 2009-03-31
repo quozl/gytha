@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: display kills on tactical and galactic
+desc: |-
+  render other ships according to their kills
+  oysters; scales
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:23:46.837703 Z
+references: []
+
+id: 30d8a38b77acf4c8b7ee6c4ba0ca89df8fdaccf8
+log_events: 
+- - 2009-03-31 09:23:48.564704 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

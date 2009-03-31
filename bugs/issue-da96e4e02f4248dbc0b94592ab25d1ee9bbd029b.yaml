@@ -1,0 +1,24 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: variable screen size
+desc: |-
+  # FIXME: #1187736408 support a full screen mode that's variable
+  # depending on the environment
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:52:06.266104 Z
+references: []
+
+id: da96e4e02f4248dbc0b94592ab25d1ee9bbd029b
+log_events: 
+- - 2009-03-31 09:52:07.185920 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""
+- - 2009-03-31 09:52:29.189047 Z
+  - James Cameron <quozl@us.netrek.org>
+  - commented
+  - "# FIXME: #1187736407 support screen resolutions below 1000x1000"

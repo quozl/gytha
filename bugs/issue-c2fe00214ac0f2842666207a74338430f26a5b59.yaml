@@ -1,0 +1,29 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: tactical, hide cloaked ships
+desc: |-
+  currently cloaked ships are shown with a modified sprite for testing,
+  and the position is next to useless because of the coordinate randomisation
+  by the server (good).  need to remove them fully from tactical display,
+  yet show them on galactic.
+  
+  might benefit from showing a large misty cloud on tactical, if we can afford
+  the render time.
+type: :bugfix
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:26:21.628933 Z
+references: []
+
+id: c2fe00214ac0f2842666207a74338430f26a5b59
+log_events: 
+- - 2009-03-31 09:26:22.554759 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""
+- - 2009-03-31 09:34:21.488400 Z
+  - James Cameron <quozl@us.netrek.org>
+  - commented
+  - one alternative is to add more black space randomly to ship-cloak.png
