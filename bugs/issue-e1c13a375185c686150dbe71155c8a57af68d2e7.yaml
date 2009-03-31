@@ -1,0 +1,22 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: server list, do metaserver lookup asynchronously
+desc: |-
+  # FIXME: resolving host name can take a while, and may
+  # not be required if a multicast discovery server is
+  # selected, so do not block on this.
+  socket.getaddrinfo stalls in meta.MetaClient.query()
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 08:59:22.517902 Z
+references: []
+
+id: e1c13a375185c686150dbe71155c8a57af68d2e7
+log_events: 
+- - 2009-03-31 08:59:23.389109 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

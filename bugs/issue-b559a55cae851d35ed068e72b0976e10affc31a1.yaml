@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: motd scroll
+desc: |-
+  message of the day currently does not scroll, if the message exceeds the
+  display space it is dropped.
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 08:56:15.576514 Z
+references: []
+
+id: b559a55cae851d35ed068e72b0976e10affc31a1
+log_events: 
+- - 2009-03-31 08:56:16.642107 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

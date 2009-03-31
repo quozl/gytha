@@ -28,9 +28,6 @@ class MetaClient:
         metaservers = ("127.0.0.1", "224.0.0.1", metaserver)
         for hostname in metaservers:
             try:
-                # FIXME: resolving host name can take a while, and may
-                # not be required if a multicast discovery server is
-                # selected, so do not block on this.
                 addresses = socket.getaddrinfo(
                         hostname, 3521, socket.AF_INET, socket.SOCK_STREAM)
                 for family, socktype, proto, canonname, sockaddr in addresses:

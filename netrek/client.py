@@ -252,7 +252,6 @@ class Client:
             self.mode = COMM_TCP
 
     def udp_failure(self):
-        # FIXME: test, when UDP connection severed, reset to TCP
         self.mode = COMM_TCP
         self.tcp.send(self.cp_udp_req.data(COMM_TCP, 0, 0))
 

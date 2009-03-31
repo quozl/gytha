@@ -1,0 +1,25 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: motd separator
+desc: |-
+  message of the day has a separator that needs to be recognised
+  motd.py
+  
+  # FIXME: SP_MOTD has a separator between human text and server
+  # generated defaults, and the separator looks odd when
+  # displayed.
+  # \t@@@
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 08:56:50.811929 Z
+references: []
+
+id: 0a589b67e4a6c5c48439dc6e3f7a7dc7bba9a9cd
+log_events: 
+- - 2009-03-31 08:56:53.379518 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""

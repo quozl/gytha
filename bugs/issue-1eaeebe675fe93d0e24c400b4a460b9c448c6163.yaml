@@ -1,0 +1,20 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: display ship capabilities (cap.py) on ship selection as mouseover
+desc: |-
+  Display a table of ship capabilities as the mouse is paused over the ships
+  on the ship selection screen.
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 09:11:29.628704 Z
+references: []
+
+id: 1eaeebe675fe93d0e24c400b4a460b9c448c6163
+log_events: 
+- - 2009-03-31 09:11:30.875838 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""
