@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: documentation to be updated prior to release
+desc: ""
+type: :task
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2009-03-31 08:33:36.753568 Z
+references: []
+
+id: 9e8290fbb0a0ef97c2485156039bbd91dce6184c
+log_events: 
+- - 2009-03-31 08:33:37.696449 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - ""
