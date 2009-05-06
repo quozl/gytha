@@ -150,6 +150,8 @@ WELCOME = [
 "conditions; see source for details."
 ]
 
+VERSION = "0.4"
+
 ic = IC()
 fc = FC()
 
@@ -2110,6 +2112,8 @@ class SP_PICKOK(SP):
         if self.callback:
             self.callback(state)
             self.uncatch()
+        if state == 1:
+            nt.send(cp_message.data(MINDIV | MCONFIG, me.n, "@netrek-client-pygame %s" % VERSION))
 
 class SP_RESERVED(SP):
     code = 25
