@@ -2381,11 +2381,14 @@ class Phase:
         b.draw()
         return b
 
-    def add_quit_button(self, clicked):
-        self.b_quit = self.button(clicked, 'QUIT', 900, 950, 32, colour=(255, 255, 255))
+    def add_quit_button(self, clicked, name='QUIT'):
+        self.b_quit = self.button(clicked, name, 900, 950, 32, colour=(255, 255, 255))
 
     def add_list_button(self, clicked):
         self.b_list = self.button(clicked, 'LIST', 20, 950, 32, colour=(255, 255, 255))
+
+    def add_tips_button(self, clicked):
+        self.b_tips = self.button(clicked, 'TIPS', 20, 950, 32, colour=(255, 255, 255))
 
     def warn(self, message, ms=0):
         font = fc.get('DejaVuSans.ttf', 32)
