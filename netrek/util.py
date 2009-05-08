@@ -25,4 +25,7 @@ def race_decode(input):
     return 'I'
 
 def slot_decode(input):
-    return '0123456789abcdefghijklmnopqrstuvwxyz'[input]
+    try:
+        return '0123456789abcdefghijklmnopqrstuvwxyz'[input]
+    except IndexError:
+        print "slot_decode: input value from server %d out of range" % input
