@@ -2591,19 +2591,94 @@ class PhaseSplash(Phase):
         pygame.display.flip()
         self.run = False
 
+class PhaseTips(Phase):
+    """ splash screen, shows welcome for a short time, and the player
+    is to either wait for the timer to expire, or click to cancel """
+    def __init__(self, screen):
+        Phase.__init__(self)
+        self.background("hubble-helix.jpg")
+        x = screen.get_width()/2
+        y = screen.get_height()/2
+        self.text('netrek', x, 100, 92)
+        self.text('tips', x, 175, 64)
+        self.draw_tips()
+        self.add_quit_button(self.quit, name='BACK')
+        pygame.display.flip()
+        if opt.screenshots:
+            pygame.image.save(screen, "netrek-client-pygame-tips.tga")
+        self.run = True
+        self.cycle_wait_display() # returns after self.leave is called
+
+    def draw_tips(self):
+        tips = [
+    "1.  when you enter the game, press the number 4 to start moving, other",
+    "numbers are slower or faster,",
+    "",
+    "2.  you are the ship in the centre of the screen,",
+    "",
+    "3.  use right-click on the mouse to steer toward a point in space, you",
+    "will find it easier to turn at lower speeds,",
+    "",
+    "4.  use left-click on the mouse to fire a torpedo, they travel over time",
+    "so you have to point ahead of your target, they hurt enemy ships but",
+    "usually pass right through your team,",
+    "",
+    "5.  use middle-click on your mouse to fire a phaser, it is instant so",
+    "point at your target, it works better the closer the enemy is,",
+    "",
+    "6.  the aim of the game is to capture planets, killing enemies is only a",
+    "means to an end, and dying is a good thing, because you get a new ship,",
+    "",
+    "7.  but if someone kills you, they can begin to capture planets, so it",
+    "is best to not die in vain,",
+    "",
+    "8.  people in your team will try to communicate so that you can all do",
+    "things together, because when you cooperate better than the other team,",
+    "you win,",
+    "",
+    "9.  you capture planets by getting a kill, picking up armies 'z', bombing",
+    "the enemy planet 'b', then dropping the armies 'x' until it changes team.",
+    "",
+# (client does not yet support observing well)
+#    "Observing is a good way to learn.  When you join as an observer, you",
+#    "won't see much until you use 'l' (lower-case L) to lock on to a player.",
+#    "Choose a good player and watch what they do.",
+#    "",
+    "For more information on Netrek, visit http://netrek.org/beginner",
+]
+        font = fc.get('DejaVuSans.ttf', 20)
+        x = 120
+        y = 220
+        for line in tips:
+            ts = font.render(line, 1, (255, 255, 255))
+            tr = ts.get_rect(left=x, top=y)
+            y = tr.bottom
+            screen.blit(ts, tr)
+
+    def quit(self, event):
+        self.leave()
+
+    def leave(self):
+        self.b_quit.clear()
+        pygame.display.flip()
+        self.run = False
+
 class PhaseServers(Phase):
     """ metaserver list, a list of services is shown, the list is
     derived from the metaserver and multicast discovery, and the
     player is to either select one with mouse, wait for the list to
     update, or quit. """
     def __init__(self, screen, mc):
+        self.cancelled = False
         Phase.__init__(self)
+        self.screen = screen
         self.background("hubble-orion.jpg")
         x = screen.get_width()/2
         self.text('netrek', x, 100, 92)
         self.text('server list', x, 175, 64)
         self.welcome()
         self.add_quit_button(self.quit)
+        self.add_tips_button(self.tips)
         pygame.display.flip()
         self.bouncer = Bouncer(225, 20, x, 240)
         self.dy = 40 # vertical spacing
@@ -2738,7 +2813,12 @@ class PhaseServers(Phase):
             return
         self.leave()
 
+    def tips(self, event):
+        self.cancelled = True
+        self.leave()
+
     def leave(self):
+        pygame.display.update(self.b_tips.clear())
         pygame.display.update(self.b_quit.clear())
         self.run = False
 
@@ -3750,15 +3830,23 @@ def pg_quit():
     """ pygame termination """
     pygame.quit()
 
+def mc_choose():
+    ph_servers = PhaseServers(screen, mc)
+    while ph_servers.cancelled:
+        del ph_servers
+        ph_tips = PhaseTips(screen)
+        mc.query(opt.metaserver)
+        ph_servers = PhaseServers(screen, mc)
+
 def mc_choose_first():
     """ show splash screen, then server list, accept a choice, connect """
     ph_splash = PhaseSplash(screen)
-    ph_servers = PhaseServers(screen, mc)
+    mc_choose()
 
 def mc_choose_again():
     """ requery metaserver, show server list, accept a choice, connect """
     mc.query(opt.metaserver)
-    ph_servers = PhaseServers(screen, mc)
+    mc_choose()
 
 def nt_play_a_slot():
     """ keep playing on a server, until user chooses a quit option, or
