@@ -2098,6 +2098,7 @@ class SP_PICKOK(SP):
     code = 16
     format = "!bbxx"
     callback = None
+    versioned = False
 
     def uncatch(self):
         self.callback = None
@@ -2105,15 +2106,20 @@ class SP_PICKOK(SP):
     def catch(self, callback):
         self.callback = callback
 
+    def version(self):
+        if self.versioned: return
+        self.versioned = True
+        nt.send(cp_message.data(MINDIV | MCONFIG, me.n, "@netrek-client-pygame %s" % VERSION))
+
     def handler(self, data):
         (ignored, state) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PICKOK state=",state
+        if opt.sp: print "SP_PICKOK state=", state
+        if state == 1:
+            self.version()
         nt.sp_pickok()
         if self.callback:
             self.callback(state)
             self.uncatch()
-        if state == 1:
-            nt.send(cp_message.data(MINDIV | MCONFIG, me.n, "@netrek-client-pygame %s" % VERSION))
 
 class SP_RESERVED(SP):
     code = 25
