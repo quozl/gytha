@@ -1462,10 +1462,10 @@ class Field:
         return screen.blit(self.bg, self.br)
 
     def draw(self):
-        as = self.fn.render(self.value, 1, (255, 255, 255))
-        ar = as.get_rect(topleft=self.pc)
-        ar.left = self.pr.right
-        return screen.blit(as, ar)
+        ts = self.fn.render(self.value, 1, (255, 255, 255))
+        tr = ts.get_rect(topleft=self.pc)
+        tr.left = self.pr.right
+        return screen.blit(ts, tr)
         
     def undraw(self):
         return screen.blit(self.pg, self.pr)
