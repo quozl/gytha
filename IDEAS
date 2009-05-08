@@ -12,3 +12,7 @@ strategic advisor
 	input, planet ownership, ship positions, number of kills.
 	input, team ship classes, positions, stated roles based on RCDs.
 	output, priority list of roles, which roles are in use, on screen.
+
+cairo
+	http://www.pygame.org/wiki/CairoPygame
+	scalable graphics, is the benefit
