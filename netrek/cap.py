@@ -17,7 +17,7 @@ class Cap:
         self.s_bitmap = n
         self.s_maxwpntemp = 1000
         self.s_maxegntemp = 1000
-        x = [self.sc, self.dd, self.ca, self.bb, self.as, self.sb, self.ga, self.at]
+        x = [self.type_sc, self.type_dd, self.type_ca, self.type_bb, self.type_as, self.type_sb, self.type_ga, self.type_at]
         x[n]()
 
     def show(self):
@@ -38,7 +38,7 @@ class Cap:
         print "s_desig = %s" % self.s_desig
         print "s_bitmap = %d" % self.s_bitmap
 
-    def sc(self):
+    def type_sc(self):
         self.s_torpspeed = 16
         self.s_phaserrange = 75
         self.s_maxspeed = 12
@@ -47,7 +47,7 @@ class Cap:
         self.s_maxdamage = 75
         self.s_maxarmies = 2
 
-    def dd(self):
+    def type_dd(self):
         self.s_torpspeed = 14
         self.s_phaserrange = 85
         self.s_maxspeed = 10
@@ -56,7 +56,7 @@ class Cap:
         self.s_maxdamage = 85
         self.s_maxarmies = 5
 
-    def ca(self):
+    def type_ca(self):
         self.s_torpspeed = 12
         self.s_phaserrange = 100
         self.s_maxspeed = 9
@@ -65,7 +65,7 @@ class Cap:
         self.s_maxdamage = 100
         self.s_maxarmies = 10
 
-    def bb(self):
+    def type_bb(self):
         self.s_torpspeed = 12
         self.s_phaserrange = 105
         self.s_maxspeed = 8
@@ -74,7 +74,7 @@ class Cap:
         self.s_maxdamage = 130
         self.s_maxarmies = 6
 
-    def as(self):
+    def type_as(self):
         self.s_torpspeed = 16
         self.s_phaserrange = 80
         self.s_maxspeed = 8
@@ -84,7 +84,7 @@ class Cap:
         self.s_maxegntemp = 1200
         self.s_maxarmies = 20
 
-    def sb(self):
+    def type_sb(self):
         self.s_torpspeed = 14
         self.s_phaserrange = 120
         self.s_maxspeed = 2
@@ -94,7 +94,7 @@ class Cap:
         self.s_maxwpntemp = 1300
         self.s_maxarmies = 25
 
-    def ga(self):
+    def type_ga(self):
         self.s_torpspeed = 30
         self.s_phaserrange = 10000
         self.s_maxspeed = 60
@@ -105,7 +105,7 @@ class Cap:
         self.s_maxegntemp = 10000
         self.s_maxarmies = 1000
 
-    def at(self):
+    def type_at(self):
         self.s_torpspeed = 30
         self.s_phaserrange = 10000
         self.s_maxspeed = 60
