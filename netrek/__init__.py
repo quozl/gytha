@@ -795,6 +795,8 @@ class PlanetGalacticSprite(PlanetSprite):
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 8)
         message = "%s" % (self.planet.name)
+	if message == "":
+	    message = "unknown"
         colour = (128, 128, 128)
         if self.planet.armies > 4:
             if self.planet.owner == FED: colour = (255, 255, 0)
