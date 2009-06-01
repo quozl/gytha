@@ -667,7 +667,7 @@ class Galaxy:
         for n, phaser in self.phasers.iteritems():
             if phaser.have: r.append(phaser.undraw(colour))
         return r
-            
+
     def phasers_draw(self):
         r = []
         for n, phaser in self.phasers.iteritems():
@@ -789,14 +789,14 @@ class PlanetGalacticSprite(PlanetSprite):
         # IMAGERY: planet-???-30x30.png
         image = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
         self.mi_add_image(image)
-        
+
         # FIXME: render planet owner, flags and armies
-        
+
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 8)
         message = "%s" % (self.planet.name)
-	if message == "":
-	    message = "unknown"
+        if message == "":
+            message = "unknown"
         colour = (128, 128, 128)
         if self.planet.armies > 4:
             if self.planet.owner == FED: colour = (255, 255, 0)
@@ -824,7 +824,7 @@ class PlanetGalacticSprite(PlanetSprite):
             self.rect.center = galactic_scale(self.planet.x, self.planet.y)
             self.old_x = self.planet.x
             self.old_y = self.planet.y
-            
+
 class PlanetTacticalSprite(PlanetSprite):
     """ netrek planet sprite on tactical """
     def __init__(self, planet):
@@ -867,7 +867,7 @@ class PlanetTacticalSprite(PlanetSprite):
         image.blit(text, rect)
         self.mi_add_image(image)
         self.mi_commit()
-        
+
     def update(self):
         if self.planet.owner != self.old_owner or \
                self.planet.name != self.old_name or \
