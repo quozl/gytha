@@ -33,8 +33,11 @@ install:
 	mkdir -p $(DESTDIR)/usr/share/doc/netrek-client-pygame
 	cp ChangeLog $(DESTDIR)/usr/share/doc/netrek-client-pygame
 
-package:
+oldpackage:
 	fakeroot dpkg-buildpackage -us -uc
+
+package:
+	python2.6 setup.py bdist_rpm
 
 upload:
 	cp $(PACKAGE)-$(VERSION).tar.gz ~/public_html/external/mine/netrek-client-pygame/

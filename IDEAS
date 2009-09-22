@@ -1,3 +1,7 @@
+packaging
+	python setup.py bdist_rpm
+	python setup.py bdist_deb
+
 visualisation
 	graph of game history, planets and armies over time,
 	flowchart for tasks like taking,

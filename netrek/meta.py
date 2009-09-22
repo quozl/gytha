@@ -39,10 +39,10 @@ class MetaClient:
                                            sockaddr)
                         print "queried", hostname, "aka", ip
                     except socket.error:
-                        print "unable to query %s, proceeding" % sockaddr
+                        print "unable to query %s, proceeding" % str(sockaddr)
             except socket.gaierror:
                 print "unable to resolve %s, proceeding" % hostname
-    
+
     def recv(self):
         r, w, e = select.select(self.fd, [], [], self.timeout)
         if self.socket in r:
