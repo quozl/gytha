@@ -150,7 +150,7 @@ WELCOME = [
 "conditions; see source for details."
 ]
 
-VERSION = "0.4"
+VERSION = "0.5"
 
 ic = IC()
 fc = FC()
@@ -161,9 +161,10 @@ def galactic_scale(x, y):
     return (x/100, y/100)
 
 def tactical_scale(x, y):
+    global width, height
     """ temporary coordinate scaling, tactical to screen, ship relative
     """
-    return ((x - me.x) / 20 + 500, (y - me.y) / 20 + 500) # forward reference (me)
+    return ((x - me.x) / 20 + (width / 2), (y - me.y) / 20 + (height / 2)) # forward reference (me)
 
 def galactic_descale(x, y):
     """ temporary coordinate scaling, screen to galactic
@@ -171,9 +172,10 @@ def galactic_descale(x, y):
     return (x*100, y*100)
 
 def tactical_descale(x, y):
+    global width, height
     """ temporary coordinate scaling, screen to tactical, ship relative
     """
-    return ((x - 500) * 20 + me.x, (y - 500) * 20 + me.y) # forward reference (me)
+    return ((x - (width / 2)) * 20 + me.x, (y - (height / 2)) * 20 + me.y) # forward reference (me)
 
 def descale(x, y):
     if ph_flight == ph_galactic: # forward reference (ph_*)
@@ -198,7 +200,7 @@ def xy_to_dir(x, y):
         (mx, my) = galactic_scale(me.x, me.y) # forward reference (me)
         return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
     else:
-        return int((math.atan2(x - 500, 500 - y) / math.pi * 128.0 + 0.5))
+        return int((math.atan2(x - (width / 2), (height / 2) - y) / math.pi * 128.0 + 0.5))
 
 class Local:
     """ netrek game objects, corresponding to objects in the game """
@@ -915,7 +917,7 @@ class ShipGalacticSprite(ShipSprite):
         # IMAGERY: ???-8x8.png
         self.image = ic.get_rotated(teams[self.ship.team]+"-8x8.png", self.ship.dir)
         self.rect = self.image.get_rect()
-        
+
     def show(self):
         g_players.add(self)
 
@@ -1209,7 +1211,7 @@ class ReportSprite(pygame.sprite.Sprite):
         self.font = fc.get('DejaVuSansMono.ttf', 20)
         self.fuel = self.damage = self.shield = self.armies = 0
         self.image = self.font.render('--', 1, (255, 255, 255))
-        self.rect = self.image.get_rect(centerx=500, bottom=999)
+        self.rect = self.image.get_rect(centerx=(width/2), bottom=(height-1))
 
     def update(self):
         if me.sp_you_shown and \
@@ -1289,7 +1291,7 @@ class ReportSprite(pygame.sprite.Sprite):
             x += '{%d%s} ' % (galaxy.tournament_remain, galaxy.tournament_remain_units)
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
-        self.rect = self.image.get_rect(centerx=500, bottom=999)
+        self.rect = self.image.get_rect(centerx=(width/2), bottom=(height-1))
 
 class WarningSprite(pygame.sprite.Sprite):
     """ netrek warnings
@@ -1320,7 +1322,7 @@ class WarningSprite(pygame.sprite.Sprite):
 
     def pick(self, text):
         self.image = self.font.render(text, 1, (255, 0, 0))
-        self.rect = self.image.get_rect(centerx=500, top=0)
+        self.rect = self.image.get_rect(centerx=(width/2), top=0)
 
 """ assorted sprites
 """
@@ -1410,7 +1412,7 @@ class TextsLine(SpriteBacked):
         self.image = font.render(text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(left=x, top=y)
         SpriteBacked.__init__(self)
-        
+
 class Texts:
     def __init__(self, texts, x, y, lines=24, size=18):
         self.group = pygame.sprite.OrderedUpdates()
@@ -1456,7 +1458,7 @@ class Field:
         self.bg = screen.subsurface(self.br).copy()
         pygame.display.update(r1)
         self.enter()
-        
+
     def highlight(self):
         return screen.fill((0,127,0), self.br)
 
@@ -1527,8 +1529,8 @@ class Bouncer:
         r.append(self.r.clear())
         x = self.ex * math.sin(pos * math.pi / max)
         y = self.ey * math.cos(pos * math.pi / max)
-        self.l.move(500 - x, self.cy - y)
-        self.r.move(500 + x, self.cy + y)
+        self.l.move((width/2) - x, self.cy - y)
+        self.r.move((width/2) + x, self.cy + y)
         r.append(self.l.draw())
         r.append(self.r.draw())
         pygame.display.update(r)
@@ -2384,13 +2386,13 @@ class Phase:
         return b
 
     def add_quit_button(self, clicked, name='QUIT'):
-        self.b_quit = self.button(clicked, name, 900, 950, 32, colour=(255, 255, 255))
+        self.b_quit = self.button(clicked, name, (width-100), (height-50), 32, colour=(255, 255, 255))
 
     def add_list_button(self, clicked):
-        self.b_list = self.button(clicked, 'LIST', 20, 950, 32, colour=(255, 255, 255))
+        self.b_list = self.button(clicked, 'LIST', 20, (height-50), 32, colour=(255, 255, 255))
 
     def add_tips_button(self, clicked):
-        self.b_tips = self.button(clicked, 'TIPS', 20, 950, 32, colour=(255, 255, 255))
+        self.b_tips = self.button(clicked, 'TIPS', 20, (height-50), 32, colour=(255, 255, 255))
 
     def warn(self, message, ms=0):
         font = fc.get('DejaVuSans.ttf', 32)
@@ -2414,7 +2416,7 @@ class Phase:
             self.warn_fuse = self.warn_fuse - 1
             if self.warn_fuse == 0:
                 self.unwarn()
-        
+
     def background(self, name="stars.png"):
         # tile a background image onto the screen
         screen.fill((0,0,0))
@@ -2443,8 +2445,8 @@ class Phase:
         global WELCOME
 
         font = fc.get('DejaVuSansMono.ttf', 14)
-        x = 200
-        y = 790
+        x = int(width / 2) - 300
+        y = int(height * 0.79)
         for line in WELCOME:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
@@ -2490,7 +2492,7 @@ class Phase:
 
     def ue_clear(self):
         pygame.time.set_timer(pygame.USEREVENT+1, 0)
-        
+
     def mm(self, event):
         # FIXME: watch for MOUSEMOTION and update object information panes
         # for planets or ships (on tactical or galactic)
@@ -2649,8 +2651,8 @@ class PhaseTips(Phase):
     "For more information on Netrek, visit http://netrek.org/beginner",
 ]
         font = fc.get('DejaVuSans.ttf', 20)
-        x = 120
-        y = 220
+        x = int(width/2) - 380
+        y = 280
         for line in tips:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
@@ -2712,12 +2714,12 @@ class PhaseServers(Phase):
         return Text(server['name'] + ' ' + server['comment'], 100, y, 22, colour)
 
     def server_queue(self, y, server):
-        return Text('Q' + str(server['queue']), 500, y, 22, (255, 0, 0))
+        return Text('Q' + str(server['queue']), (width/2), y, 22, (255, 0, 0))
 
     def server_players(self, y, server):
         s = []
         # per player icon
-        gx = 500
+        gx = (width/2)
         for x in range(min(server['players'], 16)):
             # per player icon
             # IMAGERY: servers-player.png
@@ -2758,11 +2760,11 @@ class PhaseServers(Phase):
             sprites += self.server_players(y, server)
         self.mc.servers[name]['y'] = y
         self.mc.servers[name]['sprites'] = sprites
-        
+
         for sprite in sprites:
             redraw.append(sprite.draw())
         pygame.display.update(redraw)
-    
+
     def network_sink(self):
         self.mc.recv()
 
@@ -2912,7 +2914,7 @@ class PhaseLogin(Phase):
             self.chuck_cp_login()
         elif self.focused == self.name:
             if self.password == None:
-                self.password = Field("password ? ", "", 500, 800)
+                self.password = Field("password ? ", "", (width/2), int(height*0.8))
                 # FIXME: password prompt appears momentarily if guest selected
                 # FIXME: #1187683521 force no echo for password
             else:
@@ -2935,7 +2937,7 @@ class PhaseLogin(Phase):
             self.warn('server has this name listed')
         else:
             self.warn('server ignorant of this name')
-        
+
     def catch_sp_login_attempt(self):
         global sp_login
         sp_login.catch(self.throw_sp_login_attempt)
@@ -2954,11 +2956,11 @@ class PhaseLogin(Phase):
             self.password.unhighlight()
             self.focused = self.name
             self.focused.enter()
-        
+
     def catch_sp_login(self):
         global sp_login
         sp_login.catch(self.throw_sp_login)
-                
+
     def untab(self):
         if self.focused == self.password:
             self.focused.leave()
@@ -2989,7 +2991,7 @@ class PhaseLogin(Phase):
             self.focused.append(event.unicode)
         else:
             return Phase.kb(self, event)
-        
+
     def list(self, event):
         self.cancelled = True
         nt.send(cp_bye.data())
@@ -3023,7 +3025,7 @@ class PhaseOutfit(Phase):
         self.cancelled = False
         self.visible = pygame.sprite.OrderedUpdates(())
         self.angle = 0
-        
+
     def do(self):
         self.run = True
         self.background("hubble-spire.jpg")
@@ -3035,10 +3037,12 @@ class PhaseOutfit(Phase):
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
         pygame.display.flip()
-        box_l = 212
+        box_l = int(width * 0.212)
         box_t = 300
-        box_r = 788
-        box_b = 875
+        box_r = width - box_l
+        box_b = height - 250
+        sx = (box_r - box_l) / 8
+        sy = (box_b - box_t) / 8
         r = []
         self.sprites = []
         # FIXME: display number of players on each team
@@ -3051,8 +3055,8 @@ class PhaseOutfit(Phase):
             x = (box_r - box_l) / 2 + box_l
             y = (box_b - box_t) / 2 + box_t
             for ship in [CRUISER, ASSAULT, SCOUT, BATTLESHIP, DESTROYER, STARBASE]:
-                x = x + dx * 60
-                y = y + dy * 60
+                x = x + dx * sx
+                y = y + dy * sy
                 # IMAGERY: ???-??.png
                 sprite = RotatingIcon(teams[team]+'-'+ships[ship]+'.png', x, y, self.angle)
                 sprite.description = teams_long[team] + ' ' + ships_long[ship] + ', ' + ships_use[ship]
@@ -3156,7 +3160,7 @@ class PhaseOutfit(Phase):
             self.warn('click on a ship, mate')
         # FIXME: click on team icon sends CP_OUTFIT most recent ship
         # FIXME: click on ship icon requests CP_OUTFIT with team and ship
-        
+
     def mm(self, event):
         nearest = self.nearest(event.pos)
         if nearest != self.box:
@@ -3164,7 +3168,7 @@ class PhaseOutfit(Phase):
             if nearest != None:
                 self.warn(nearest.description)
             self.box = nearest
-        
+
     def kb(self, event):
         self.unwarn()
         shift = (event.mod == pygame.KMOD_SHIFT or
@@ -3194,7 +3198,7 @@ class PhaseOutfit(Phase):
         nt.shutdown()
         self.cancelled = True
         self.proceed()
-        
+
     def quit(self, event):
         nt.send(cp_bye.data())
         nt.shutdown()
@@ -3466,7 +3470,7 @@ class PhaseFlight(Phase):
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self, 'galactic')
-        
+
     def do(self):
         self.run = True
         screen.blit(background, (0, 0))
@@ -3476,7 +3480,7 @@ class PhaseFlightGalactic(PhaseFlight):
         self.bg = screen.copy() # static planet background
         # FIXME: planets are not redrawn if changed
         self.cycle()
-        
+
     def kb(self, event):
         global ph_flight
         if event.key == pygame.K_RETURN:
@@ -3542,7 +3546,7 @@ class PhaseFlightTactical(PhaseFlight):
         screen.blit(self.bg, (0, 0))
         self.cycle()
         background = self.saved_background
-        
+
     def kb(self, event):
         global ph_flight
         if event.key == pygame.K_RETURN:
@@ -3628,7 +3632,7 @@ class PhaseFlightTactical(PhaseFlight):
         t_torps.update()
         b_warning.update()
         b_reports.update()
-        
+
         r += t_planets.draw(screen)
         r += t_players.draw(screen)
         r += t_torps.draw(screen)
@@ -3636,7 +3640,7 @@ class PhaseFlightTactical(PhaseFlight):
         r += self.borders.draw()
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
-        
+
         pygame.display.update(r)
 
         #r_debug = galaxy.torp_debug_draw()
@@ -3792,21 +3796,80 @@ which are pointers).
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, background
-    
+    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, background, width, height
+
     pygame.init()
     size = width, height = 1000, 1000
+
+##     if not opt.fullscreen :
+##         screen = pygame.display.set_mode(size)
+##     else:
+##         try:
+##             screen = pygame.display.set_mode(size, FULLSCREEN)
+##         except:
+##             screen = pygame.display.set_mode(size)
+
     # FIXME: #1187736408 support a full screen mode that's variable
     # depending on the environment
-    if not opt.fullscreen :
-        screen = pygame.display.set_mode(size)
-    else:
+    videoinfo = pygame.display.Info()
+    print "current display resolution is %d x %d pixels" % (videoinfo.current_w, videoinfo.current_h)
+
+    screen = None
+    undersize = (videoinfo.current_w < 1000 or videoinfo.current_h < 1000)
+
+    # choose a display resolution or display window size in priority
+    # order
+
+    # 1. try the best resolution for game design, but only if the
+    # current resolution is undersize
+
+    if not screen and undersize:
+        print "trying best resolution for game"
         try:
-            screen = pygame.display.set_mode(size, FULLSCREEN)
+            screen = pygame.display.set_mode((1000, 1000), FULLSCREEN)
+            undersize = False
         except:
-            screen = pygame.display.set_mode(size)
+            print "could not switch display resolution"
+
+    # 2. try the standard resolution just above our best resolution
+    # for game design, but only if the current resolution is
+    # undersize, and if the previous resolution failed.
+    if not screen and undersize:
+        print "trying a standard resolution above best for game"
+        try:
+            screen = pygame.display.set_mode((1280, 1024), FULLSCREEN)
+            undersize = False
+        except:
+            print "could not switch display resolution"
+
+    # 3. try the standard resolution just below our best resolution
+    # for game design, but only if the current resolution is
+    # undersize, and if the previous resolution failed.
+    if not screen and undersize:
+        print "trying a standard resolution below best for game"
+        try:
+            screen = pygame.display.set_mode((1024, 768), FULLSCREEN)
+        except:
+            print "could not switch display resolution"
+
+    # 4. try the current resolution in full screen mode, but only if
+    # the above didn't work, and only if the user asked for full
+    # screen mode.
+    if not screen and opt.fullscreen:
+        screen = pygame.display.set_mode((videoinfo.current_w, videoinfo.current_h), FULLSCREEN)
+
+    # 5. try the current resolution ... probably suboptimal, to be refined.
+    if not screen:
+        screen = pygame.display.set_mode()
+
+    surface = pygame.display.get_surface()
+    width = surface.get_width()
+    height = surface.get_height()
+    size = width, height
+    print "have set surface size %d x %d pixels" % (width, height)
 
     # FIXME: #1187736407 support screen resolutions below 1000x1000
+    # in progress
 
     # sprite groups
     t_planets = pygame.sprite.OrderedUpdates(())
@@ -3854,7 +3917,7 @@ def nt_play_a_slot():
     """ keep playing on a server, until user chooses a quit option, or
     a list option to return to the server list """
     global ph_flight, ph_galactic, ph_tactical
-    
+
     ph_outfit = PhaseOutfit(screen)
     ph_galactic = PhaseFlightGalactic()
     ph_tactical = PhaseFlightTactical()
