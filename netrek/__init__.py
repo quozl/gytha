@@ -158,7 +158,7 @@ fc = FC()
 def galactic_scale(x, y):
     """ temporary coordinate scaling, galactic to screen
     """
-    return (x/100, y/100)
+    return (x / galactic_factor, y / galactic_factor)
 
 def tactical_scale(x, y):
     global width, height
@@ -169,7 +169,7 @@ def tactical_scale(x, y):
 def galactic_descale(x, y):
     """ temporary coordinate scaling, screen to galactic
     """
-    return (x*100, y*100)
+    return (x * galactic_factor, y * galactic_factor)
 
 def tactical_descale(x, y):
     global width, height
@@ -794,7 +794,7 @@ class PlanetGalacticSprite(PlanetSprite):
 
         # FIXME: render planet owner, flags and armies
 
-        image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
+        image = pygame.Surface((60, 80), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 8)
         message = "%s" % (self.planet.name)
         if message == "":
@@ -811,7 +811,7 @@ class PlanetGalacticSprite(PlanetSprite):
             if self.planet.owner == KLI: colour = (0, 128, 0)
             if self.planet.owner == ORI: colour = (0, 128, 128)
         text = font.render(message, 1, colour)
-        rect = text.get_rect(centerx=60, bottom=90)
+        rect = text.get_rect(centerx=30, bottom=80)
         image.blit(text, rect)
         self.mi_add_image(image)
         self.mi_commit()
@@ -890,7 +890,7 @@ class PlanetTacticalSprite(PlanetSprite):
             self.old_y = self.planet.y
             self.me_old_x = me.x
             self.me_old_y = me.y
-            
+
 class ShipSprite(MultipleImageSprite):
     def __init__(self, ship):
         self.ship = ship
@@ -3802,7 +3802,7 @@ which are pointers).
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, background, width, height
+    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, background, width, height, galactic_factor
 
     pygame.init()
     size = width, height = 1000, 1000
@@ -3885,6 +3885,9 @@ def pg_init():
     height = surface.get_height()
     size = width, height
     print "have a surface size %d x %d pixels" % (width, height)
+
+    short = min(width, height)
+    galactic_factor = GWIDTH / short
 
     # sprite groups
     t_planets = pygame.sprite.OrderedUpdates(())
