@@ -141,16 +141,16 @@ from pygame.locals import *
 from netrek import options
 import netrek.rcd
 
+VERSION = "0.5"
+
 WELCOME = [
-"Netrek Client Pygame",
+"Netrek Client Pygame %s" % (VERSION),
 "Copyright (C) 2007-2009 James Cameron <quozl@us.netrek.org>",
 "",
 "This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
 "This is free software, and you are welcome to redistribute it under certain",
 "conditions; see source for details."
 ]
-
-VERSION = "0.5"
 
 ic = IC()
 fc = FC()
