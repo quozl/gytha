@@ -106,6 +106,11 @@ class MetaClient:
         if server['type'] == 'S':
             return
 
+        # FIXME: client currently lacks necessary paradise support
+        # meanwhile do not list unsupported servers
+        if server['type'] == 'P':
+            return
+
         name = server['name']
         if not name in self.servers:
             self.servers[name] = server
