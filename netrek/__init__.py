@@ -2902,7 +2902,7 @@ class PhaseLogin(Phase):
         self.warn('connected, as slot %s, ready to login' % slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
         pygame.display.flip()
-        self.name = Field("type a name ? ", "", x, 750)
+        self.name = Field("type a name ? ", "", x, height * 0.75)
         self.focused = self.name
         self.password = None
         self.run = True
@@ -2919,7 +2919,7 @@ class PhaseLogin(Phase):
             self.chuck_cp_login()
         elif self.focused == self.name:
             if self.password == None:
-                self.password = Field("password ? ", "", (width/2), int(height*0.8))
+                self.password = Field("password ? ", "", width/2, height*0.8)
                 # FIXME: password prompt appears momentarily if guest selected
                 # FIXME: #1187683521 force no echo for password
             else:
