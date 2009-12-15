@@ -346,7 +346,7 @@ class Ship(Local):
         self.war = war
         self.hostile = hostile
         # FIXME: display this data, on player list
-    
+
     def sp_player_info(self, shiptype, team):
         self.shiptype = shiptype
         self.cap = galaxy.caps[shiptype]
@@ -383,7 +383,7 @@ class Ship(Local):
         self.x = x
         self.y = y
         # FIXME: display speed on tactical
-        
+
         # FIXME: potential optimisation, set a bounding box of no
         # further check required, by taking the minima and maxima of
         # the planet zones of unseen planets.
@@ -439,7 +439,7 @@ class Ship(Local):
 
     def __repr__(self):
         return 'Ship(x=%r, y=%r, team=%r)' % (self.x, self.y, self.team)
-        
+
 
 class Torp(Local):
     """ netrek torps
@@ -643,7 +643,7 @@ class Galaxy:
         for n, ship in self.ships.iteritems():
             r.append(ship.debug_draw())
         return r
-    
+
     def torp(self, n):
         if not self.torps.has_key(n):
             self.torps[n] = Torp(n)
@@ -658,7 +658,7 @@ class Galaxy:
         for n, torp in self.torps.iteritems():
             r.append(torp.debug_draw())
         return r
-    
+
     def phaser(self, n):
         if not self.phasers.has_key(n):
             self.phasers[n] = Phaser(n)
@@ -992,7 +992,7 @@ class ShipTacticalSprite(ShipSprite):
 
         # FIXME: not show or show differently if PFCLOAK
         self.mi_commit()
-        
+
     def show(self):
         if not self.ship.flags & PFOBSERV:
             t_players.add(self)
@@ -1030,7 +1030,7 @@ class TorpTacticalSprite(TorpSprite):
                 self.old_status = self.torp.status
                 self.pick()
         self.rect.center = tactical_scale(self.torp.x, self.torp.y)
-    
+
     def pick(self):
         if self.torp.status == TMOVE:
             if self.torp.ship == me:
@@ -1049,9 +1049,9 @@ class TorpTacticalSprite(TorpSprite):
                 self.image = ic.get('torp-explode.png')
         else:
             self.image = ic.get('netrek.png')
-        
+
         self.rect = self.image.get_rect()
-        
+
     def show(self):
         t_torps.add(self)
 
@@ -1478,7 +1478,7 @@ class Field:
         tr = ts.get_rect(topleft=self.pc)
         tr.left = self.pr.right
         return screen.blit(ts, tr)
-        
+
     def undraw(self):
         return screen.blit(self.pg, self.pr)
 
@@ -1491,17 +1491,17 @@ class Field:
         r1 = self.unhighlight()
         r2 = self.draw()
         pygame.display.update([r1, r2])
-        
+
     def enter(self):
         r1 = self.highlight()
         r2 = self.draw()
         pygame.display.update([r1, r2])
-        
+
     def append(self, char):
         self.value = self.value + char
         r1 = self.draw()
         pygame.display.update(r1)
-        
+
     def backspace(self):
         self.value = self.value[:-1]
         self.redraw()
@@ -1631,7 +1631,7 @@ class CP_BYE(CP):
 
 class CP_LOGIN(CP):
     code = 8
-    format = '!bbxx16s16s16s' 
+    format = '!bbxx16s16s16s'
 
     def data(self, query, name, password, login):
         if opt.cp: print "CP_LOGIN query=",query,"name=",name
@@ -1871,7 +1871,7 @@ class CP_RESETSTATS(CP):
 
 class CP_RESERVED(CP):
     code = 33
-    format = "!bxxx16s16s" 
+    format = "!bxxx16s16s"
 
     def data(self, data, resp):
         if opt.cp: print "CP_RESERVED"
@@ -1987,7 +1987,7 @@ class SP_QUEUE(SP):
 
 class SP_PL_LOGIN(SP):
     code = 24
-    format = "!bbbx16s16s16s" 
+    format = "!bbbx16s16s16s"
 
     def handler(self, data):
         (ignored, pnum, rank, name, monitor,
@@ -2060,7 +2060,7 @@ class SP_FLAGS(SP):
 
 class SP_PLANET_LOC(SP):
     code = 26
-    format = "!bbxxll16s" 
+    format = "!bbxxll16s"
 
     def handler(self, data):
         (ignored, pnum, x, y, name) = struct.unpack(self.format, data)
@@ -2196,7 +2196,7 @@ class SP_STATUS(SP):
 
 class SP_PHASER(SP):
     code = 7
-    format = "!bbbBlll" 
+    format = "!bbbBlll"
 
     def handler(self, data):
         (ignored, pnum, status, dir, x, y, target) = struct.unpack(self.format, data)
@@ -2206,7 +2206,7 @@ class SP_PHASER(SP):
 
 class SP_PLANET(SP):
     code = 15
-    format = "!bbbbhxxl" 
+    format = "!bbbbhxxl"
 
     def handler(self, data):
         (ignored, pnum, owner, info, flags, armies) = struct.unpack(self.format, data)
@@ -2276,7 +2276,7 @@ class SP_BADVERSION(SP):
 class SP_PING(SP):
     """ only received if client sends CP_PING_RESPONSE after SP_LOGIN """
     code = 46
-    format = "!bBHBBBB" 
+    format = "!bBHBBBB"
 
     def handler(self, data):
         (ignored, number, lag, tloss_sc, tloss_cs, iloss_sc, iloss_cs) = struct.unpack(self.format, data)
@@ -2286,7 +2286,7 @@ class SP_PING(SP):
 class SP_UDP_REPLY(SP):
     """ only received if client sends CP_UDP_REQ """
     code = 28
-    format = "!bbxxi" 
+    format = "!bbxxi"
 
     def handler(self, data):
         (ignored, reply, port) = struct.unpack(self.format, data)
@@ -2296,7 +2296,7 @@ class SP_UDP_REPLY(SP):
 class SP_SEQUENCE(SP):
     """ only received if client sends CP_UDP_REQ requesting COMM_UDP """
     code = 29
-    format = "!bBH" 
+    format = "!bBH"
 
     def handler(self, data):
         (ignored, flag, sequence) = struct.unpack(self.format, data)
@@ -2394,13 +2394,16 @@ class Phase:
         return b
 
     def add_quit_button(self, clicked, name='QUIT'):
-        self.b_quit = self.button(clicked, name, (width-100), (height-50), 32, colour=(255, 255, 255))
+        self.b_quit = self.button(clicked, name, width - 100, height - 50, 32,
+                                  colour=(255, 255, 255))
 
     def add_list_button(self, clicked):
-        self.b_list = self.button(clicked, 'LIST', 20, (height-50), 32, colour=(255, 255, 255))
+        self.b_list = self.button(clicked, 'LIST', 20, height - 50, 32,
+                                  colour=(255, 255, 255))
 
     def add_tips_button(self, clicked):
-        self.b_tips = self.button(clicked, 'TIPS', 20, (height-50), 32, colour=(255, 255, 255))
+        self.b_tips = self.button(clicked, 'TIPS', 20, height - 50, 32,
+                                  colour=(255, 255, 255))
 
     def warn(self, message, ms=0):
         font = fc.get('DejaVuSans.ttf', 32)
@@ -2445,10 +2448,12 @@ class Phase:
         screen.blit(ts, tr)
 
     def blame(self):
-        self.text("software by quozl@us.netrek.org and stephen@thorne.id.au", screen.get_width()/2, screen.get_height()-30, 16)
+        self.text("software by quozl@us.netrek.org and stephen@thorne.id.au",
+                  screen.get_width()/2, screen.get_height()-30, 16)
         more = ""
         if not opt.no_backgrounds: more = "backgrounds by hubble, "
-        self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 16)
+        self.text(more + "ships by pascal",
+                  screen.get_width()/2, screen.get_height()-15, 16)
 
     def welcome(self):
         global WELCOME
@@ -2550,20 +2555,20 @@ class Phase:
         while self.run:
             self.network_sink()
             self.display_sink()
-    
+
     def cycle_wait(self):
         """ display waiting cycle, use when local user event timers
         are needed """
         while self.run:
             self.network_sink()
             self.display_sink_wait()
-    
+
     def cycle_wait_display(self):
         """ display waiting cycle, use when local user event timers
         are needed, and no network events """
         while self.run:
             self.display_sink_wait()
-    
+
 class PhaseSplash(Phase):
     """ splash screen, shows welcome for a short time, and the player
     is to either wait for the timer to expire, or click to cancel """
@@ -2591,6 +2596,7 @@ class PhaseSplash(Phase):
             self.leave()
         else:
             self.bouncer.update(self.fuse, self.fuse_was)
+        # FIXME: use time opportunity here to preload imagery
 
     def md(self, event):
         if Phase.md(self, event): return
@@ -2691,7 +2697,7 @@ class PhaseServers(Phase):
         Phase.__init__(self)
         self.screen = screen
         self.background("hubble-orion.jpg")
-        x = screen.get_width()/2
+        x = screen.get_width() / 2
         self.text('netrek', x, 100, 92)
         self.text('server list', x, 175, 64)
         self.welcome()
@@ -2728,12 +2734,12 @@ class PhaseServers(Phase):
         return Text(server['name'] + ' ' + server['comment'], 100, y, 22, colour)
 
     def server_queue(self, y, server):
-        return Text('Q' + str(server['queue']), (width/2), y, 22, (255, 0, 0))
+        return Text('Q' + str(server['queue']), width / 2, y, 22, (255, 0, 0))
 
     def server_players(self, y, server):
         s = []
         # per player icon
-        gx = (width/2)
+        gx = width / 2
         for x in range(min(server['players'], 16)):
             # per player icon
             # IMAGERY: servers-player.png
@@ -2850,7 +2856,7 @@ class PhaseQueue(Phase):
             return
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
-        x = screen.get_width()/2
+        x = screen.get_width() / 2
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.blame()
@@ -2900,7 +2906,7 @@ class PhaseLogin(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
-        x = screen.get_width()/2
+        x = screen.get_width() / 2
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.blame()
@@ -2959,7 +2965,8 @@ class PhaseLogin(Phase):
     def chuck_cp_login(self):
         self.catch_sp_login()
         nt.send(cp_updates.data(1000000/opt.updates))
-        nt.send(cp_login.data(0, str(self.name.value), str(self.password.value), 'pynetrek'))
+        nt.send(cp_login.data(0, str(self.name.value),
+                              str(self.password.value), 'pynetrek'))
 
     def throw_sp_login(self, accept, flags, keymap):
         if accept == 1:
@@ -3043,7 +3050,7 @@ class PhaseOutfit(Phase):
     def do(self):
         self.run = True
         self.background("hubble-spire.jpg")
-        x = screen.get_width()/2
+        x = screen.get_width() / 2
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.text('ship and race', x, 255, 64)
@@ -3273,7 +3280,7 @@ class PhaseFlight(Phase):
         elif event.button == 1 and me != None:
             (x, y) = event.pos
             nt.send(cp_torp.data(xy_to_dir(x, y)))
-    
+
     def kb(self, event):
 
         # ignore the shift and control keys on their own
@@ -3677,7 +3684,8 @@ class PhaseDisconnected(Phase):
         self.run = True
         self.cycle()
         # FIXME: show last few lines of message log
-        # FIXME: if freed by captain in clue game from player slot automatically return as an observer slot
+        # FIXME: if freed by captain in clue game from player slot
+        # automatically return as an observer slot
         # FIXME: offer rejoin as player and rejoin as observer buttons
 
     def diagnosis(self):
@@ -3712,14 +3720,14 @@ class PhaseDisconnected(Phase):
               'Try a different server,',
               'or report this to the server owner,',
               'or report this to the client developer.'],
-             
+
              ['The server has your IP address, or a range of addresses, in a',
               'configuration file, due to a prior denial of service attack.',
               '',
               'Try a different server,',
               'or try a different service provider,',
               'or ask the server owner about it.'],
-             
+
              ['The server was not able to place you in the queue, perhaps',
               'due to a denial of service attack happening right now.',
               '',
@@ -3730,13 +3738,13 @@ class PhaseDisconnected(Phase):
               '',
               'Try a different server,',
               'or rejoin as an observer of the clue game.'],
-             
+
              ['The server has your IP address in the list of bans,',
               'usually because you were banned by the players or the owner.',
               '',
               'Try a different server,',
               'and if you were misbehaving try not to in future.'],
-             
+
              ['The server was shutdown by the owner,',
               'probably only temporarily.',
               '',
@@ -3785,12 +3793,11 @@ def pg_fd():
     expects graphics events to arrive from, so that it can be used in
     select, contributed by coderanger on #pygame and #olpc-devel ...
 
-SDL_VideoDevice -> SDL_PrivateVideoData (is a pointer, way deep in the
-parent structure) -> X11_Display (is a pointer, offset after one prior
-int) . member fd (is an int, offset after two prior structure members,
-which are pointers).
-
-"""
+    SDL_VideoDevice -> SDL_PrivateVideoData (is a pointer, way deep in
+    the parent structure) -> X11_Display (is a pointer, offset after
+    one prior int) . member fd (is an int, offset after two prior
+    structure members, which are pointers).
+    """
     try:
         w = pygame.display.get_wm_info()
         w = w['display']
@@ -3804,7 +3811,7 @@ which are pointers).
     if n > 255:
         print "the fd was too large, abondoning that line of reasoning, just guessing"
         n = 4
-        
+
     nt.set_pg_fd(n)
     if mc: mc.set_pg_fd(n)
 
