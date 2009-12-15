@@ -1157,6 +1157,8 @@ class Borders:
         self.rect = []
         proximity = 0.90 # how close before wall appears
         threshold = n = int(GWIDTH / 10.0 * proximity)
+        # a rectangle of the positions in the galactic that does not
+        # need the borders drawn
         self.inner = pygame.Rect(n, n, GWIDTH-n-n, GWIDTH-n-n)
         # FIXME: proximity customisation option
 
@@ -1164,27 +1166,33 @@ class Borders:
         self.lines.append((sx, sy, ex, ey))
         return pygame.draw.line(screen, (255, 0, 0), (sx, sy), (ex, ey))
 
-    def limit(self, v1, v2):
-        return (max(0, v1), min(999, v2))
+    def limit(self, v1, v2, dim):
+        return (max(0, v1), min(dim-1, v2))
 
     def draw(self):
         self.lines = []
         self.rect = []
 
+        # do not draw if the player is in the inner rectangle of the
+        # galactic away from the edges
         if self.inner.collidepoint(me.x, me.y): return self.rect
         x1, y1 = tactical_scale(0, 0)
         x2, y2 = tactical_scale(GWIDTH, GWIDTH)
-        if 0 < x1 < 500: # left edge
-            (sy, ey) = self.limit(y1, y2)
+        xm = width / 2
+        ym = height / 2
+        xl = width
+        yl = height
+        if 0 < x1 < xm: # left edge
+            (sy, ey) = self.limit(y1, y2, height)
             self.rect.append(self.line(x1, sy, x1, ey))
-        if 0 < y1 < 500: # top edge
-            (sx, ex) = self.limit(x1, x2)
+        if 0 < y1 < ym: # top edge
+            (sx, ex) = self.limit(x1, x2, width)
             self.rect.append(self.line(sx, y1, ex, y1))
-        if 500 < x2 < 1000: # right edge
-            (sy, ey) = self.limit(y1, y2)
+        if xm < x2 < xl: # right edge
+            (sy, ey) = self.limit(y1, y2, height)
             self.rect.append(self.line(x2, sy, x2, ey))
-        if 500 < y2 < 1000: # bottom edge
-            (sx, ex) = self.limit(x1, x2)
+        if ym < y2 < yl: # bottom edge
+            (sx, ex) = self.limit(x1, x2, width)
             self.rect.append(self.line(sx, y2, ex, y2))
         return self.rect
 
