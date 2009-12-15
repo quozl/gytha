@@ -2650,9 +2650,14 @@ class PhaseTips(Phase):
 #    "",
     "For more information on Netrek, visit http://netrek.org/beginner",
 ]
-        font = fc.get('DejaVuSans.ttf', 20)
+        size = 20
         x = int(width/2) - 380
         y = 280
+        if height < 1000:
+            size = 15
+            x = int(width/2) - 280
+            y = 210
+        font = fc.get('DejaVuSans.ttf', size)
         for line in tips:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
