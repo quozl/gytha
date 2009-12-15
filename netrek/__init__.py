@@ -2417,17 +2417,18 @@ class Phase:
             if self.warn_fuse == 0:
                 self.unwarn()
 
-    def background(self, name="stars.png"):
-        # tile a background image onto the screen
+    def background(self, name="invalid.png"):
+        # centre a background image onto the screen
         screen.fill((0,0,0))
         if opt.no_backgrounds: return
-        # IMAGERY: stars.png
-        background = ic.get(name)
+        if width > 1024 or height > 1000:
+            background = ic.get_scale2xed(name)
+        else:
+            background = ic.get(name)
         bh = background.get_height()
         bw = background.get_width()
-        for y in range(screen.get_height() / bh + 1):
-            for x in range(screen.get_width() / bw + 1):
-                screen.blit(background, (x*bw, y*bh))
+        tr = background.get_rect(center=(width/2, height/2))
+        screen.blit(background, tr)
 
     def text(self, text, x, y, size=72, colour=(255, 255, 255)):
         font = fc.get('DejaVuSans.ttf', size)
@@ -2440,7 +2441,7 @@ class Phase:
         more = ""
         if not opt.no_backgrounds: more = "backgrounds by hubble, "
         self.text(more + "ships by pascal", screen.get_width()/2, screen.get_height()-15, 16)
-        
+
     def welcome(self):
         global WELCOME
 
@@ -2455,7 +2456,7 @@ class Phase:
 
     def network_sink(self):
         return nt.recv()
-        
+
     def display_sink_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.md(event)
@@ -2471,7 +2472,7 @@ class Phase:
             self.ue(event)
         elif event.type == pygame.MOUSEBUTTONUP:
             self.mu(event)
-        
+
     def display_sink(self):
         for event in pygame.event.get():
             self.display_sink_event(event)

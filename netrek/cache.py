@@ -9,6 +9,7 @@ class IC:
     def __init__(self):
         self.cache = {}
         self.cache_rotated = {}
+        self.cache_scale2xed = {}
         self.hits = self.miss = 0
         self.hits_rotated = self.miss_rotated = 0
         self.paths = ['/usr/share/netrek-client-pygame/images/', 'images/']
@@ -44,6 +45,17 @@ class IC:
         else:
             self.hits_rotated += 1
         return self.cache_rotated[(name, angle)]
+
+    def get_scale2xed(self, name):
+        """ get an image from cache, scaled up """
+        if (name) not in self.cache_scale2xed:
+            unscaled = self.get(name)
+            try:
+                scaled = pygame.transform.smoothscale(unscaled, (2000, 2000))
+            except:
+                scaled = pygame.transform.scale2x(unscaled)
+            self.cache_scale2xed[(name)] = scaled
+        return self.cache_scale2xed[(name)]
 
     def statistics(self):
         """ calculate and print cache statistics """
