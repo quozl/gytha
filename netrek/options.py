@@ -3,7 +3,10 @@ from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-F", "--fullscreen",
                   action="store_true", dest="fullscreen", default=True,
-                  help="force fullscreen mode")
+                  help="force fullscreen mode on")
+parser.add_option("--no-fullscreen",
+                  action="store_false", dest="fullscreen",
+                  help="force fullscreen mode off")
 parser.add_option("-s", "--server", "--host", dest="server",
                   help="netrek server to connect to")
 parser.add_option("-p", "--port", type="int", dest="port", default="2592",
@@ -44,6 +47,12 @@ parser.add_option("--metaserver-refresh-interval",
 parser.add_option("--splash-time",
                   type="int", dest="splashtime", default="1000",
                   help="viewing delay for splash screen in milliseconds")
+parser.add_option("--width",
+                  type="int", dest="manual_width",
+                  help="force specific resolution for testing")
+parser.add_option("--height",
+                  type="int", dest="manual_height",
+                  help="force specific resolution for testing")
 parser.add_option("--no-backgrounds",
                   action="store_true", dest="no_backgrounds", default=False,
                   help="turn off the background images")

@@ -3817,6 +3817,22 @@ def pg_init():
     screen = None
     undersize = (videoinfo.current_w < 1000 or videoinfo.current_h < 1000)
 
+    # manual display size control using command line flags
+    if opt.manual_width != None or opt.manual_height != None:
+        print "you gave manual override for display size"
+        manual_width = videoinfo.current_w
+        if opt.manual_width != None:
+            manual_width = opt.manual_width
+        manual_height = videoinfo.current_h
+        if opt.manual_height != None:
+            manual_height = opt.manual_height
+        if opt.fullscreen:
+            screen = pygame.display.set_mode((manual_width, manual_height),
+                                             FULLSCREEN)
+        else:
+            screen = pygame.display.set_mode((manual_width, manual_height))
+        undersize = False
+
     # choose a display resolution or display window size in priority
     # order
 
@@ -3834,6 +3850,7 @@ def pg_init():
     # 2. try the standard resolution just above our best resolution
     # for game design, but only if the current resolution is
     # undersize, and if the previous resolution failed.
+
     if not screen and undersize:
         print "trying a standard resolution above best for game"
         try:
@@ -3845,6 +3862,7 @@ def pg_init():
     # 3. try the standard resolution just below our best resolution
     # for game design, but only if the current resolution is
     # undersize, and if the previous resolution failed.
+
     if not screen and undersize:
         print "trying a standard resolution below best for game"
         try:
@@ -3855,10 +3873,14 @@ def pg_init():
     # 4. try the current resolution in full screen mode, but only if
     # the above didn't work, and only if the user asked for full
     # screen mode.
+
     if not screen and opt.fullscreen:
+        print "trying current resolution in full screen mode"
         screen = pygame.display.set_mode((videoinfo.current_w, videoinfo.current_h), FULLSCREEN)
 
-    # 5. try the current resolution ... probably suboptimal, to be refined.
+    # 5. try the current resolution ... probably suboptimal, to be
+    # refined.
+
     if not screen:
         screen = pygame.display.set_mode()
 
@@ -3866,7 +3888,7 @@ def pg_init():
     width = surface.get_width()
     height = surface.get_height()
     size = width, height
-    print "have set surface size %d x %d pixels" % (width, height)
+    print "have a surface size %d x %d pixels" % (width, height)
 
     # FIXME: #1187736407 support screen resolutions below 1000x1000
     # in progress
