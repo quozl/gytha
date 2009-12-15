@@ -3893,6 +3893,7 @@ def pg_init():
 
 def pg_quit():
     """ pygame termination """
+    pygame.display.quit()
     pygame.quit()
 
 def mc_choose():
