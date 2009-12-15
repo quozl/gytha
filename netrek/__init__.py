@@ -3807,16 +3807,6 @@ def pg_init():
     pygame.init()
     size = width, height = 1000, 1000
 
-##     if not opt.fullscreen :
-##         screen = pygame.display.set_mode(size)
-##     else:
-##         try:
-##             screen = pygame.display.set_mode(size, FULLSCREEN)
-##         except:
-##             screen = pygame.display.set_mode(size)
-
-    # FIXME: #1187736408 support a full screen mode that's variable
-    # depending on the environment
     videoinfo = pygame.display.Info()
     print "current display resolution is %d x %d pixels" % (videoinfo.current_w, videoinfo.current_h)
 
@@ -3895,9 +3885,6 @@ def pg_init():
     height = surface.get_height()
     size = width, height
     print "have a surface size %d x %d pixels" % (width, height)
-
-    # FIXME: #1187736407 support screen resolutions below 1000x1000
-    # in progress
 
     # sprite groups
     t_planets = pygame.sprite.OrderedUpdates(())

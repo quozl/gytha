@@ -7,8 +7,8 @@ type: :feature
 component: netrek-client-pygame
 release: 
 reporter: James Cameron <quozl@us.netrek.org>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2009-03-31 09:52:06.266104 Z
 references: []
 
@@ -22,3 +22,14 @@ log_events:
   - James Cameron <quozl@us.netrek.org>
   - commented
   - "# FIXME: #1187736407 support screen resolutions below 1000x1000"
+- - 2009-12-15 07:39:34.333678 Z
+  - James Cameron <quozl@us.netrek.org>
+  - closed with disposition fixed
+  - |-
+    - added manual resolution support command line options
+    - changed to fullscreen by default
+    - make multiple attempts to change display resolution
+    - accept a bad situation with grace rather than die
+    - realign several screen objects to fit at least 1024x768
+    - make alignment of objects dependent on resolution
+    - tested on 1024x768, 1280x1024, 1600x1200
