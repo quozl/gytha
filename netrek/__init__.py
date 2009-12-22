@@ -915,7 +915,7 @@ class ShipGalacticSprite(ShipSprite):
     def pick(self):
         # FIXME: obtain imagery for galactic view
         # IMAGERY: ???-8x8.png
-        self.image = ic.get_rotated(teams[self.ship.team]+"-8x8.png", self.ship.dir)
+        self.image = ic.get_rotated(teams[self.ship.team]+"-8x8.png", self.ship.dir / 8 * 8)
         self.rect = self.image.get_rect()
 
     def show(self):
@@ -957,9 +957,9 @@ class ShipTacticalSprite(ShipSprite):
             else:
                 rotation = 0
             try:
-                self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", rotation))
+                self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", rotation / 10 * 10))
             except:
-                self.mi_add_image(ic.get_rotated('netrek.png', rotation))
+                self.mi_add_image(ic.get_rotated('netrek.png', rotation / 16 * 16))
 
         # FIXME: filter for visibility by distance from me
         status = self.ship.status
