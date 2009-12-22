@@ -1211,6 +1211,38 @@ class Borders:
             self.rect.append(self.line(x1, y1, x2, y2))
             self.rect.append(self.line(x1, y2, x1, y2))
 
+class Alerts:
+    """ red, yellow, and green alert status
+    """
+    def __init__(self):
+        self.lines = []
+        self.rect = []
+
+    def line(self, c, sx, sy, ex, ey):
+        self.lines.append((sx, sy, ex, ey))
+        self.rect.append(pygame.draw.line(screen, c, (sx, sy), (ex, ey)))
+
+    def draw(self):
+        self.lines = []
+        self.rect = []
+
+        colour = (0, 255, 0)
+        if me.flags & PFYELLOW:
+            colour = (255, 255, 0)
+        elif me.flags & PFRED:
+            colour = (255, 0, 0)
+
+        self.line(colour, 0, 0, width-1, 0)
+        self.line(colour, 0, height-1, width-1, height-1)
+        self.line(colour, 0, 0, 0, height-1)
+        self.line(colour, width-1, height-1, width-1, 0)
+        return self.rect
+
+    def undraw(self, colour):
+        for (sx, sy, ex, ey) in self.lines:
+            pygame.draw.line(screen, colour, (sx, sy), (ex, ey))
+        return self.rect
+
 class ReportSprite(pygame.sprite.Sprite):
     """ netrek reports
     """
@@ -3537,25 +3569,14 @@ class PhaseFlightGalactic(PhaseFlight):
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
-        global background
-
         PhaseFlight.__init__(self, 'tactical')
         self.borders = Borders()
+        self.alerts = Alerts()
         self.halos = Halos()
 
-        self.co_g = (0, 15, 15) # cyan
-        self.co_y = (15, 15, 0) # yellow
-        self.co_r = (15, 0, 15) # purple
-
-        self.bg_g = screen.copy()
-        self.bg_g.fill(self.co_g)
-        self.bg_y = screen.copy()
-        self.bg_y.fill(self.co_y)
-        self.bg_r = screen.copy()
-        self.bg_r.fill(self.co_r)
-
-        self.bg = self.bg_g
-        self.co = self.co_g
+        self.co = (0, 0, 0)
+        self.bg = screen.copy()
+        self.bg.fill(self.co)
 
         self.pace = 0
 
@@ -3582,9 +3603,8 @@ class PhaseFlightTactical(PhaseFlight):
     # FIXME: menu item "?" or mouse-over, to do modal information
     # query on a screen object.
 
-    def alert(self):
-        """ if the alert status has changed, adjust the background colour """
-        global background
+    def extra(self):
+        """ some extra graphics bits """
 
         self.pace += 1
         # FIXME: tune automatically how much extra graphics are done
@@ -3595,33 +3615,7 @@ class PhaseFlightTactical(PhaseFlight):
         if self.pace < 10: return []
         self.pace = 0
 
-        if me.flags & PFGREEN:
-            bg = self.bg_g
-            co = self.co_g
-        elif me.flags & PFYELLOW:
-            bg = self.bg_y
-            co = self.co_y
-        elif me.flags & PFRED:
-            bg = self.bg_r
-            co = self.co_r
-        else:
-            # no flags available, ignore
-            return []
-
-        # has background been changed?
-        if bg != background:
-            background = bg
-            self.bg = bg.copy()
-            self.co = co
-            if not me.flags & PFRED: self.halos.draw(self.bg)
-            screen.blit(self.bg, (0, 0))
-            pygame.display.flip()
-            return []
-
-        # no halos in red alert
-        if me.flags & PFRED: return []
-
-        # no background change, just update halos
+        # update halos
         r = []
         self.halos.undraw(screen, self.co)
         r += self.halos.undraw(self.bg, self.co)
@@ -3635,6 +3629,7 @@ class PhaseFlightTactical(PhaseFlight):
         r = [] # sequence of dirty rectangles for update
         r += galaxy.phasers_undraw(self.co)
         r += self.borders.undraw(self.co)
+        r += self.alerts.undraw(self.co)
 
         # design note, the sprite clear method does not return a dirty
         # rectangle, because it is merged with the dirty rectangle
@@ -3647,7 +3642,7 @@ class PhaseFlightTactical(PhaseFlight):
         t_players.clear(screen, self.bg)
         t_planets.clear(screen, self.bg)
 
-        r += self.alert()
+        r += self.extra()
         t_planets.update()
         t_players.update()
         t_torps.update()
@@ -3659,6 +3654,7 @@ class PhaseFlightTactical(PhaseFlight):
         r += t_torps.draw(screen)
         r += galaxy.phasers_draw()
         r += self.borders.draw()
+        r += self.alerts.draw()
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
 
