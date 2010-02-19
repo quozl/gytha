@@ -17,7 +17,7 @@ class MultipleImageSprite(pygame.sprite.Sprite):
             self.mr = rect
         else:
             self.mr = pygame.Rect.union(self.mr, rect)
-            
+
     def mi_add_image(self, image):
         rect = image.get_rect()
         self.mi_add(image, rect)
@@ -31,4 +31,3 @@ class MultipleImageSprite(pygame.sprite.Sprite):
             rect.center = (width/2, height/2)
             self.image.blit(image, rect)
         self.rect = pygame.Rect(self.image.get_rect())
-    

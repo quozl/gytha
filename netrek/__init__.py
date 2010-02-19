@@ -622,6 +622,7 @@ class Galaxy:
         self.team_remain = 0
         # sp_queue
         self.sp_queue_pos = None
+        self.sp_message_chain = []
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -738,15 +739,15 @@ class Galaxy:
         return self.closest(xy, self.ships, [self.is_friend, self.is_alive])
 
     def sp_message(self, m_flags, m_recipt, m_from, mesg):
-        # FIXME: this is temporary processing of distress messages,
-        # depending on the type of message it should be portrayed.
         if m_flags == (MVALID | MTEAM | MDISTR):
             d = rcd.msg()
             d.unpack(m_recipt, m_from, mesg)
-            print d.text(galaxy)
+            text = d.text(galaxy)
+            # FIXME: portray RCDs graphically, e.g. action bubbles near ships
         else:
-            print strnul(mesg)
-        # FIXME: display the message
+            text = strnul(mesg)
+        for handler in self.sp_message_chain:
+            handler(m_flags, m_recipt, m_from, text)
 
     def sp_generic_32(self, gameup, tournament_teams, \
                 tournament_age, tournament_age_units, tournament_remain, \
@@ -1363,6 +1364,71 @@ class WarningSprite(pygame.sprite.Sprite):
     def pick(self, text):
         self.image = self.font.render(text, 1, (255, 0, 0))
         self.rect = self.image.get_rect(centerx=(width/2), top=0)
+
+class MessageLine():
+    def __init__(self, m_flags, m_recipt, m_from, mesg):
+        self.text = mesg
+        self.colour = (128, 128, 128)
+        if m_from != 0xff:
+            self.colour = team_colour(galaxy.ship(m_from).team)
+        self.when = 150
+
+class MessageSprite(pygame.sprite.Sprite):
+    """ message window
+    """
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = fc.get('DejaVuSansMono.ttf', 16)
+        self.maximum = 10
+        self.dirty = True
+        self.lines = []
+        intro = ['Welcome to Netrek', ' ', 'You are now in your ship', 'Press a number to start moving', 'Use right mouse button to steer', 'Use left mouse button to fire torpedoes', ' ']
+        for line in intro:
+            self.append(0, 0, 0xff, line)
+        self.pick()
+        galaxy.sp_message_chain.append(self.append)
+
+    def append(self, m_flags, m_recipt, m_from, mesg):
+        self.lines.append(MessageLine(m_flags, m_recipt, m_from, mesg))
+        if len(self.lines) > self.maximum:
+            del self.lines[0]
+        self.dirty = True
+
+    def update(self):
+        # remove lines that have expired
+        for line in self.lines:
+            if line.when != 0:
+                line.when -= 1
+                self.dirty = True
+        # avoid rendering if lines unchanged
+        if self.dirty:
+            self.pick()
+            self.dirty = False
+
+    def pick(self):
+        # build a list of surfaces containing the rendered lines
+        surfaces = []
+        for line in self.lines:
+            text = line.text
+            if line.when == 0:
+                text = ''
+            ts = self.font.render(text, 1, line.colour)
+            surfaces.append(ts)
+
+        # make an image to hold it
+        self.image = pygame.Surface((800, 400), pygame.SRCALPHA, 32)
+
+        # lay out the smaller images on the master image
+        y = 0
+        for surface in surfaces:
+            rect = surface.get_rect(left=0, top=y);
+            self.image.blit(surface, rect)
+            y = y + rect.height + 1
+
+            # FIXME: flexible user chosen position
+            # FIXME: place in quadrant away from action depending on team
+            # FIXME: darken on red alert
+        self.rect = self.image.get_rect(centerx=(width/2), top=100)
 
 """ assorted sprites
 """
@@ -3636,6 +3702,7 @@ class PhaseFlightTactical(PhaseFlight):
         # returned by the sprite draw method, per group class
         # RenderUpdates, which is a subclass of the group class
         # OrderedUpdates that we use here.
+        b_message.clear(screen, self.bg)
         b_reports.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
         t_torps.clear(screen, self.bg)
@@ -3648,6 +3715,7 @@ class PhaseFlightTactical(PhaseFlight):
         t_torps.update()
         b_warning.update()
         b_reports.update()
+        b_message.update()
 
         r += t_planets.draw(screen)
         r += t_players.draw(screen)
@@ -3657,6 +3725,7 @@ class PhaseFlightTactical(PhaseFlight):
         r += self.alerts.draw()
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
+        r += b_message.draw(screen)
 
         pygame.display.update(r)
 
@@ -3813,7 +3882,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, background, width, height, galactic_factor
+    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, b_message, background, width, height, galactic_factor
 
     pygame.init()
     size = width, height = 1000, 1000
@@ -3911,6 +3980,8 @@ def pg_init():
     b_warning.add(b_warning_sprite)
     b_reports = pygame.sprite.OrderedUpdates()
     b_reports.add(ReportSprite())
+    b_message = pygame.sprite.OrderedUpdates()
+    b_message.add(MessageSprite())
 
     background = screen.copy()
     background.fill((0, 0, 0))
