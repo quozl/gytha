@@ -622,7 +622,7 @@ class Galaxy:
         self.team_remain = 0
         # sp_queue
         self.sp_queue_pos = None
-        self.sp_message_chain = []
+        self.message = None # the MessageSprite
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -746,8 +746,8 @@ class Galaxy:
             # FIXME: portray RCDs graphically, e.g. action bubbles near ships
         else:
             text = strnul(mesg)
-        for handler in self.sp_message_chain:
-            handler(m_flags, m_recipt, m_from, text)
+        if self.message != None:
+            self.message.append(m_flags, m_recipt, m_from, text)
 
     def sp_generic_32(self, gameup, tournament_teams, \
                 tournament_age, tournament_age_units, tournament_remain, \
@@ -1372,23 +1372,36 @@ class MessageLine():
         if m_from != 0xff:
             self.colour = team_colour(galaxy.ship(m_from).team)
         self.when = 150
+        # FIXME: base this timer on real-time not number of update calls
 
 class MessageSprite(pygame.sprite.Sprite):
-    """ message window
+    """ message window,
+        for incoming and outgoing social and tactical human messaging.
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
+        galaxy.message = self
         self.font = fc.get('DejaVuSansMono.ttf', 16)
         self.maximum = 10
+        self.width = 900
+        self.height = 400
         self.dirty = True
         self.lines = []
-        intro = ['Welcome to Netrek', ' ', 'You are now in your ship', 'Press a number to start moving', 'Use right mouse button to steer', 'Use left mouse button to fire torpedoes', ' ']
+        self.head = ''
+        intro = ['Welcome to Netrek', \
+                 ' ', \
+                 'You are now in your ship', \
+                 'Press a number to start moving', \
+                 'Use right mouse button to steer', \
+                 'Use left mouse button to fire torpedoes', \
+                 'Press m to send a message', \
+                 ' ']
         for line in intro:
             self.append(0, 0, 0xff, line)
         self.pick()
-        galaxy.sp_message_chain.append(self.append)
 
     def append(self, m_flags, m_recipt, m_from, mesg):
+        """ add a received message to the display """
         self.lines.append(MessageLine(m_flags, m_recipt, m_from, mesg))
         if len(self.lines) > self.maximum:
             del self.lines[0]
@@ -1406,29 +1419,166 @@ class MessageSprite(pygame.sprite.Sprite):
             self.dirty = False
 
     def pick(self):
+        # make an image to hold the whole widget
+        self.image = pygame.Surface((self.width, self.height),
+                                    pygame.SRCALPHA, 32)
+
         # build a list of surfaces containing the rendered lines
         surfaces = []
         for line in self.lines:
             text = line.text
-            if line.when == 0:
+            if line.when == 0 and self.head == '':
                 text = ''
-            ts = self.font.render(text, 1, line.colour)
+            colour = line.colour
+            if self.head != '':
+                colour = brighten(colour)
+            ts = self.font.render(text, 1, colour)
             surfaces.append(ts)
-
-        # make an image to hold it
-        self.image = pygame.Surface((800, 400), pygame.SRCALPHA, 32)
 
         # lay out the smaller images on the master image
         y = 0
         for surface in surfaces:
-            rect = surface.get_rect(left=0, top=y);
+            rect = surface.get_rect(left=0, top=y)
             self.image.blit(surface, rect)
             y = y + rect.height + 1
 
-            # FIXME: flexible user chosen position
-            # FIXME: place in quadrant away from action depending on team
-            # FIXME: darken on red alert
+        y = y + 10
+        # if typing is underway
+        if self.head != '':
+            box_top = y - 1
+            # display the outgoing message buffer
+            line = self.head + '->' + self.tail + '  ' + self.text
+            surface = self.font.render(line, 1, (255, 255, 255))
+            rect = surface.get_rect(left=0, top=y)
+            self.image.blit(surface, rect)
+            y = y + rect.height + 1
+            # display instructions
+            (line, colour) = self.hint()
+            surface = self.font.render(line, 1, colour)
+            rect = surface.get_rect(left=0, top=y)
+            self.image.blit(surface, rect)
+            y = y + rect.height + 1
+            # draw a blue box around typing area
+            rect = pygame.Rect(0, box_top, self.width, (y - box_top))
+            pygame.draw.rect(self.image, (0, 0, 255), rect, 1)
+
         self.rect = self.image.get_rect(centerx=(width/2), top=100)
+        # FIXME: darken on red alert
+        # FIXME: flexible user chosen position
+        # FIXME: place in quadrant away from action depending on team
+
+        # FIXME: list players on a southern surface during message entry
+
+    def start(self):
+        """ start an outgoing message """
+        self.dirty = True
+        self.group = 0
+        self.indiv = 0
+        self.head = ' ' + me.mapchars
+        self.tail = ''
+        self.text = ''
+
+    def abort(self):
+        """ abort an outgoing message """
+        self.dirty = True
+        self.head = ''
+
+    def retarget(self):
+        """ return to target selection for outgoing message """
+        self.dirty = True
+        self.tail = ''
+
+    def target(self, event):
+        """ process target selection for outgoing message, return true
+        if a valid target was selected """
+        self.dirty = True
+        if (event.mod == pygame.KMOD_SHIFT or
+            event.mod == pygame.KMOD_LSHIFT or
+            event.mod == pygame.KMOD_RSHIFT):
+            targs = { pygame.K_a: [MALL, 'ALL'], pygame.K_g: [MGOD, 'GOD'] }
+            if event.key in targs:
+                (self.group, self.tail) = targs[event.key]
+                return True
+            targs = { pygame.K_f: FED, pygame.K_r: ROM,
+                      pygame.K_k: KLI, pygame.K_o: ORI }
+            if event.key in targs:
+                self.group = MTEAM
+                self.indiv = targs[event.key]
+                self.tail = teams[self.indiv].upper()
+                return True
+        if event.key == pygame.K_t or event.key == pygame.K_SPACE:
+            self.group = MTEAM
+            self.indiv = me.team
+            self.tail = teams[self.indiv].upper()
+            return True
+        if event.key == pygame.K_EQUALS:
+            self.group = MINDIV
+            self.indiv = me.n
+            self.tail = me.mapchars + ' '
+            return True
+        slot = slot_encode(event.unicode)
+        if slot == -1:
+            return False
+        ship = galaxy.ship(slot)
+        if ship == None:
+            return False
+        if ship.status == PFREE:
+            return False
+        self.group = MINDIV
+        self.indiv = ship.n
+        self.tail = ship.mapchars + ' '
+        return True
+
+    def typing(self, event):
+        """ store characters as the message is typed """
+        self.dirty = True
+        self.text = self.text + event.unicode
+
+    def backspace(self):
+        self.dirty = True
+        self.text = self.text[:-1]
+
+    def is_empty(self):
+        return len(self.text) == 0
+
+    def send(self):
+        """ send the composed message to the server and loopback """
+        mesg = str(self.text)
+        line = self.head + '->' + self.tail + '  ' + self.text
+        self.head = self.tail = self.text = ''
+        self.dirty = True
+        nt.send(cp_message.data(self.group, self.indiv, mesg))
+        # messages sent to god, teams other than our own, and to
+        # other players, do not get sent back to us by the server,
+        # so we loop them back to our own display.
+        if ((self.group == MGOD) or
+            (self.group == MTEAM and self.indiv != me.team) or
+            (self.group == MINDIV and self.indiv != me.n)):
+            galaxy.sp_message(0, 0, 0, line)
+        return
+
+    def hint(self):
+        """ generate contextual hint to guide player during entry """
+        colour = (255, 128, 128)
+        if len(self.text) > (80 - 12):
+            line = '          ' + ' ' * len(self.text) + '^ GO BACK'
+            return (line, (255, 128, 128))
+        if len(self.text) > (79 - 12):
+            line = '          ' + ' ' * len(self.text) + '^ STOP'
+            return (line, (255, 128, 128))
+        if len(self.text) > 12:
+            line = '          ' + ' ' * len(self.text) + '^ type'
+            return (line, (128, 255, 128))
+        if len(self.text) > 0:
+            line = '          ' + ' ' * len(self.text) + '^ type, press enter to send, or escape to abort'
+            return (line, (128, 255, 128))
+        if self.tail != '':
+            line = '          ' + ' ' * len(self.text) + '^ type, or backspace'
+            return (line, (128, 255, 128))
+        if self.head != '':
+            line = '     ^ t for team, A for all, F, R, K, O, a ship number, or backspace to abort'
+            return (line, (128, 128, 255))
+        return ('bogus', (255, 255, 255))
 
 """ assorted sprites
 """
@@ -3339,6 +3489,7 @@ class PhaseFlight(Phase):
         self.name = name
         self.set_keys()
         self.eh_ue.append(b_warning_sprite.ue)
+        self.modal_handler = None
 
     def __del__(self):
         end = time.time()
@@ -3379,6 +3530,21 @@ class PhaseFlight(Phase):
             (x, y) = event.pos
             nt.send(cp_torp.data(xy_to_dir(x, y)))
 
+    def is_control(self, event):
+        return (event.mod == pygame.KMOD_CTRL or
+                event.mod == pygame.KMOD_LCTRL or
+                event.mod == pygame.KMOD_RCTRL)
+
+    def is_shift(self, event):
+        return (event.mod == pygame.KMOD_SHIFT or
+                event.mod == pygame.KMOD_LSHIFT or
+                event.mod == pygame.KMOD_RSHIFT)
+
+    def is_escape(self, event):
+        return (event.key == pygame.K_ESCAPE or
+                (event.key == pygame.K_LEFTBRACKET and
+                self.is_control(event)))
+
     def kb(self, event):
 
         # ignore the shift and control keys on their own
@@ -3386,18 +3552,19 @@ class PhaseFlight(Phase):
         if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: return
 
         # check for control key sequences pressed
-        if (event.mod == pygame.KMOD_CTRL or
-            event.mod == pygame.KMOD_LCTRL or
-            event.mod == pygame.KMOD_RCTRL):
+        if (self.is_control(event)):
             if self.keys_control.has_key(event.key):
                 (handler, argument) = self.keys_control[event.key]
                 handler(event, argument)
                 return
 
+        # check for message entry mode
+        if self.modal_handler is not None:
+            self.modal_handler(event)
+            return
+
         # check for shift key sequences pressed
-        if (event.mod == pygame.KMOD_SHIFT or
-            event.mod == pygame.KMOD_LSHIFT or
-            event.mod == pygame.KMOD_RSHIFT):
+        if (self.is_shift(event)):
             if self.keys_shift.has_key(event.key):
                 (handler, argument) = self.keys_shift[event.key]
                 handler(event, argument)
@@ -3430,6 +3597,7 @@ class PhaseFlight(Phase):
             pygame.K_d: (self.op_det, None),
             pygame.K_e: (self.op_docking_toggle, None),
             pygame.K_l: (self.op_player_lock, None),
+            pygame.K_m: (self.op_message, None),
             pygame.K_o: (self.op_orbit, None),
             pygame.K_s: (self.op_shield_toggle, None),
             pygame.K_u: (self.op_shield_toggle, None),
@@ -3586,6 +3754,40 @@ class PhaseFlight(Phase):
     def op_warp_up(self, event, arg):
         if me: self.op_warp(event, me.speed + 1)
 
+    def op_message(self, event, arg):
+        if me:
+            galaxy.message.start()
+            self.modal_handler = self.op_message_target
+
+    def op_message_target(self, event):
+        if self.is_escape(event) or \
+               event.key == pygame.K_BACKSPACE or \
+               event.key == pygame.K_m:
+            galaxy.message.abort()
+            self.modal_handler = None
+            return
+        if galaxy.message.target(event):
+            self.modal_handler = self.op_message_typing
+
+    def op_message_typing(self, event):
+        if self.is_escape(event):
+            galaxy.message.abort()
+            self.modal_handler = None
+            return
+        if event.key == pygame.K_BACKSPACE:
+            if galaxy.message.is_empty():
+                galaxy.message.retarget()
+                self.modal_handler = self.op_message_target
+                return
+            galaxy.message.backspace()
+            return
+        if event.key == pygame.K_RETURN:
+            galaxy.message.send()
+            self.modal_handler = None
+            return
+        galaxy.message.typing(event)
+        # FIXME: message history, up & down arrow recall
+
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self, 'galactic')
@@ -3602,7 +3804,7 @@ class PhaseFlightGalactic(PhaseFlight):
 
     def kb(self, event):
         global ph_flight
-        if event.key == pygame.K_RETURN:
+        if event.key == pygame.K_RETURN and self.modal_handler is None:
             ph_flight = ph_tactical
             self.run = False
         else:
@@ -3657,7 +3859,7 @@ class PhaseFlightTactical(PhaseFlight):
 
     def kb(self, event):
         global ph_flight
-        if event.key == pygame.K_RETURN:
+        if event.key == pygame.K_RETURN and self.modal_handler is None:
             ph_flight = ph_galactic
             self.run = False
         else:
@@ -4129,3 +4331,7 @@ def main():
 # FIXME: dual display
 
 # FIXME: keymap feature, allow use of function keys for actions.
+
+# FIXME: how to maintain static content off edge of valid tactical;
+# (a) mask a valid tactical rect over the master tactical redraw,
+# (b) draw the static content once and hope.

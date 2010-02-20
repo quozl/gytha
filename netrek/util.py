@@ -24,11 +24,16 @@ def race_decode(n):
     elif n == 3: return 'O'
     return 'I'
 
+slot = '0123456789abcdefghijklmnopqrstuvwxyz'
+
 def slot_decode(n):
     try:
-        return '0123456789abcdefghijklmnopqrstuvwxyz'[n]
+        return slot[n]
     except IndexError:
         print "slot_decode: input value from server %d out of range" % n
+
+def slot_encode(n):
+    return slot.find(n)
 
 def team_colour(team):
     """ convert a team mask with a single bit set to a colour
@@ -38,3 +43,6 @@ def team_colour(team):
     if team == KLI: return (0, 128, 0)
     if team == ORI: return (0, 128, 128)
     return (128, 128, 128)
+
+def brighten(x):
+    return (min(x[0]*2, 255), min(x[1]*2, 255), min(x[2]*2, 255))
