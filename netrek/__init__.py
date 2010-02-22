@@ -311,6 +311,7 @@ class Ship(Local):
         self.tactical = ShipTacticalSprite(self) # forward reference
         self.galactic = ShipGalacticSprite(self) # forward reference
         self.ppcf = 1 # planet proximity check fuse
+        self.fuse = None
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
@@ -402,6 +403,13 @@ class Ship(Local):
         # FIXME: display this data, visible tractors on tactical
 
     def sp_pstatus(self, status):
+        # was alive now exploding
+        if self.status == PALIVE and status == PEXPLODE:
+            galaxy.se.append(self)
+            self.fuse = 10 * galaxy.ups / 10;
+        # was exploding now not
+        if self.status == PEXPLODE and status != PEXPLODE:
+            galaxy.se.remove(self)
         # store the status
         self.status = status
         # ship sprite visibility is brutally controlled by status
@@ -436,6 +444,11 @@ class Ship(Local):
         p = pygame.draw.line(screen, (255, 255, 255), (fx, fy), (tx, ty))
         q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx - 200, ty))
         return pygame.Rect.union(p, q)
+
+    def aging(self):
+        """ if ship is exploding, decrement the explosion sequence fuse """
+        if self.status == PEXPLODE:
+            self.fuse -= 1
 
     def __repr__(self):
         return 'Ship(x=%r, y=%r, team=%r)' % (self.x, self.y, self.team)
@@ -604,6 +617,7 @@ class Galaxy:
         self.ships = {}
         self.torps = {}
         self.te = [] # exploding torps
+        self.se = [] # exploding ships
         self.phasers = {}
         self.plasmas = {}
         self.caps = {}
@@ -638,6 +652,10 @@ class Galaxy:
         if not self.ships.has_key(n):
             self.ships[n] = Ship(n)
         return self.ships[n]
+
+    def ship_aging(self):
+        for s in self.se:
+            s.aging()
 
     def ship_debug_draw(self):
         r = []
@@ -930,58 +948,80 @@ class ShipTacticalSprite(ShipSprite):
     """
     def __init__(self, ship):
         ShipSprite.__init__(self, ship)
+        self.tag = None
         self.pick()
+        self.explosions = [
+            'exp-10.png',
+            'exp-09.png',
+            'exp-08.png',
+            'exp-07.png',
+            'exp-06.png',
+            'exp-05.png',
+            'exp-04.png',
+            'exp-03.png',
+            'exp-02.png',
+            'exp-01.png',
+            'exp-00.png', ]
 
     def update(self):
+        # FIXME: filter for visibility by distance from me
         # FIXME: this needs a better place, if done here it leaves
         # explosions on tactical (since the ship appears not nearby
         # when it rejoins)
         #if not self.ship.nearby: return
-        status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags
+        status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags, self.ship.fuse
         if status_tuple != self.old_status_tuple:
             self.old_status_tuple = status_tuple
             self.pick()
         self.rect.center = tactical_scale(self.ship.x, self.ship.y)
 
+    def add_explosion(self):
+        # IMAGERY: exp-??.png
+        x = max(self.ship.fuse, 0)
+        try:
+            self.mi_add_image(ic.get(self.explosions[x]))
+        except:
+            self.mi_add_image(ic.get('explosion.png'))
+
+    def add_ship(self):
+        # FIXME: obtain imagery for galactic view
+        # IMAGERY: ???-??-40x40.png
+        if self.ship.shiptype != STARBASE:
+            rotation = self.ship.dir
+        else:
+            rotation = 0
+        try:
+            self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", rotation / 10 * 10))
+        except:
+            self.mi_add_image(ic.get_rotated('netrek.png', rotation / 16 * 16))
+
+    def add_tag(self):
+        if not self.tag:
+            self.tag = pygame.Surface((40, 40), pygame.SRCALPHA, 32)
+            font = fc.get('DejaVuSans.ttf', 24)
+            message = slot_decode(self.ship.n)
+            colour = (255, 255, 255)
+            flags = self.ship.flags
+            if flags & PFPRACTR:
+                colour = (0, 255, 0)
+            elif flags & PFROBOT:
+                colour = (255, 0, 0)
+            elif flags & PFBPROBOT:
+                colour = (0, 0, 255)
+            text = font.render(message, 1, colour)
+            rect = text.get_rect(center=(20, 20))
+            self.tag.blit(text, rect)
+        self.mi_add_image(self.tag)
+
     def pick(self):
         self.mi_begin()
-        if self.ship.status == PEXPLODE:
-            # FIXME: animate explosion
-            # FIXME: initial frames to show explosion developing over ship
-            # IMAGERY: explosion.png
-            self.mi_add_image(ic.get('explosion.png'))
-        else:
-            # FIXME: obtain imagery for galactic view
-            # IMAGERY: ???-??-40x40.png
-            if self.ship.shiptype != STARBASE:
-                rotation = self.ship.dir
-            else:
-                rotation = 0
-            try:
-                self.mi_add_image(ic.get_rotated(teams[self.ship.team]+'-'+ships[self.ship.shiptype]+"-40x40.png", rotation / 10 * 10))
-            except:
-                self.mi_add_image(ic.get_rotated('netrek.png', rotation / 16 * 16))
-
-        # FIXME: filter for visibility by distance from me
         status = self.ship.status
         flags = self.ship.flags
-
-        # ship number
-        image = pygame.Surface((40, 40), pygame.SRCALPHA, 32)
-        font = fc.get('DejaVuSans.ttf', 24)
-        message = slot_decode(self.ship.n)
-        colour = (255, 255, 255)
-        if flags & PFPRACTR:
-            colour = (0, 255, 0)
-        elif flags & PFROBOT:
-            colour = (255, 0, 0)
-        elif flags & PFBPROBOT:
-            colour = (0, 0, 255)
-        text = font.render(message, 1, colour)
-        rect = text.get_rect(center=(20, 20))
-        # FIXME: cache this surface here, it will never change
-        image.blit(text, rect)
-        self.mi_add_image(image)
+        if status == PEXPLODE:
+            self.add_explosion()
+        else:
+            self.add_ship()
+            self.add_tag()
 
         if status == PALIVE:
             if flags & PFCLOAK:
@@ -1460,7 +1500,7 @@ class MessageSprite(pygame.sprite.Sprite):
             y = y + rect.height + 1
             # draw a blue box around typing area
             rect = pygame.Rect(0, box_top, self.width, (y - box_top))
-            pygame.draw.rect(self.image, (0, 0, 255), rect, 1)
+            pygame.draw.rect(self.image, (128, 128, 255), rect, 1)
 
         self.rect = self.image.get_rect(centerx=(width/2), top=100)
         # FIXME: darken on red alert
@@ -2219,6 +2259,7 @@ class SP_YOU(SP):
         ship.sp_you(hostile, swar, armies, tractor, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
         if nt.mode == COMM_TCP and ship.speed == 0:
             galaxy.torp_aging()
+            galaxy.ship_aging()
         if opt.name:
             nt.send(cp_updates.data(1000000/opt.updates))
             nt.send(cp_login.data(0, opt.name, opt.password, opt.login))
@@ -2549,6 +2590,7 @@ class SP_SEQUENCE(SP):
     def handler(self, data):
         (ignored, flag, sequence) = struct.unpack(self.format, data)
         galaxy.torp_aging()
+        galaxy.ship_aging()
         if opt.sp: print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
 
 class SP_SHIP_CAP(SP):

@@ -34,6 +34,9 @@
 GWIDTH=100000
 TWIDTH=20000
 
+EXPDIST=350 # At this range a torp will explode, set by server
+SHIPDAMDIST=3000 # At this range, an exploding ship does damage, set by server
+
 IND=0x0
 FED=0x1
 ROM=0x2

@@ -2,7 +2,10 @@
 are used frequently in different ways, as an "strace -e open" shows
 that a second pygame.image.load for the same file causes the file to
 be opened again. """
-import pygame
+import pygame, os
+
+# FIXME: learn what needs to be loaded, and preload it during server
+# connect or other pregame UI pauses
 
 class IC:
     """ an image cache """
@@ -23,7 +26,7 @@ class IC:
             except pygame.error:
                 pass
         if not image:
-            raise pygame.error
+            raise pygame.error, "no such file %s" % name
         return pygame.Surface.convert_alpha(image)
 
     def get(self, name):
@@ -73,6 +76,31 @@ class IC:
         print "IC: rotate hits=%d miss=%d rate=%d%% n=%d" % \
               (self.hits_rotated, self.miss_rotated, rate_rotated, \
                len(self.cache_rotated))
+        names = []
+        for key in self.cache:
+            if key not in names:
+                names.append(key)
+        for key in self.cache_rotated:
+            (name, angle) = key
+            if name not in names:
+                names.append(name)
+        for key in self.cache_scale2xed:
+            (name) = key
+            if name not in names:
+                names.append(name)
+        names.sort()
+        unused = []
+        for name in names:
+            print "used image", name
+        for dirpath, dirnames, filenames in os.walk('images'):
+            for name in filenames:
+                if '.png' not in name and '.jpg' not in name:
+                    continue
+                if name not in names:
+                    unused.append(name)
+        unused.sort()
+        for name in unused:
+            print "unused image", name
 
 class FC:
     """ a font cache """
