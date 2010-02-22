@@ -313,6 +313,17 @@ class Ship(Local):
         self.ppcf = 1 # planet proximity check fuse
         self.fuse = None
 
+    def visibility(self):
+        if self.status == PALIVE or self.status == PEXPLODE:
+            self.galactic.show()
+            if self == me or self.nearby:
+                self.tactical.show()
+            else:
+                self.tactical.hide()
+        else:
+            self.galactic.hide()
+            self.tactical.hide()
+
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
         self.hostile = hostile
@@ -375,10 +386,10 @@ class Ship(Local):
                 self.sp_player_me_speed_shown = False
         elif me:
             limit = TWIDTH / 2 + TWIDTH / 4
-            if (abs(me.x - x) < limit) or (abs(me.x - x) < limit):
-                self.nearby = True
-            else:
-                self.nearby = False
+            nearby = (abs(me.x - x) < limit) or (abs(me.x - x) < limit)
+            if nearby != self.nearby:
+                self.nearby = nearby
+                self.visibility()
         self.dir = dir_to_angle(dir)
         self.speed = speed
         self.x = x
@@ -414,22 +425,7 @@ class Ship(Local):
         self.status = status
         # ship sprite visibility is brutally controlled by status
         # FIXME: do not show cloaked ships
-        # FIXME: move visibility check to sprite class
-        # FIXME: only show ships on tactical if within range of them
-        # (currently we draw every ship on the tactical regardless of
-        # whether the coordinates are visible)
-        try:
-            if status == PALIVE or status == PEXPLODE:
-                self.galactic.show()
-                self.tactical.show()
-            else:
-                self.galactic.hide()
-                self.tactical.hide()
-        except:
-            # sprites do not exist on first call from own __init__
-            # FIXME: check for attribute existence rather that use
-            # brute force of exception handling
-            pass
+        self.visibility()
 
     def sp_generic_32(self, repair_time, pl_orbit):
         self.repair_time = repair_time
@@ -964,11 +960,6 @@ class ShipTacticalSprite(ShipSprite):
             'exp-00.png', ]
 
     def update(self):
-        # FIXME: filter for visibility by distance from me
-        # FIXME: this needs a better place, if done here it leaves
-        # explosions on tactical (since the ship appears not nearby
-        # when it rejoins)
-        #if not self.ship.nearby: return
         status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags, self.ship.fuse
         if status_tuple != self.old_status_tuple:
             self.old_status_tuple = status_tuple
