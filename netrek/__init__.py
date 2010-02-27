@@ -219,7 +219,6 @@ class Planet(Local):
         Local.__init__(self, n)
         self.x = -10001
         self.y = -10001
-        self.g_shown = False
         self.name = ''
         self.sp_planet(0, 0, 0, 0)
         self.tactical = PlanetTacticalSprite(self) # forward reference
@@ -232,14 +231,12 @@ class Planet(Local):
             self.y = y
             self.set_box(x, y)
         self.name = name
-        self.g_shown = False
 
     def sp_planet(self, owner, info, flags, armies):
         self.owner = owner
         self.info = info
         self.flags = flags
         self.armies = armies
-        self.g_shown = False
 
     def set_box(self, x, y):
         """ create a proximity bounding box around the planet """
@@ -307,6 +304,8 @@ class Ship(Local):
         self.repair_time = 0
         self.pl_orbit = -1
         self.repair_time_shown = False
+
+        self.planet = None # planet we last locked on if flags & PFPLLOCK
 
         self.tactical = ShipTacticalSprite(self) # forward reference
         self.galactic = ShipGalacticSprite(self) # forward reference
@@ -420,7 +419,8 @@ class Ship(Local):
             self.fuse = 10 * galaxy.ups / 10;
         # was exploding now not
         if self.status == PEXPLODE and status != PEXPLODE:
-            galaxy.se.remove(self)
+            if self in galaxy.se:
+                galaxy.se.remove(self)
         # store the status
         self.status = status
         # ship sprite visibility is brutally controlled by status
@@ -621,6 +621,7 @@ class Galaxy:
             self.caps[n] = Cap(n)
         self.motd = MOTD()
         self.ups = 5 # default if SP_FEATURE UPS is not received
+        self.fps = 1
         # sp_generic_32
         self.gameup = 0
         self.tournament_teams = 0
@@ -740,10 +741,6 @@ class Galaxy:
         """ return the closest ship to galactic coordinates """
         return self.closest(xy, self.ships, [self.is_alive])
 
-    def closest_planet(self, xy):
-        """ return the closest planet to galactic coordinates """
-        return self.closest(xy, self.planets, [])
-
     def closest_enemy(self, xy):
         """ return the closest hostile player to coordinates """
         return self.closest(xy, self.ships, [self.is_enemy, self.is_alive])
@@ -786,12 +783,9 @@ class PlanetSprite(MultipleImageSprite):
     """
     def __init__(self, planet):
         self.planet = planet
-        self.old_armies = planet.armies
-        self.old_name = planet.name
-        self.old_flags = planet.flags
-        self.old_x = planet.x
-        self.old_y = planet.y
-        self.old_owner = planet.owner
+        self.old = None
+        self.tag = None
+        self.icon = None
         MultipleImageSprite.__init__(self)
 
 class PlanetGalacticSprite(PlanetSprite):
@@ -800,55 +794,82 @@ class PlanetGalacticSprite(PlanetSprite):
         PlanetSprite.__init__(self, planet)
         self.pick()
         g_planets.add(self)
+        self.name = None
+        self.armies = None
+
+    def add_armies(self):
+        image = pygame.Surface((30, 60), pygame.SRCALPHA, 32)
+        font = fc.get('DejaVuSans-Bold.ttf', 12)
+        message = "%d" % (self.planet.armies)
+        if self.planet.armies == 0:
+            message = "-"
+        colour = (255, 255, 255)
+        text = font.render(message, 1, colour)
+        rect = text.get_rect(top=0, centerx=15)
+        image.blit(text, rect)
+        self.mi_add_image(image)
+
+    def add_icon(self):
+        # IMAGERY: planet-???-30x30.png
+        self.icon = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
+        self.mi_add_image(self.icon)
+
+    def add_name(self):
+        if self.planet.name == '':
+            return
+        if not self.tag or self.name != self.planet.name or \
+               self.armies != self.planet.armies:
+            self.name = self.planet.name
+            self.tag = pygame.Surface((60, 80), pygame.SRCALPHA, 32)
+            font = fc.get('DejaVuSans.ttf', 8)
+            message = "%s" % (self.planet.name)
+            if message == "":
+                message = "unknown"
+            colour = (128, 128, 128)
+            if self.planet.armies > 4:
+                if self.planet.owner == FED: colour = (255, 255, 0)
+                if self.planet.owner == ROM: colour = (255, 0, 0)
+                if self.planet.owner == KLI: colour = (0, 255, 0)
+                if self.planet.owner == ORI: colour = (0, 255, 255)
+            else:
+                if self.planet.owner == FED: colour = (128, 128, 0)
+                if self.planet.owner == ROM: colour = (128, 0, 0)
+                if self.planet.owner == KLI: colour = (0, 128, 0)
+                if self.planet.owner == ORI: colour = (0, 128, 128)
+            text = font.render(message, 1, colour)
+            rect = text.get_rect(centerx=30, bottom=80)
+            self.tag.blit(text, rect)
+        self.mi_add_image(self.tag)
 
     def pick(self):
         self.mi_begin()
-        # IMAGERY: planet-???-30x30.png
-        image = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
-        self.mi_add_image(image)
 
-        # FIXME: render planet owner, flags and armies
+        self.add_icon()
+        # FIXME: render planet flags
 
-        image = pygame.Surface((60, 80), pygame.SRCALPHA, 32)
-        font = fc.get('DejaVuSans.ttf', 8)
-        message = "%s" % (self.planet.name)
-        if message == "":
-            message = "unknown"
-        colour = (128, 128, 128)
-        if self.planet.armies > 4:
-            if self.planet.owner == FED: colour = (255, 255, 0)
-            if self.planet.owner == ROM: colour = (255, 0, 0)
-            if self.planet.owner == KLI: colour = (0, 255, 0)
-            if self.planet.owner == ORI: colour = (0, 255, 255)
-        else:
-            if self.planet.owner == FED: colour = (128, 128, 0)
-            if self.planet.owner == ROM: colour = (128, 0, 0)
-            if self.planet.owner == KLI: colour = (0, 128, 0)
-            if self.planet.owner == ORI: colour = (0, 128, 128)
-        text = font.render(message, 1, colour)
-        rect = text.get_rect(centerx=30, bottom=80)
-        image.blit(text, rect)
-        self.mi_add_image(image)
+        # render planet armies
+        if self.planet.info & me.team:
+            self.add_armies()
+
+        # render planet name
+        self.add_name()
+
         self.mi_commit()
 
     def update(self):
-        if self.planet.owner != self.old_owner or self.planet.name != self.old_name:
+        # check for change to planet to force a redraw
+        new = self.planet.owner, self.planet.info, self.planet.name, self.planet.flags, self.planet.armies, self.planet.x, self.planet.y
+        if new != self.old:
+            self.old = new
             self.pick()
             self.rect.center = galactic_scale(self.planet.x, self.planet.y)
-            self.old_owner = self.planet.owner
-            self.old_name = self.planet.name
-        if self.planet.x != self.old_x or self.planet.y != self.old_y:
-            self.rect.center = galactic_scale(self.planet.x, self.planet.y)
-            self.old_x = self.planet.x
-            self.old_y = self.planet.y
 
 class PlanetTacticalSprite(PlanetSprite):
     """ netrek planet sprite on tactical """
     def __init__(self, planet):
-        self.me_old_x = -1
-        self.me_old_y = -1
         PlanetSprite.__init__(self, planet)
         self.pick()
+        self.pos = 0, 0
 
     def show(self):
         t_planets.add(self)
@@ -858,11 +879,14 @@ class PlanetTacticalSprite(PlanetSprite):
 
     def pick(self):
         self.mi_begin()
+
         # IMAGERY: planet-???.png
         image = ic.get("planet-" + teams[self.planet.owner] + ".png")
         self.mi_add_image(image)
 
         # IMAGERY: planet-overlay-*.png
+        if me.planet == self.planet and me.flags & PFPLLOCK:
+            self.mi_add_image(ic.get('planet-overlay-lock.png'))
         if self.planet.armies > 4 and self.planet.owner != me.team:
             self.mi_add_image(ic.get('planet-overlay-attack.png'))
             # FIXME: show attack ring for unscanned planets as well?
@@ -874,42 +898,34 @@ class PlanetTacticalSprite(PlanetSprite):
             self.mi_add_image(ic.get('planet-overlay-fuel.png'))
         # FIXME: cache the static flags surfaces here, they will rarely change
 
+        # planet name
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 18)
         message = "%s" % (self.planet.name)
         text = font.render(message, 1, (92, 92, 92))
         rect = text.get_rect(centerx=60, bottom=120)
         # FIXME: name may not fit within surface
-        # FIXME: cache this surface here, it will rarely change
         image.blit(text, rect)
         self.mi_add_image(image)
+
         self.mi_commit()
 
     def update(self):
-        if self.planet.owner != self.old_owner or \
-               self.planet.name != self.old_name or \
-               self.planet.flags != self.old_flags or \
-               self.planet.armies != self.old_armies:
+        # check for change to planet to force a sprite image recreation
+        new = self.planet.owner, self.planet.info, self.planet.name, self.planet.flags, self.planet.armies, (self.planet == me.planet and me.flags & PFPLLOCK)
+        if new != self.old:
+            self.old = new
             self.pick()
-            self.old_owner = self.planet.owner
-            self.old_name = self.planet.name
-            self.old_flags = self.planet.flags
-            self.old_armies = self.planet.armies
+        # check for change to positions to force a sprite move
+        new = me.x, me.y, self.planet.x, self.planet.y
+        if new != self.pos:
+            self.pos = new
             self.rect.center = tactical_scale(self.planet.x, self.planet.y)
-        if self.planet.x != self.old_x or \
-               self.planet.y != self.old_y or \
-               me.x != self.me_old_x or \
-               me.y != self.me_old_y:
-            self.rect.center = tactical_scale(self.planet.x, self.planet.y)
-            self.old_x = self.planet.x
-            self.old_y = self.planet.y
-            self.me_old_x = me.x
-            self.me_old_y = me.y
 
 class ShipSprite(MultipleImageSprite):
     def __init__(self, ship):
         self.ship = ship
-        self.old_status_tuple = None
+        self.old = None
         MultipleImageSprite.__init__(self)
 
 class ShipGalacticSprite(ShipSprite):
@@ -921,9 +937,9 @@ class ShipGalacticSprite(ShipSprite):
         self.pick()
 
     def update(self):
-        status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags
-        if status_tuple != self.old_status_tuple:
-            self.old_status_tuple = status_tuple
+        new = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags
+        if new != self.old:
+            self.old = new
             self.pick()
         self.rect.center = galactic_scale(self.ship.x, self.ship.y)
 
@@ -960,9 +976,9 @@ class ShipTacticalSprite(ShipSprite):
             'exp-00.png', ]
 
     def update(self):
-        status_tuple = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags, self.ship.fuse
-        if status_tuple != self.old_status_tuple:
-            self.old_status_tuple = status_tuple
+        new = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags, self.ship.fuse
+        if new != self.old:
+            self.old = new
             self.pick()
         self.rect.center = tactical_scale(self.ship.x, self.ship.y)
 
@@ -1134,8 +1150,8 @@ class Halos:
             if ship.status != PALIVE: continue
             if ship == me: continue
             # colour depends on team
-            colour = (255, 0, 0)
-            if ship.team == me.team: colour = (0, 255, 0)
+            colour = (64, 0, 0)
+            if ship.team == me.team: colour = (0, 64, 0)
             # do not draw if off galactic
             if ship.x < 0: continue
             if ship.y < 0: continue
@@ -1157,9 +1173,29 @@ class Halos:
             self.rect.append(self.arc(surface, colour, (cx, cy), radius,
                                       width))
 
+    def draw_lock(self, surface, threshold):
+        # if not locked, return
+        if not me.flags & PFPLLOCK:
+            return
+        planet = me.planet
+        colour = (0, 0, 64)
+        offset_x = abs(planet.x - me.x)
+        offset_y = abs(planet.y - me.y)
+        distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+        # radius is to be distance less tactical edge
+        radius = distance - threshold
+        if radius < 100: return
+        # scale radius down to graphics
+        radius = radius / 20
+        cx, cy = tactical_scale(planet.x, planet.y)
+        width = 4
+        self.rect.append(self.arc(surface, colour, (cx, cy), radius,
+                                  width))
+
     def draw(self, surface):
-        # temporarily disabled
-        return []
+        if not opt.halos:
+            return []
+
         self.arcs = []
         self.rect = []
 
@@ -1171,32 +1207,41 @@ class Halos:
 
         #self.draw_planets(surface, threshold)
         self.draw_ships(surface, threshold)
+        self.draw_lock(surface, threshold)
 
         return self.rect
 
     def undraw(self, surface, colour):
-        # temporarily disabled
-        return []
+        if not opt.halos:
+            return []
         for (xy, r, w) in self.arcs:
             pygame.draw.circle(surface, colour, xy, r, w)
         return self.rect
 
-class Borders:
-    """ netrek borders
-    """
+class Lines:
     def __init__(self):
         self.lines = []
         self.rect = []
+
+    def line(self, sx, sy, ex, ey):
+        self.lines.append((sx, sy, ex, ey))
+        return pygame.draw.line(screen, (255, 0, 0), (sx, sy), (ex, ey))
+
+    def draw(self):
+        self.lines = []
+        self.rect = []
+
+class Borders(Lines):
+    """ netrek borders
+    """
+    def __init__(self):
+        Lines.__init__(self)
         proximity = 0.90 # how close before wall appears
         threshold = n = int(GWIDTH / 10.0 * proximity)
         # a rectangle of the positions in the galactic that does not
         # need the borders drawn
         self.inner = pygame.Rect(n, n, GWIDTH-n-n, GWIDTH-n-n)
         # FIXME: proximity customisation option
-
-    def line(self, sx, sy, ex, ey):
-        self.lines.append((sx, sy, ex, ey))
-        return pygame.draw.line(screen, (255, 0, 0), (sx, sy), (ex, ey))
 
     def limit(self, v1, v2, dim):
         return (max(0, v1), min(dim-1, v2))
@@ -1243,6 +1288,21 @@ class Borders:
             self.rect.append(self.line(x1, y1, x2, y2))
             self.rect.append(self.line(x1, y2, x1, y2))
 
+class LocatorSprite(pygame.sprite.Sprite):
+    """ box describing tactical drawn on galactic
+    """
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.pick()
+
+    def update(self):
+        self.pick()
+        self.rect.center = galactic_scale(me.x, me.y)
+
+    def pick(self):
+        self.image = ic.get('locator.png')
+        self.rect = self.image.get_rect()
+
 class Alerts:
     """ red, yellow, and green alert status
     """
@@ -1274,6 +1334,44 @@ class Alerts:
         for (sx, sy, ex, ey) in self.lines:
             pygame.draw.line(screen, colour, (sx, sy), (ex, ey))
         return self.rect
+
+class DebugSprite(pygame.sprite.Sprite):
+    """ debug display values
+    """
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = fc.get('DejaVuSansMono.ttf', 20)
+        self.maxfps = 0
+        self.minfps = 1000
+        self.fps = []
+        self.nfps = 10
+        self.pick()
+
+    def update(self):
+        self.pick()
+
+    def pick(self):
+        x = ' '
+        x += 'ups %d ' % galaxy.ups
+        fps = galaxy.fps
+        self.fps.append(fps)
+        if len(self.fps) > self.nfps:
+            del self.fps[0]
+        x += 'fps %d ' % fps
+        if fps < self.minfps:
+            self.minfps = fps
+        x += 'min %d ' % self.minfps
+        if fps > self.maxfps:
+            self.maxfps = fps
+        x += 'max %d ' % self.maxfps
+        s = 0
+        for e in self.fps:
+            s += e
+        x += 'avg %d ' % ( s / len(self.fps) )
+
+        self.text = x
+        self.image = self.font.render(self.text, 1, (255, 255, 255))
+        self.rect = self.image.get_rect(centerx=(width/2), bottom=(height-50))
 
 class ReportSprite(pygame.sprite.Sprite):
     """ netrek reports
@@ -1433,6 +1531,8 @@ class MessageSprite(pygame.sprite.Sprite):
 
     def append(self, m_flags, m_recipt, m_from, mesg):
         """ add a received message to the display """
+        # FIXME: show only team and individual messages by default
+        # messages to ALL are not generally useful.
         self.lines.append(MessageLine(m_flags, m_recipt, m_from, mesg))
         if len(self.lines) > self.maximum:
             del self.lines[0]
@@ -2812,7 +2912,8 @@ class Phase:
     def exit(self, status):
         screen.fill((0, 0, 0))
         pygame.display.flip()
-        ic.statistics()
+        if opt.debug:
+            ic.statistics()
         pg_quit()
         # FIXME: exit main instead of calling sys.exit
         sys.exit(status)
@@ -3015,7 +3116,7 @@ class PhaseServers(Phase):
         return Text(server['name'] + ' ' + server['comment'], 100, y, 22, colour)
 
     def server_queue(self, y, server):
-        return Text('Q' + str(server['queue']), width / 2, y, 22, (255, 0, 0))
+        return Text('Queue of ' + str(server['queue']), width / 2 - 10, y, 22, (255, 64, 64))
 
     def server_players(self, y, server):
         s = []
@@ -3732,6 +3833,7 @@ class PhaseFlight(Phase):
         nearest = galaxy.closest_planet(cursor())
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
+            me.planet = nearest
 
     def op_player_lock(self, event, arg):
         nearest = galaxy.closest_ship(cursor())
@@ -3828,11 +3930,39 @@ class PhaseFlightGalactic(PhaseFlight):
     def do(self):
         self.run = True
         screen.blit(background, (0, 0))
-        g_planets.clear(screen, background)
-        g_planets.update()
-        pygame.display.update(g_planets.draw(screen))
-        self.bg = screen.copy() # static planet background
-        # FIXME: planets are not redrawn if changed
+        # draw static background, team borders and team names
+        r = []
+        xc, yc = galactic_scale(GWIDTH/2, GWIDTH/2)
+        x1, y1 = galactic_scale(0, 0)
+        x2, y2 = galactic_scale(GWIDTH, GWIDTH)
+        r += [pygame.draw.line(screen, (128, 128, 128), (xc, y1), (xc, y2))]
+        r += [pygame.draw.line(screen, (128, 128, 128), (x1, yc), (x2, yc))]
+        
+        size = 24
+        font = fc.get('DejaVuSans.ttf', size)
+        
+        ts = font.render('Romulan', 1, (255, 64, 64))
+        tr = ts.get_rect(left=2, top=2)
+        screen.blit(ts, tr)
+        r += [tr]
+        
+        ts = font.render('Federation', 1, (255, 255, 64))
+        tr = ts.get_rect(left=2, bottom=height-2)
+        screen.blit(ts, tr)
+        r += [tr]
+        
+        ts = font.render('Orion', 1, (64, 255, 255))
+        tr = ts.get_rect(right=width-2, bottom=height-2)
+        screen.blit(ts, tr)
+        r += [tr]
+        
+        ts = font.render('Klingon', 1, (64, 255, 64))
+        tr = ts.get_rect(right=width-2, top=2)
+        screen.blit(ts, tr)
+        r += [tr]
+        
+        pygame.display.update(r)
+        self.bg = screen.copy()
         self.cycle()
 
     def kb(self, event):
@@ -3844,29 +3974,28 @@ class PhaseFlightGalactic(PhaseFlight):
             return PhaseFlight.kb(self, event)
 
     def update(self):
+        t0 = time.time()
         r = [] # sequence of dirty rectangles for update
-        b_reports.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
+        b_reports.clear(screen, self.bg)
         g_players.clear(screen, self.bg)
-        for n, planet in galaxy.planets.iteritems():
-            if not planet.g_shown:
-                # print planet.name
-                r_clear = planet.galactic.rect
-                screen.blit(background, planet.galactic.rect)
-                planet.galactic.update()
-                self.bg.blit(planet.galactic.image, planet.galactic.rect)
-                screen.blit(planet.galactic.image, planet.galactic.rect)
-                r_draw = planet.galactic.rect
-                r += [pygame.Rect.union(r_clear, r_draw)]
-                planet.g_shown = True
-                break # one per update
+        g_planets.clear(screen, self.bg)
+        g_locator.clear(screen, self.bg)
+
+        g_locator.update()
+        g_planets.update()
         g_players.update()
         b_warning.update()
         b_reports.update()
+
+        r += g_locator.draw(screen)
+        r += g_planets.draw(screen)
         r += g_players.draw(screen)
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
         pygame.display.update(r)
+        t1 = time.time()
+        galaxy.fps = int ( 1 / ( t1 - t0 ) )
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
@@ -3905,16 +4034,19 @@ class PhaseFlightTactical(PhaseFlight):
     # query on a screen object.
 
     def extra(self):
-        """ some extra graphics bits """
+        """ some extra graphics bits, where we tune automatically how
+        much extra graphics are done according to the measured
+        performance of the essential graphics, ... otherwise once we
+        fall behind in graphics update the network packet will be
+        already waiting, and we shall begin to display-lag.  """
 
-        self.pace += 1
-        # FIXME: tune automatically how much extra graphics are done
-        # according to the amount of time we have waited for a network
-        # packet ... once we fall behind in graphics update the
-        # network packet will be already waiting, and we shall begin
-        # to display-lag.
-        if self.pace < 10: return []
-        self.pace = 0
+        # if we are incapable of a greater local frame rate than the
+        # server is configured to send us updates for, defer one in
+        # ten of these extra graphics updates
+        if galaxy.fps < galaxy.ups:
+            self.pace += 1
+            if self.pace < 10: return []
+            self.pace = 0
 
         # update halos
         r = []
@@ -3927,6 +4059,7 @@ class PhaseFlightTactical(PhaseFlight):
     def update(self):
         """ clear, update, and redraw all tactical sprites and non-sprites """
 
+        t0 = time.time()
         r = [] # sequence of dirty rectangles for update
         r += galaxy.phasers_undraw(self.co)
         r += self.borders.undraw(self.co)
@@ -3963,6 +4096,8 @@ class PhaseFlightTactical(PhaseFlight):
         r += b_message.draw(screen)
 
         pygame.display.update(r)
+        t1 = time.time()
+        galaxy.fps = int ( 1 / ( t1 - t0 ) )
 
         #r_debug = galaxy.torp_debug_draw()
         #pygame.display.update(r_debug)
@@ -4117,7 +4252,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, b_warning_sprite, b_warning, b_reports, b_message, background, width, height, galactic_factor
+    global t_planets, t_players, t_torps, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, background, width, height, galactic_factor
 
     pygame.init()
     size = width, height = 1000, 1000
@@ -4200,6 +4335,8 @@ def pg_init():
     height = surface.get_height()
     size = width, height
     print "have a surface size %d x %d pixels" % (width, height)
+    if not opt.debug:
+        ic.preload() # 416ms buffered, 787ms unbuffered
 
     short = min(width, height)
     galactic_factor = GWIDTH / short
@@ -4208,6 +4345,8 @@ def pg_init():
     t_planets = pygame.sprite.OrderedUpdates(())
     t_players = pygame.sprite.OrderedUpdates(())
     t_torps = pygame.sprite.OrderedUpdates(())
+    g_locator = pygame.sprite.OrderedUpdates(())
+    g_locator.add(LocatorSprite())
     g_planets = pygame.sprite.OrderedUpdates(())
     g_players = pygame.sprite.OrderedUpdates(())
     b_warning = pygame.sprite.OrderedUpdates()
@@ -4215,6 +4354,8 @@ def pg_init():
     b_warning.add(b_warning_sprite)
     b_reports = pygame.sprite.OrderedUpdates()
     b_reports.add(ReportSprite())
+    if opt.debug:
+        b_reports.add(DebugSprite())
     b_message = pygame.sprite.OrderedUpdates()
     b_message.add(MessageSprite())
 
@@ -4280,14 +4421,14 @@ def nt_play():
             nt.send(cp_socket.data())
             nt.send(cp_feature.data('S', 0, 0, 1, 'FEATURE_PACKETS'))
             # FIXME: allow play on another server while queued
-            if opt.name == '':
-                ph_queue = PhaseQueue(screen)
-                if ph_queue.cancelled:
-                    if mc == None: break
-                    # return to metaserver list
-                    mc_choose_again()
-                    continue
+            ph_queue = PhaseQueue(screen)
+            if ph_queue.cancelled:
+                if mc == None: break
+                # return to metaserver list
+                mc_choose_again()
+                continue
 
+            if opt.name == '':
                 ph_login = PhaseLogin(screen)
                 if ph_login.cancelled:
                     if mc == None: break
@@ -4325,7 +4466,8 @@ def main():
     pg_fd()
 
     nt_play()
-    ic.statistics()
+    if opt.debug:
+        ic.statistics()
     pg_quit()
     return 0
 

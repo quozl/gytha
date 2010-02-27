@@ -31,6 +31,7 @@ def slot_decode(n):
         return slot[n]
     except IndexError:
         print "slot_decode: input value from server %d out of range" % n
+        print traceback.print_stack()
 
 def slot_encode(n):
     return slot.find(n)

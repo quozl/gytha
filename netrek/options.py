@@ -56,3 +56,9 @@ parser.add_option("--height",
 parser.add_option("--no-backgrounds",
                   action="store_true", dest="no_backgrounds", default=False,
                   help="turn off the background images")
+parser.add_option("--halos",
+                  action="store_true", dest="halos", default=False,
+                  help="show experimental target navigation halos")
+parser.add_option("--debug",
+                  action="store_true", dest="debug", default=False,
+                  help="display debugging data")

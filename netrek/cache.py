@@ -2,7 +2,7 @@
 are used frequently in different ways, as an "strace -e open" shows
 that a second pygame.image.load for the same file causes the file to
 be opened again. """
-import pygame, os
+import pygame, os, time
 
 # FIXME: learn what needs to be loaded, and preload it during server
 # connect or other pregame UI pauses
@@ -59,6 +59,23 @@ class IC:
                 scaled = pygame.transform.scale2x(unscaled)
             self.cache_scale2xed[(name)] = scaled
         return self.cache_scale2xed[(name)]
+
+    def preload(self):
+        names = []
+        t0 = time.time()
+        for path in self.paths:
+            for dirpath, dirnames, filenames in os.walk('images'):
+                for name in filenames:
+                    if '.png' not in name and '.jpg' not in name:
+                        continue
+                    if name not in names:
+                        names.append(name)
+        names.sort()
+        t1 = time.time()
+        for name in names:
+            self.get(name)
+        t2 = time.time()
+        return "IC: preload scan=%.3f load=%.3f" % (t1 - t0, t2 - t1)
 
     def statistics(self):
         """ calculate and print cache statistics """
