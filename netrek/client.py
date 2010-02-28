@@ -96,17 +96,18 @@ class Client:
     def recv(self):
         """ check for and process data arriving from the server,
         returns true if data was processed, false if not """
+        data = False
         r, w, e = select.select(self.fd, [], [], self.timeout)
         self.time = time.time()
         if self.udp in r:
             self.udp_readable()
-            return True
+            data = True
         if self.tcp in r:
             self.tcp_readable()
-            return True
+            data = True
         # select may also return because X socket is readable, we let
         # the caller handle that situation.
-        return False
+        return data
 
     def udp_readable(self):
         """ process UDP data, socket file descriptor is readable, and
