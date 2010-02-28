@@ -37,7 +37,7 @@ class Client:
         self.tcp.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.bufsiz)
-        
+
         # iterate through the addresses of the server host until one connects
         addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
         for family, socktype, proto, canonname, sockaddr in addresses:
@@ -56,12 +56,12 @@ class Client:
 
         if self.mode == None:
             return False
-        
+
 	# test that the socket is connected
         self.tcp_peername = self.tcp.getpeername()
         (self.tcp_peerhost, self.tcp_peerport) = self.tcp_peername
         self.tcp_sockname = self.tcp.getsockname()
-        
+
 	# try binding the UDP socket to the same port number
 	# (rationale: ease of packet trace analysis)
         try:
@@ -135,7 +135,7 @@ class Client:
                 continue
             print "bad udp drop type=%d bytes=%d" % (p_type, length-offset)
             return
-                    
+
     def tcp_readable(self):
         """ process TCP data, socket file descriptor is readable, and
         presumed to be positioned at the first byte of a game packet,
@@ -143,7 +143,7 @@ class Client:
         stream, and if there is a potential for segmentation use the
         byte by byte method ... this generally occurs during the
         initial login data burst because of the MOTD and torp arrays. """
-        
+
         # find out how much is available right now
         pbytes = self.tcp.recv_into(self.buffer, self.bufsiz, socket.MSG_PEEK + socket.MSG_DONTWAIT)
         if pbytes > 1024:
@@ -205,7 +205,7 @@ class Client:
             if reason == errno.EINTR: return
             print "tcp recv", reason, explanation
             sys.exit(1)
-                    
+
     def tcp_read_more(self, byte, sock):
         """ process more TCP data, socket file descriptor is
         positioned after the first byte of a game packet, from which
@@ -240,7 +240,7 @@ class Client:
             return
         if self.mode != COMM_UDP:
             self.tcp.send(self.cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
-        
+
     def sp_udp_reply(self, reply, port):
         """ server acknowledged CP_UDP_REQ switch to udp mode """
         if reply == SWITCH_UDP_OK:
