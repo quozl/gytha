@@ -55,6 +55,10 @@ teams_long = { IND: 'independent',
 
 teams_numeric = {IND: -1, FED: 0, ROM: 1, KLI: 2, ORI: 3}
 
+teams_playable = [ FED, ROM, KLI, ORI ]
+
+teams_diagonal = [ [FED, KLI], [ROM, ORI] ]
+
 PFREE=0
 POUTFIT=1
 PALIVE=2

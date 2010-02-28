@@ -1,4 +1,9 @@
 #!/usr/bin/python
+
+# FIXME: offset the tactical and galactic within the main window,
+# creating dark space around it.  requires clipping any sprite draw to
+# "screen".
+
 """
     pygame netrek
     Copyright (C) 2007-2009  James Cameron (quozl@us.netrek.org)
@@ -128,24 +133,26 @@ markiel@callisto.pas.rochester.edu
 """
 import sys, time, socket, errno, select, struct, pygame, math, ctypes
 
-# a global namespace until complexity grows too far
-from netrek.cache import *
-from netrek.constants import *
-from netrek.mis import MultipleImageSprite
-from netrek.util import *
-from netrek.meta import MetaClient
-from netrek.client import Client, ServerDisconnectedError
-from netrek.motd import MOTD
-from netrek.cap import Cap
 from pygame.locals import *
-from netrek import options
-import netrek.rcd
+
+# a global namespace until complexity grows too far
+from cache import *
+from constants import *
+from mis import MultipleImageSprite
+from util import *
+from meta import MetaClient
+from client import Client, ServerDisconnectedError
+from motd import MOTD
+from cap import Cap
+import mercenary
+import options
+import rcd
 
 VERSION = "0.5"
 
 WELCOME = [
 "Netrek Client Pygame %s" % (VERSION),
-"Copyright (C) 2007-2009 James Cameron <quozl@us.netrek.org>",
+"Copyright (C) 2007-2010 James Cameron <quozl@us.netrek.org>",
 "",
 "This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
 "This is free software, and you are welcome to redistribute it under certain",
@@ -155,52 +162,86 @@ WELCOME = [
 ic = IC()
 fc = FC()
 
-def galactic_scale(x, y):
-    """ temporary coordinate scaling, galactic to screen
-    """
-    return (x / galactic_factor, y / galactic_factor)
+# rectangle of entire window
+# changed when screen capabilities are determined
+r_main = Rect((0, 0), (1100, 1100))
 
-def tactical_scale(x, y):
-    global width, height
-    """ temporary coordinate scaling, tactical to screen, ship relative
-    """
-    return ((x - me.x) / 20 + (width / 2), (y - me.y) / 20 + (height / 2)) # forward reference (me)
+# rectangle of tactical and galactic area inside entire window
+r_us = Rect((50, 50), (1000, 1000))
 
-def galactic_descale(x, y):
-    """ temporary coordinate scaling, screen to galactic
-    """
-    return (x * galactic_factor, y * galactic_factor)
+#
+# there are several different coordinate types:
+#
+# 1.  netrek coordinates: represent a position of a game object, are
+# used by the netrek protocol, and are a cartesian pair normally
+# ranging from (0, 0) to (GWIDTH, GWIDTH)
+#
+# 2.  netrek direction: represent a vector from your own ship out into
+# surrounding space, are used by the netrek protocol, and are a value
+# of range 0 to 255, representing a full circle,
+#
+# 3.  tactical screen coordinates: represent a position on screen
+# relative to the main window, matching a netrek coordinate relative
+# to your own ship, are local to the client, are not used in the
+# netrek protocol, and range from (0, 0) to the main window, r_main,
+#
+# 4.  galactic screen coordinates: represent a position on screen
+# relative to the main window, matching a netrek coordinate which is
+# absolute, are local to the client, are not used in the netrek
+# protocol, and have the same range as above.
+#
+# the following functions are for conversions between these coordinate
+# types.
+#
 
-def tactical_descale(x, y):
-    global width, height
-    """ temporary coordinate scaling, screen to tactical, ship relative
+def n2gs(x, y):
+    """ netrek to galactic screen coordinate conversion
     """
-    return ((x - (width / 2)) * 20 + me.x, (y - (height / 2)) * 20 + me.y) # forward reference (me)
+    return (x / galactic_factor + r_us.left,
+            y / galactic_factor + r_us.top)
 
-def descale(x, y):
+def n2ts(me, x, y):
+    """ netrek to tactical screen coordinate conversion
+    """
+    return ((x - me.x) / 20 + r_us.centerx,
+            (y - me.y) / 20 + r_us.centery)
+
+def gs2n(x, y):
+    """ galactic screen to netrek coordinate conversion
+    """
+    return ((x - r_us.left) * galactic_factor,
+            (y - r_us.top) * galactic_factor)
+
+def ts2n(me, x, y):
+    """ tactical screen to netrek coordinate conversion
+    """
+    return ((x - r_us.centerx) * 20 + me.x,
+            (y - r_us.centery) * 20 + me.y)
+
+def s2g(me, x, y):
     if ph_flight == ph_galactic: # forward reference (ph_*)
-        return galactic_descale(x, y)
+        return gs2n(x, y)
     else:
-        return tactical_descale(x, y)
+        return ts2n(me, x, y)
 
-def cursor():
-    """ return the galactic coordinates of the mouse cursor """
+def cursor(me):
+    """ return the netrek coordinates of the mouse cursor """
     x, y = pygame.mouse.get_pos()
-    return descale(x, y)
+    return s2g(me, x, y)
 
-def dir_to_angle(dir):
-    """ convert netrek direction to angle, approximate
-    (determines how many different ship rotation images are held)
+def d2a(dir):
+    """ convert netrek direction (0-255) to angle in degrees (0-359)
     """
-    return dir * 360 / 256 / 5 * 5
+    return dir * 360 / 256
 
-def xy_to_dir(x, y):
-    global me
+def s2d(me, x, y):
+    """ screen coordinate to netrek direction (0-255) conversion """
     if ph_flight == ph_galactic: # forward reference (ph_*)
-        (mx, my) = galactic_scale(me.x, me.y) # forward reference (me)
-        return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
+        (mx, my) = n2gs(me.x, me.y)
     else:
-        return int((math.atan2(x - (width / 2), (height / 2) - y) / math.pi * 128.0 + 0.5))
+        (mx, my) = n2ts(me, me.x, me.y)
+    return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
+
 
 class Local:
     """ netrek game objects, corresponding to objects in the game """
@@ -389,7 +430,7 @@ class Ship(Local):
             if nearby != self.nearby:
                 self.nearby = nearby
                 self.visibility()
-        self.dir = dir_to_angle(dir)
+        self.dir = d2a(dir)
         self.speed = speed
         self.x = x
         self.y = y
@@ -535,17 +576,17 @@ class Phaser(Local):
             tx = int(factor * math.cos(angle))
             ty = int(factor * math.sin(angle))
             (fx, fy) = (self.ship.x, self.ship.y)
-            (tx, ty) = tactical_scale(fx + tx, fy + ty)
-            (fx, fy) = tactical_scale(fx, fy)
+            (tx, ty) = n2ts(me, fx + tx, fy + ty)
+            (fx, fy) = n2ts(me, fx, fy)
         elif self.status == PHHIT2:
             (fx, fy) = (self.ship.x, self.ship.y)
             plasma.x = 100000 # FIXME: track plasma packets
             plasma.y = 100000
-            (tx, ty) = tactical_scale(plasma.x, plasma.y)
+            (tx, ty) = n2ts(me, plasma.x, plasma.y)
         elif self.status == PHHIT:
             target = galaxy.ship(self.target) # forward reference to enclosing class
-            (tx, ty) = tactical_scale(target.x, target.y)
-            (fx, fy) = tactical_scale(self.ship.x, self.ship.y)
+            (tx, ty) = n2ts(me, target.x, target.y)
+            (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
         self.txty = (tx, ty)
         self.fxfy = (fx, fy)
         return pygame.draw.line(screen, (255, 255, 255), (fx, fy), (tx, ty))
@@ -621,7 +662,9 @@ class Galaxy:
             self.caps[n] = Cap(n)
         self.motd = MOTD()
         self.ups = 5 # default if SP_FEATURE UPS is not received
-        self.fps = 1
+        self.rps = 1 # tactical or galactic redraws per second
+        self.frames = 0 # number of protocol paced screen updates done
+        self.events = 0 # number of display events received
         # sp_generic_32
         self.gameup = 0
         self.tournament_teams = 0
@@ -634,6 +677,14 @@ class Galaxy:
         # sp_queue
         self.sp_queue_pos = None
         self.message = None # the MessageSprite
+        # sp_sequence
+        self.paced = False
+
+    def pace(self):
+        """ called when server packets indicate an update burst is starting """
+        self.paced = True
+        self.torp_aging()
+        self.ship_aging()
 
     def planet(self, n):
         if not self.planets.has_key(n):
@@ -862,7 +913,7 @@ class PlanetGalacticSprite(PlanetSprite):
         if new != self.old:
             self.old = new
             self.pick()
-            self.rect.center = galactic_scale(self.planet.x, self.planet.y)
+            self.rect.center = n2gs(self.planet.x, self.planet.y)
 
 class PlanetTacticalSprite(PlanetSprite):
     """ netrek planet sprite on tactical """
@@ -912,15 +963,19 @@ class PlanetTacticalSprite(PlanetSprite):
 
     def update(self):
         # check for change to planet to force a sprite image recreation
+        reposition = False
         new = self.planet.owner, self.planet.info, self.planet.name, self.planet.flags, self.planet.armies, (self.planet == me.planet and me.flags & PFPLLOCK)
         if new != self.old:
             self.old = new
             self.pick()
+            reposition = True
         # check for change to positions to force a sprite move
         new = me.x, me.y, self.planet.x, self.planet.y
         if new != self.pos:
             self.pos = new
-            self.rect.center = tactical_scale(self.planet.x, self.planet.y)
+            reposition = True
+        if reposition:
+            self.rect.center = n2ts(me, self.planet.x, self.planet.y)
 
 class ShipSprite(MultipleImageSprite):
     def __init__(self, ship):
@@ -941,7 +996,7 @@ class ShipGalacticSprite(ShipSprite):
         if new != self.old:
             self.old = new
             self.pick()
-        self.rect.center = galactic_scale(self.ship.x, self.ship.y)
+        self.rect.center = n2gs(self.ship.x, self.ship.y)
 
     def pick(self):
         # FIXME: obtain imagery for galactic view
@@ -980,10 +1035,11 @@ class ShipTacticalSprite(ShipSprite):
         if new != self.old:
             self.old = new
             self.pick()
-        self.rect.center = tactical_scale(self.ship.x, self.ship.y)
+        self.rect.center = n2ts(me, self.ship.x, self.ship.y)
 
     def add_explosion(self):
         # IMAGERY: exp-??.png
+        # FIXME: works fine at 10ups, looks wrong at 25ups.
         x = max(self.ship.fuse, 0)
         try:
             self.mi_add_image(ic.get(self.explosions[x]))
@@ -1077,7 +1133,7 @@ class TorpTacticalSprite(TorpSprite):
             if self.torp.status != self.old_status:
                 self.old_status = self.torp.status
                 self.pick()
-        self.rect.center = tactical_scale(self.torp.x, self.torp.y)
+        self.rect.center = n2ts(me, self.torp.x, self.torp.y)
 
     def pick(self):
         if self.torp.status == TMOVE:
@@ -1136,7 +1192,7 @@ class Halos:
             # scale radius down to graphics
             radius = radius / 20
             # thickness relates to kills
-            cx, cy = tactical_scale(planet.x, planet.y)
+            cx, cy = n2ts(me, planet.x, planet.y)
             width = 1
             #if planet.armies > 4: width += 1
             #if planet.armies > 6: width += 1
@@ -1166,7 +1222,7 @@ class Halos:
             if radius < 100: continue
             # scale radius down to graphics
             radius = radius / 20
-            cx, cy = tactical_scale(ship.x, ship.y)
+            cx, cy = n2ts(me, ship.x, ship.y)
             width = 1
             # thickness relates to kills
             #width = min(max(int(ship.kills),1),3)
@@ -1187,7 +1243,7 @@ class Halos:
         if radius < 100: return
         # scale radius down to graphics
         radius = radius / 20
-        cx, cy = tactical_scale(planet.x, planet.y)
+        cx, cy = n2ts(me, planet.x, planet.y)
         width = 4
         self.rect.append(self.arc(surface, colour, (cx, cy), radius,
                                   width))
@@ -1236,15 +1292,13 @@ class Borders(Lines):
     """
     def __init__(self):
         Lines.__init__(self)
-        proximity = 0.90 # how close before wall appears
-        threshold = n = int(GWIDTH / 10.0 * proximity)
-        # a rectangle of the positions in the galactic that does not
-        # need the borders drawn
-        self.inner = pygame.Rect(n, n, GWIDTH-n-n, GWIDTH-n-n)
-        # FIXME: proximity customisation option
+        # a netrek coordinate rectangle of the positions in the
+        # galactic that do not need the borders drawn
+        n = GWIDTH / 10
+        self.inner = pygame.Rect((n, n), (GWIDTH-n-n, GWIDTH-n-n))
 
-    def limit(self, v1, v2, dim):
-        return (max(0, v1), min(dim-1, v2))
+    def limit(self, v1, v2, vmin, vmax):
+        return (max(vmin, v1), min(vmax-1, v2))
 
     def draw(self):
         self.lines = []
@@ -1253,23 +1307,23 @@ class Borders(Lines):
         # do not draw if the player is in the inner rectangle of the
         # galactic away from the edges
         if self.inner.collidepoint(me.x, me.y): return self.rect
-        x1, y1 = tactical_scale(0, 0)
-        x2, y2 = tactical_scale(GWIDTH, GWIDTH)
-        xm = width / 2
-        ym = height / 2
-        xl = width
-        yl = height
-        if 0 < x1 < xm: # left edge
-            (sy, ey) = self.limit(y1, y2, height)
+        # screen coordinates of the top left corner of the galaxy
+        x1, y1 = n2ts(me, 0, 0)
+        # screen coordinates of the bottom right corner of the galaxy
+        x2, y2 = n2ts(me, GWIDTH, GWIDTH)
+        # is the top left corner X coordinate within the screen,
+        # if so then draw the left edge, and so forth.
+        if r_us.left < x1 < r_us.right:
+            (sy, ey) = self.limit(y1, y2, r_us.top, r_us.bottom)
             self.rect.append(self.line(x1, sy, x1, ey))
-        if 0 < y1 < ym: # top edge
-            (sx, ex) = self.limit(x1, x2, width)
+        if r_us.top < y1 < r_us.bottom: # top edge
+            (sx, ex) = self.limit(x1, x2, r_us.left, r_us.right)
             self.rect.append(self.line(sx, y1, ex, y1))
-        if xm < x2 < xl: # right edge
-            (sy, ey) = self.limit(y1, y2, height)
+        if r_us.left < x2 < r_us.right: # right edge
+            (sy, ey) = self.limit(y1, y2, r_us.top, r_us.bottom)
             self.rect.append(self.line(x2, sy, x2, ey))
-        if ym < y2 < yl: # bottom edge
-            (sx, ex) = self.limit(x1, x2, width)
+        if r_us.top < y2 < r_us.bottom: # bottom edge
+            (sx, ex) = self.limit(x1, x2, r_us.left, r_us.right)
             self.rect.append(self.line(sx, y2, ex, y2))
         return self.rect
 
@@ -1283,8 +1337,8 @@ class Borders(Lines):
             (x1, y1, w, h) = planet.box
             x2 = x1 + w
             y2 = y1 + h
-            x1, y1 = tactical_scale(x1, y1)
-            x2, y2 = tactical_scale(x2, y2)
+            x1, y1 = n2ts(me, x1, y1)
+            x2, y2 = n2ts(me, x2, y2)
             self.rect.append(self.line(x1, y1, x2, y2))
             self.rect.append(self.line(x1, y2, x1, y2))
 
@@ -1297,7 +1351,7 @@ class LocatorSprite(pygame.sprite.Sprite):
 
     def update(self):
         self.pick()
-        self.rect.center = galactic_scale(me.x, me.y)
+        self.rect.center = n2gs(me.x, me.y)
 
     def pick(self):
         self.image = ic.get('locator.png')
@@ -1324,10 +1378,10 @@ class Alerts:
         elif me.flags & PFRED:
             colour = (255, 0, 0)
 
-        self.line(colour, 0, 0, width-1, 0)
-        self.line(colour, 0, height-1, width-1, height-1)
-        self.line(colour, 0, 0, 0, height-1)
-        self.line(colour, width-1, height-1, width-1, 0)
+        self.line(colour, r_us.left, r_us.top, r_us.right-1, r_us.top)
+        self.line(colour, r_us.left, r_us.bottom-1, r_us.right-1, r_us.bottom-1)
+        self.line(colour, r_us.left, r_us.top, r_us.left, r_us.bottom-1)
+        self.line(colour, r_us.right-1, r_us.bottom-1, r_us.right-1, r_us.top)
         return self.rect
 
     def undraw(self, colour):
@@ -1341,37 +1395,56 @@ class DebugSprite(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         self.font = fc.get('DejaVuSansMono.ttf', 20)
-        self.maxfps = 0
-        self.minfps = 1000
-        self.fps = []
-        self.nfps = 10
+        self.maxrps = 0
+        self.minrps = 1000
+        self.rps = []
+        self.nrps = 10
+        self.frames = 0
+        self.last = self.now = time.time()
         self.pick()
 
     def update(self):
         self.pick()
 
     def pick(self):
+        self.now = nt.time
         x = ' '
+##         x += 'now %f ' % self.now
         x += 'ups %d ' % galaxy.ups
-        fps = galaxy.fps
-        self.fps.append(fps)
-        if len(self.fps) > self.nfps:
-            del self.fps[0]
-        x += 'fps %d ' % fps
-        if fps < self.minfps:
-            self.minfps = fps
-        x += 'min %d ' % self.minfps
-        if fps > self.maxfps:
-            self.maxfps = fps
-        x += 'max %d ' % self.maxfps
+
+##         x += 'frames %d ' % ( galaxy.frames )
+        fps = ( galaxy.frames - self.frames ) / ( self.now - self.last )
+        x += 'fps %.1f ' % ( fps )
+        self.frames = galaxy.frames
+        self.last = self.now
+
+        x += 'events %d ' % ( galaxy.events )
+
+        rps = galaxy.rps
+        self.rps.append(rps)
+        if len(self.rps) > self.nrps:
+            del self.rps[0]
+        # redraws per second we could be capable of if there is demand
+        x += 'rps %d ' % rps
+##         if rps < self.minrps:
+##             self.minrps = rps
+##         x += 'min %d ' % self.minrps
+##         if rps > self.maxrps:
+##             self.maxrps = rps
+##         x += 'max %d ' % self.maxrps
         s = 0
-        for e in self.fps:
+        for e in self.rps:
             s += e
-        x += 'avg %d ' % ( s / len(self.fps) )
+        avg = ( s / len(self.rps) )
+        x += 'avg %d ' % avg
+        if galaxy.rps < fps:
+            x += ' DISPLAY LAG'
+        print x
 
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
-        self.rect = self.image.get_rect(centerx=(width/2), bottom=(height-50))
+        self.rect = self.image.get_rect(centerx=(r_us.centerx),
+                                        bottom=(r_us.bottom-50))
 
 class ReportSprite(pygame.sprite.Sprite):
     """ netrek reports
@@ -1381,7 +1454,8 @@ class ReportSprite(pygame.sprite.Sprite):
         self.font = fc.get('DejaVuSansMono.ttf', 20)
         self.fuel = self.damage = self.shield = self.armies = 0
         self.image = self.font.render('--', 1, (255, 255, 255))
-        self.rect = self.image.get_rect(centerx=(width/2), bottom=(height-1))
+        self.rect = self.image.get_rect(centerx=(r_us.centerx),
+                                        bottom=(r_us.bottom-2))
 
     def update(self):
         if me.sp_you_shown and \
@@ -1461,7 +1535,8 @@ class ReportSprite(pygame.sprite.Sprite):
             x += '{%d%s} ' % (galaxy.tournament_remain, galaxy.tournament_remain_units)
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
-        self.rect = self.image.get_rect(centerx=(width/2), bottom=(height-1))
+        self.rect = self.image.get_rect(centerx=(r_us.centerx),
+                                        bottom=(r_us.bottom-2))
 
 class WarningSprite(pygame.sprite.Sprite):
     """ netrek warnings
@@ -1492,7 +1567,7 @@ class WarningSprite(pygame.sprite.Sprite):
 
     def pick(self, text):
         self.image = self.font.render(text, 1, (255, 0, 0))
-        self.rect = self.image.get_rect(centerx=(width/2), top=0)
+        self.rect = self.image.get_rect(centerx=r_us.centerx, top=r_us.top+2)
 
 class MessageLine():
     def __init__(self, m_flags, m_recipt, m_from, mesg):
@@ -1500,8 +1575,8 @@ class MessageLine():
         self.colour = (128, 128, 128)
         if m_from != 0xff:
             self.colour = team_colour(galaxy.ship(m_from).team)
-        self.when = 150
-        # FIXME: base this timer on real-time not number of update calls
+        self.expires = nt.time + 15
+        self.expired = False
 
 class MessageSprite(pygame.sprite.Sprite):
     """ message window,
@@ -1541,9 +1616,10 @@ class MessageSprite(pygame.sprite.Sprite):
     def update(self):
         # remove lines that have expired
         for line in self.lines:
-            if line.when != 0:
-                line.when -= 1
-                self.dirty = True
+            if not line.expired:
+                if line.expires < nt.time:
+                    line.expired = True
+                    self.dirty = True
         # avoid rendering if lines unchanged
         if self.dirty:
             self.pick()
@@ -1558,7 +1634,7 @@ class MessageSprite(pygame.sprite.Sprite):
         surfaces = []
         for line in self.lines:
             text = line.text
-            if line.when == 0 and self.head == '':
+            if line.expired and self.head == '':
                 text = ''
             colour = line.colour
             if self.head != '':
@@ -1593,7 +1669,7 @@ class MessageSprite(pygame.sprite.Sprite):
             rect = pygame.Rect(0, box_top, self.width, (y - box_top))
             pygame.draw.rect(self.image, (128, 128, 255), rect, 1)
 
-        self.rect = self.image.get_rect(centerx=(width/2), top=100)
+        self.rect = self.image.get_rect(centerx=r_us.centerx, top=r_us.top+100)
         # FIXME: darken on red alert
         # FIXME: flexible user chosen position
         # FIXME: place in quadrant away from action depending on team
@@ -1623,26 +1699,26 @@ class MessageSprite(pygame.sprite.Sprite):
         """ process target selection for outgoing message, return true
         if a valid target was selected """
         self.dirty = True
-        if (event.mod == pygame.KMOD_SHIFT or
-            event.mod == pygame.KMOD_LSHIFT or
-            event.mod == pygame.KMOD_RSHIFT):
-            targs = { pygame.K_a: [MALL, 'ALL'], pygame.K_g: [MGOD, 'GOD'] }
+        if (event.mod == KMOD_SHIFT or
+            event.mod == KMOD_LSHIFT or
+            event.mod == KMOD_RSHIFT):
+            targs = { K_a: [MALL, 'ALL'], K_g: [MGOD, 'GOD'] }
             if event.key in targs:
                 (self.group, self.tail) = targs[event.key]
                 return True
-            targs = { pygame.K_f: FED, pygame.K_r: ROM,
-                      pygame.K_k: KLI, pygame.K_o: ORI }
+            targs = { K_f: FED, K_r: ROM,
+                      K_k: KLI, K_o: ORI }
             if event.key in targs:
                 self.group = MTEAM
                 self.indiv = targs[event.key]
                 self.tail = teams[self.indiv].upper()
                 return True
-        if event.key == pygame.K_t or event.key == pygame.K_SPACE:
+        if event.key == K_t or event.key == K_SPACE:
             self.group = MTEAM
             self.indiv = me.team
             self.tail = teams[self.indiv].upper()
             return True
-        if event.key == pygame.K_EQUALS:
+        if event.key == K_EQUALS:
             self.group = MINDIV
             self.indiv = me.n
             self.tail = me.mapchars + ' '
@@ -1723,7 +1799,7 @@ class SpriteBacked(pygame.sprite.Sprite):
         return screen.blit(self.background, self.rect)
 
     def suck(self):
-        self.background = screen.subsurface(self.rect).copy()
+        self.background = screen.subsurface(self.rect.clip(screen.get_rect())).copy()
 
     def blit(self):
         return screen.blit(self.image, self.rect)
@@ -1787,10 +1863,10 @@ class RotatingIcon(SpriteBacked):
         self.rect = self.image.get_rect(centerx=self.x, centery=self.y)
 
 class Text(SpriteBacked):
-    def __init__(self, text, x, y, size=18, colour=(255, 255, 255)):
+    def __init__(self, text, rf, rfa, size=18, colour=(255, 255, 255)):
         font = fc.get('DejaVuSans.ttf', size)
         self.image = font.render(text, 1, colour)
-        self.rect = self.image.get_rect(left=x, centery=y)
+        self.rect = rf(self.image.get_rect, rfa)
         SpriteBacked.__init__(self)
 
 class TextsLine(SpriteBacked):
@@ -1890,9 +1966,9 @@ class Field:
         self.redraw()
 
 class Button(Text, Clickable):
-    def __init__(self, clicked, text, x, y, size, colour):
+    def __init__(self, clicked, text, rf, rfa, size, colour):
         self.text = text
-        Text.__init__(self, text, x, y, size, colour)
+        Text.__init__(self, text, rf, rfa, size, colour)
         Clickable.__init__(self, clicked)
 
 """ animations
@@ -1916,8 +1992,8 @@ class Bouncer:
         r.append(self.r.clear())
         x = self.ex * math.sin(pos * math.pi / max)
         y = self.ey * math.cos(pos * math.pi / max)
-        self.l.move((width/2) - x, self.cy - y)
-        self.r.move((width/2) + x, self.cy + y)
+        self.l.move((r_main.centerx) - x, self.cy - y)
+        self.r.move((r_main.centerx) + x, self.cy + y)
         r.append(self.l.draw())
         r.append(self.r.draw())
         pygame.display.update(r)
@@ -2349,8 +2425,7 @@ class SP_YOU(SP):
         ship = galaxy.ship(pnum)
         ship.sp_you(hostile, swar, armies, tractor, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
         if nt.mode == COMM_TCP and ship.speed == 0:
-            galaxy.torp_aging()
-            galaxy.ship_aging()
+            galaxy.pace()
         if opt.name:
             nt.send(cp_updates.data(1000000/opt.updates))
             nt.send(cp_login.data(0, opt.name, opt.password, opt.login))
@@ -2426,7 +2501,7 @@ class SP_PLAYER(SP):
         ship = galaxy.ship(pnum)
         ship.sp_player(dir, speed, x, y)
         if nt.mode == COMM_TCP and ship == me:
-            galaxy.torp_aging()
+            galaxy.pace()
 
 class SP_FLAGS(SP):
     code = 18
@@ -2674,15 +2749,18 @@ class SP_UDP_REPLY(SP):
         nt.sp_udp_reply(reply, port)
 
 class SP_SEQUENCE(SP):
-    """ only received if client sends CP_UDP_REQ requesting COMM_UDP """
+    """ the first packet the server sends in an update, followed by a
+    variable number of packets with no terminating indication.  only
+    received if client sends CP_UDP_REQ requesting COMM_UDP, """
     code = 29
     format = "!bBH"
 
     def handler(self, data):
         (ignored, flag, sequence) = struct.unpack(self.format, data)
-        galaxy.torp_aging()
-        galaxy.ship_aging()
-        if opt.sp: print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
+        galaxy.pace()
+        if opt.sp:
+            print # to make it clear on dump that a new update has commenced
+            print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
 
 class SP_SHIP_CAP(SP):
     """ only received if client sends CP_FEATURE feature packet SHIP_CAP """
@@ -2767,31 +2845,37 @@ class Phase:
         self.eh_mu = [] # event handlers, mouse up
         self.eh_ue = [] # event handlers, user events (timers)
 
-    def button(self, clicked, text, x, y, size, colour):
-        b = Button(clicked, text, x, y, size, colour)
+    def button(self, clicked, text, rf, rfa, size, colour):
+        b = Button(clicked, text, rf, rfa, size, colour)
         self.eh_md.append(b.md)
         self.eh_mu.append(b.mu)
         b.draw()
         return b
 
+    def place_bottom_right(self, rect, arg):
+        return rect(right=r_main.right-1, bottom=r_main.bottom-1)
+
+    def place_bottom_left(self, rect, arg):
+        return rect(left=r_main.left+1, bottom=r_main.bottom-1)
+
     def add_quit_button(self, clicked, name='QUIT'):
-        self.b_quit = self.button(clicked, name, width - 100, height - 50, 32,
+        self.b_quit = self.button(clicked, name, self.place_bottom_right, None, 32,
                                   colour=(255, 255, 255))
 
     def add_list_button(self, clicked):
-        self.b_list = self.button(clicked, 'LIST', 20, height - 50, 32,
+        self.b_list = self.button(clicked, 'LIST', self.place_bottom_left, None, 32,
                                   colour=(255, 255, 255))
 
     def add_tips_button(self, clicked):
-        self.b_tips = self.button(clicked, 'TIPS', 20, height - 50, 32,
+        self.b_tips = self.button(clicked, 'TIPS', self.place_bottom_left, None, 32,
                                   colour=(255, 255, 255))
 
     def warn(self, message, ms=0):
         font = fc.get('DejaVuSans.ttf', 32)
         text = font.render(message, 1, (255, 127, 127))
-        self.warn_br = text.get_rect(center=(screen.get_width()/2,
-                                             screen.get_height()-90))
-        self.warn_bg = screen.subsurface(self.warn_br).copy()
+        self.warn_br = text.get_rect(centerx=r_main.centerx,
+                                     bottom=r_main.bottom)
+        self.warn_bg = screen.subsurface(self.warn_br.clip(screen.get_rect())).copy()
         r1 = screen.blit(text, self.warn_br)
         pygame.display.update(r1)
         self.warn_on = True
@@ -2813,13 +2897,13 @@ class Phase:
         # centre a background image onto the screen
         screen.fill((0,0,0))
         if opt.no_backgrounds: return
-        if width > 1024 or height > 1000:
+        if r_main.width > 1024 or r_main.height > 1000:
             background = ic.get_scale2xed(name)
         else:
             background = ic.get(name)
         bh = background.get_height()
         bw = background.get_width()
-        tr = background.get_rect(center=(width/2, height/2))
+        tr = background.get_rect(center=(r_main.centerx, r_main.centery))
         screen.blit(background, tr)
 
     def text(self, text, x, y, size=72, colour=(255, 255, 255)):
@@ -2830,18 +2914,18 @@ class Phase:
 
     def blame(self):
         self.text("software by quozl@us.netrek.org and stephen@thorne.id.au",
-                  screen.get_width()/2, screen.get_height()-30, 16)
+                  r_main.centerx, r_main.bottom-90, 16)
         more = ""
         if not opt.no_backgrounds: more = "backgrounds by hubble, "
         self.text(more + "ships by pascal",
-                  screen.get_width()/2, screen.get_height()-15, 16)
+                  r_main.centerx, r_main.bottom-70, 16)
 
     def welcome(self):
         global WELCOME
 
         font = fc.get('DejaVuSansMono.ttf', 14)
-        x = int(width / 2) - 300
-        y = int(height * 0.79)
+        x = r_main.centerx - 300
+        y = int(r_main.bottom * 0.79)
         for line in WELCOME:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
@@ -2868,8 +2952,11 @@ class Phase:
             self.mu(event)
 
     def display_sink(self):
+        n = 0
         for event in pygame.event.get():
             self.display_sink_event(event)
+            n += 1
+        return n
 
     def display_sink_wait(self):
         event = pygame.event.wait()
@@ -2904,9 +2991,9 @@ class Phase:
         return False
 
     def kb(self, event):
-        if event.key == pygame.K_q:
+        if event.key == K_q:
             self.quit(event)
-        elif event.key == pygame.K_ESCAPE:
+        elif event.key == K_ESCAPE:
             self.snap(event)
 
     def exit(self, status):
@@ -2957,10 +3044,9 @@ class PhaseSplash(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
-        x = screen.get_width()/2
-        y = screen.get_height()/2
-        self.text("netrek", x, y, 144)
-        self.bouncer = Bouncer(200, 200, x, y, 'torp-explode-20.png', 'torp-explode-20.png')
+        self.text("netrek", r_main.centerx, r_main.centery, 144)
+        self.bouncer = Bouncer(200, 200, r_main.centerx, r_main.centery,
+                               'torp-explode-20.png', 'torp-explode-20.png')
         self.welcome()
         self.add_quit_button(self.quit)
         pygame.display.flip()
@@ -2998,10 +3084,8 @@ class PhaseTips(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
-        x = screen.get_width()/2
-        y = screen.get_height()/2
-        self.text('netrek', x, 100, 92)
-        self.text('tips', x, 175, 64)
+        self.text('netrek', r_main.centerx, 100, 92)
+        self.text('tips', r_main.centerx, 175, 64)
         self.draw_tips()
         self.add_quit_button(self.quit, name='BACK')
         pygame.display.flip()
@@ -3048,11 +3132,11 @@ class PhaseTips(Phase):
     "For more information on Netrek, visit http://netrek.org/beginner",
 ]
         size = 20
-        x = int(width/2) - 380
-        y = 280
-        if height < 1000:
+        x = r_main.centerx - 380
+        y = 260
+        if r_main.height < 1000:
             size = 15
-            x = int(width/2) - 280
+            x = r.main_centerx - 280
             y = 210
         font = fc.get('DejaVuSans.ttf', size)
         for line in tips:
@@ -3079,7 +3163,7 @@ class PhaseServers(Phase):
         Phase.__init__(self)
         self.screen = screen
         self.background("hubble-orion.jpg")
-        x = screen.get_width() / 2
+        x = r_main.centerx
         self.text('netrek', x, 100, 92)
         self.text('server list', x, 175, 64)
         self.welcome()
@@ -3113,15 +3197,19 @@ class PhaseServers(Phase):
         if age < 300: colour = 192
         if age < 180: colour = 255
         colour = (colour, colour, colour)
-        return Text(server['name'] + ' ' + server['comment'], 100, y, 22, colour)
+        return Text(server['name'] + ' ' + server['comment'], self.place_xy, (100, y), 22, colour)
+
+    def place_xy(self, rect, arg):
+        x, y = arg
+        return rect(left=x, centery=y)
 
     def server_queue(self, y, server):
-        return Text('Queue of ' + str(server['queue']), width / 2 - 10, y, 22, (255, 64, 64))
+        return Text('Queue of ' + str(server['queue']), self.place_xy, (r_main.centerx - 10, y), 22, (255, 64, 64))
 
     def server_players(self, y, server):
         s = []
         # per player icon
-        gx = width / 2
+        gx = r_main.centerx
         for x in range(min(server['players'], 16)):
             # per player icon
             # IMAGERY: servers-player.png
@@ -3238,7 +3326,7 @@ class PhaseQueue(Phase):
             return
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
-        x = screen.get_width() / 2
+        x = r_main.centerx
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.blame()
@@ -3288,7 +3376,7 @@ class PhaseLogin(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-crab.jpg")
-        x = screen.get_width() / 2
+        x = r_main.centerx
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.blame()
@@ -3299,7 +3387,7 @@ class PhaseLogin(Phase):
         self.warn('connected, as slot %s, ready to login' % slot_decode(me.n))
         self.texts = Texts(galaxy.motd.get(), 100, 250, 24, 16)
         pygame.display.flip()
-        self.name = Field("type a name ? ", "", x, height * 0.75)
+        self.name = Field("type a name ? ", "", x, r_main.height * 0.75)
         self.focused = self.name
         self.password = None
         self.run = True
@@ -3316,7 +3404,7 @@ class PhaseLogin(Phase):
             self.chuck_cp_login()
         elif self.focused == self.name:
             if self.password == None:
-                self.password = Field("password ? ", "", width/2, height*0.8)
+                self.password = Field("password ? ", "", r_main.centerx, r_main.height*0.8)
                 # FIXME: password prompt appears momentarily if guest selected
                 # FIXME: #1187683521 force no echo for password
             else:
@@ -3372,23 +3460,23 @@ class PhaseLogin(Phase):
 
     def kb(self, event):
         self.unwarn()
-        shift = (event.mod == pygame.KMOD_SHIFT or
-                 event.mod == pygame.KMOD_LSHIFT or
-                 event.mod == pygame.KMOD_RSHIFT)
-        control = (event.mod == pygame.KMOD_CTRL or
-                   event.mod == pygame.KMOD_LCTRL or
-                   event.mod == pygame.KMOD_RCTRL)
-        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: pass
-        elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
-        elif event.key == pygame.K_d and control:
+        shift = (event.mod == KMOD_SHIFT or
+                 event.mod == KMOD_LSHIFT or
+                 event.mod == KMOD_RSHIFT)
+        control = (event.mod == KMOD_CTRL or
+                   event.mod == KMOD_LCTRL or
+                   event.mod == KMOD_RCTRL)
+        if event.key == K_LSHIFT or event.key == K_RSHIFT: pass
+        elif event.key == K_LCTRL or event.key == K_RCTRL: pass
+        elif event.key == K_d and control:
             self.list(event)
-        elif event.key == pygame.K_w and control:
+        elif event.key == K_w and control:
             self.focused.delete()
-        elif event.key == pygame.K_TAB and shift:
+        elif event.key == K_TAB and shift:
             self.untab()
-        elif event.key == pygame.K_TAB or event.key == pygame.K_RETURN:
+        elif event.key == K_TAB or event.key == K_RETURN:
             self.tab()
-        elif event.key == pygame.K_BACKSPACE:
+        elif event.key == K_BACKSPACE:
             self.focused.backspace()
         elif event.key > 31 and event.key < 255 and not control:
             self.focused.append(event.unicode)
@@ -3432,7 +3520,7 @@ class PhaseOutfit(Phase):
     def do(self):
         self.run = True
         self.background("hubble-spire.jpg")
-        x = screen.get_width() / 2
+        x = r_main.centerx
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.text('ship and race', x, 255, 64)
@@ -3440,10 +3528,10 @@ class PhaseOutfit(Phase):
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
         pygame.display.flip()
-        box_l = int(width * 0.212)
+        box_l = int(r_main.width * 0.212)
         box_t = 300
-        box_r = width - box_l
-        box_b = height - 250
+        box_r = r_main.width - box_l
+        box_b = r_main.height - 250
         sx = (box_r - box_l) / 8
         sy = (box_b - box_t) / 8
         r = []
@@ -3500,11 +3588,10 @@ class PhaseOutfit(Phase):
                     sprite.visible = False
         if len(r) > 0:
             pygame.display.update(r)
-        if opt.mercenary:
-            opt.team = "fed"
+        if mask != 0 and opt.mercenary:
+            opt.team = teams[mercenary.pick(mask, galaxy)]
             opt.ship = "cruiser"
             opt.mercenary = False
-            # FIXME: choose a useful team, see cow, newwin.c, mercenary()
         # FIXME: display SP_WARNING packets (confirm team change)
         # using WarningSprite
         self.auto()
@@ -3574,25 +3661,25 @@ class PhaseOutfit(Phase):
 
     def kb(self, event):
         self.unwarn()
-        shift = (event.mod == pygame.KMOD_SHIFT or
-                 event.mod == pygame.KMOD_LSHIFT or
-                 event.mod == pygame.KMOD_RSHIFT)
-        control = (event.mod == pygame.KMOD_CTRL or
-                   event.mod == pygame.KMOD_LCTRL or
-                   event.mod == pygame.KMOD_RCTRL)
-        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: pass
-        elif event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: pass
-        elif event.key == pygame.K_d and control:
+        shift = (event.mod == KMOD_SHIFT or
+                 event.mod == KMOD_LSHIFT or
+                 event.mod == KMOD_RSHIFT)
+        control = (event.mod == KMOD_CTRL or
+                   event.mod == KMOD_LCTRL or
+                   event.mod == KMOD_RCTRL)
+        if event.key == K_LSHIFT or event.key == K_RSHIFT: pass
+        elif event.key == K_LCTRL or event.key == K_RCTRL: pass
+        elif event.key == K_d and control:
             self.list(event)
-        elif event.key == pygame.K_q:
+        elif event.key == K_q:
             self.quit(event)
-        elif event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
+        elif event.key == K_SPACE or event.key == K_RETURN:
             if self.last_team != None:
                 self.team(self.last_team, self.last_ship)
-        elif event.key == pygame.K_f: self.team(0, self.last_ship)
-        elif event.key == pygame.K_r: self.team(1, self.last_ship)
-        elif event.key == pygame.K_k: self.team(2, self.last_ship)
-        elif event.key == pygame.K_o: self.team(3, self.last_ship)
+        elif event.key == K_f: self.team(0, self.last_ship)
+        elif event.key == K_r: self.team(1, self.last_ship)
+        elif event.key == K_k: self.team(2, self.last_ship)
+        elif event.key == K_o: self.team(3, self.last_ship)
         else:
             return Phase.kb(self, event)
 
@@ -3617,32 +3704,47 @@ class PhaseFlight(Phase):
     def __init__(self, name):
         Phase.__init__(self)
         self.run = True
-        self.frames = 0
-        self.events = 0
-        self.start = time.time()
         self.name = name
         self.set_keys()
         self.eh_ue.append(b_warning_sprite.ue)
         self.modal_handler = None
+        self.event_triggers_update = False
 
-    def __del__(self):
-        end = time.time()
-        elapsed = end - self.start
-        fps = self.frames / elapsed
-        print "%s: frames=%d elapsed=%d rate=%d events=%d" % (self.name, self.frames, elapsed, fps, self.events)
+##     def __del__(self):
+##         end = time.time()
+##         elapsed = end - self.start
+##         fps = self.frames / elapsed
+##         print "%s: frames=%d elapsed=%d rate=%d events=%d" % (self.name, self.frames, elapsed, fps, self.events)
 
     def cycle(self):
         """ main in-flight event loop, returns when no longer flying """
+        # at least one initial screen update is required to form the
+        # playing field
         self.update()
-        self.frames += 1
+        galaxy.frames += 1
+        # loop until termination requested, or no longer flying
         while self.run:
+            # pause until a burst of network packets are received and
+            # processed, or display event occurs.
             packets = self.network_sink()
-            if not packets:
-                self.display_sink()
-                self.events += 1
-            if packets:
+            # if a burst of network packets was processed, and one of
+            # them signified the start of a new update cycle, do a
+            # screen update.
+            if packets and galaxy.paced:
                 self.update()
-                self.frames += 1
+                galaxy.paced = False
+                galaxy.frames += 1
+                #if opt.sp: print "**"
+            # check for and process any display events, but don't wait
+            # around for more, it is critical that we get back to
+            # the head of this loop waiting for anything.
+            events = self.display_sink()
+            if events > 0:
+                galaxy.events += 1
+                if self.event_triggers_update:
+                    self.update()
+                    self.event_triggers_update = False
+                #if opt.sp: print "--"
             if me.status == POUTFIT: break # no longer flying
 
     def update(self):
@@ -3656,34 +3758,34 @@ class PhaseFlight(Phase):
         global me
         if event.button == 3 and me != None:
             (x, y) = event.pos
-            nt.send(cp_direction.data(xy_to_dir(x, y)))
+            nt.send(cp_direction.data(s2d(me, x, y)))
         elif event.button == 2 and me != None:
             (x, y) = event.pos
-            nt.send(cp_phaser.data(xy_to_dir(x, y)))
+            nt.send(cp_phaser.data(s2d(me, x, y)))
         elif event.button == 1 and me != None:
             (x, y) = event.pos
-            nt.send(cp_torp.data(xy_to_dir(x, y)))
+            nt.send(cp_torp.data(s2d(me, x, y)))
 
     def is_control(self, event):
-        return (event.mod == pygame.KMOD_CTRL or
-                event.mod == pygame.KMOD_LCTRL or
-                event.mod == pygame.KMOD_RCTRL)
+        return (event.mod == KMOD_CTRL or
+                event.mod == KMOD_LCTRL or
+                event.mod == KMOD_RCTRL)
 
     def is_shift(self, event):
-        return (event.mod == pygame.KMOD_SHIFT or
-                event.mod == pygame.KMOD_LSHIFT or
-                event.mod == pygame.KMOD_RSHIFT)
+        return (event.mod == KMOD_SHIFT or
+                event.mod == KMOD_LSHIFT or
+                event.mod == KMOD_RSHIFT)
 
     def is_escape(self, event):
-        return (event.key == pygame.K_ESCAPE or
-                (event.key == pygame.K_LEFTBRACKET and
+        return (event.key == K_ESCAPE or
+                (event.key == K_LEFTBRACKET and
                 self.is_control(event)))
 
     def kb(self, event):
 
         # ignore the shift and control keys on their own
-        if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT: return
-        if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL: return
+        if event.key == K_LSHIFT or event.key == K_RSHIFT: return
+        if event.key == K_LCTRL or event.key == K_RCTRL: return
 
         # check for control key sequences pressed
         if (self.is_control(event)):
@@ -3715,73 +3817,73 @@ class PhaseFlight(Phase):
     def set_keys(self):
         """ define dictionaries to map keys to operations """
         self.keys_normal = {
-            pygame.K_0: (self.op_warp, 0),
-            pygame.K_1: (self.op_warp, 1),
-            pygame.K_2: (self.op_warp, 2),
-            pygame.K_3: (self.op_warp, 3),
-            pygame.K_4: (self.op_warp, 4),
-            pygame.K_5: (self.op_warp, 5),
-            pygame.K_6: (self.op_warp, 6),
-            pygame.K_7: (self.op_warp, 7),
-            pygame.K_8: (self.op_warp, 8),
-            pygame.K_9: (self.op_warp, 9),
-            pygame.K_SEMICOLON: (self.op_planet_lock, None),
-            pygame.K_b: (self.op_bomb, None),
-            pygame.K_c: (self.op_cloak_toggle, None),
-            pygame.K_d: (self.op_det, None),
-            pygame.K_e: (self.op_docking_toggle, None),
-            pygame.K_l: (self.op_player_lock, None),
-            pygame.K_m: (self.op_message, None),
-            pygame.K_o: (self.op_orbit, None),
-            pygame.K_s: (self.op_shield_toggle, None),
-            pygame.K_u: (self.op_shield_toggle, None),
-            pygame.K_x: (self.op_beam_down, None),
-            pygame.K_y: (self.op_pressor_toggle, None),
-            pygame.K_z: (self.op_beam_up, None),
+            K_0: (self.op_warp, 0),
+            K_1: (self.op_warp, 1),
+            K_2: (self.op_warp, 2),
+            K_3: (self.op_warp, 3),
+            K_4: (self.op_warp, 4),
+            K_5: (self.op_warp, 5),
+            K_6: (self.op_warp, 6),
+            K_7: (self.op_warp, 7),
+            K_8: (self.op_warp, 8),
+            K_9: (self.op_warp, 9),
+            K_SEMICOLON: (self.op_planet_lock, None),
+            K_b: (self.op_bomb, None),
+            K_c: (self.op_cloak_toggle, None),
+            K_d: (self.op_det, None),
+            K_e: (self.op_docking_toggle, None),
+            K_l: (self.op_player_lock, None),
+            K_m: (self.op_message, None),
+            K_o: (self.op_orbit, None),
+            K_s: (self.op_shield_toggle, None),
+            K_u: (self.op_shield_toggle, None),
+            K_x: (self.op_beam_down, None),
+            K_y: (self.op_pressor_toggle, None),
+            K_z: (self.op_beam_up, None),
             }
         self.keys_control = {
-            pygame.K_HASH: (self.op_distress, rcd.dist_type_other2),
-            pygame.K_0: (self.op_distress, rcd.dist_type_pop),
-            pygame.K_1: (self.op_distress, rcd.dist_type_save_planet),
-            pygame.K_2: (self.op_distress, rcd.dist_type_base_ogg),
-            pygame.K_3: (self.op_distress, rcd.dist_type_help1),
-            pygame.K_4: (self.op_distress, rcd.dist_type_help2),
-            pygame.K_5: (self.op_distress, rcd.dist_type_asw),
-            pygame.K_6: (self.op_distress, rcd.dist_type_asbomb),
-            pygame.K_7: (self.op_distress, rcd.dist_type_doing1),
-            pygame.K_8: (self.op_distress, rcd.dist_type_doing2),
-            pygame.K_9: (self.op_distress, rcd.dist_type_pickup),
-            pygame.K_AT: (self.op_distress, rcd.dist_type_other1),
-            pygame.K_b: (self.op_distress, rcd.dist_type_bomb),
-            pygame.K_c: (self.op_distress, rcd.dist_type_space_control),
-            pygame.K_e: (self.op_distress, rcd.dist_type_escorting),
-            pygame.K_f: (self.op_distress, rcd.dist_type_free_beer),
-            pygame.K_h: (self.op_distress, rcd.dist_type_crippled),
-            pygame.K_l: (self.op_distress, rcd.dist_type_controlling),
-            pygame.K_m: (self.op_distress, rcd.dist_type_bombing),
-            pygame.K_n: (self.op_distress, rcd.dist_type_no_gas),
-            pygame.K_o: (self.op_distress, rcd.dist_type_ogg),
-            pygame.K_p: (self.op_distress, rcd.dist_type_ogging),
-            pygame.K_t: (self.op_distress, rcd.dist_type_take),
+            K_HASH: (self.op_distress, rcd.dist_type_other2),
+            K_0: (self.op_distress, rcd.dist_type_pop),
+            K_1: (self.op_distress, rcd.dist_type_save_planet),
+            K_2: (self.op_distress, rcd.dist_type_base_ogg),
+            K_3: (self.op_distress, rcd.dist_type_help1),
+            K_4: (self.op_distress, rcd.dist_type_help2),
+            K_5: (self.op_distress, rcd.dist_type_asw),
+            K_6: (self.op_distress, rcd.dist_type_asbomb),
+            K_7: (self.op_distress, rcd.dist_type_doing1),
+            K_8: (self.op_distress, rcd.dist_type_doing2),
+            K_9: (self.op_distress, rcd.dist_type_pickup),
+            K_AT: (self.op_distress, rcd.dist_type_other1),
+            K_b: (self.op_distress, rcd.dist_type_bomb),
+            K_c: (self.op_distress, rcd.dist_type_space_control),
+            K_e: (self.op_distress, rcd.dist_type_escorting),
+            K_f: (self.op_distress, rcd.dist_type_free_beer),
+            K_h: (self.op_distress, rcd.dist_type_crippled),
+            K_l: (self.op_distress, rcd.dist_type_controlling),
+            K_m: (self.op_distress, rcd.dist_type_bombing),
+            K_n: (self.op_distress, rcd.dist_type_no_gas),
+            K_o: (self.op_distress, rcd.dist_type_ogg),
+            K_p: (self.op_distress, rcd.dist_type_ogging),
+            K_t: (self.op_distress, rcd.dist_type_take),
             }
         self.keys_shift = {
-            pygame.K_COMMA: (self.op_warp_down, None),
-            pygame.K_PERIOD: (self.op_warp_up, None),
-            pygame.K_0: (self.op_warp, 10),
-            pygame.K_1: (self.op_warp, 11),
-            pygame.K_2: (self.op_warp, 12),
-            pygame.K_3: (self.op_warp_half, None),
-            pygame.K_4: (self.op_null, None),
-            pygame.K_5: (self.op_warp_full, None),
-            pygame.K_6: (self.op_null, None),
-            pygame.K_7: (self.op_null, None),
-            pygame.K_8: (self.op_practice, None),
-            pygame.K_9: (self.op_warp, 10),
-            pygame.K_d: (self.op_det_me, None),
-            pygame.K_e: (self.op_distress, rcd.dist_type_generic),
-            pygame.K_f: (self.op_distress, rcd.dist_type_carrying),
-            pygame.K_r: (self.op_repair, None),
-            pygame.K_t: (self.op_tractor_toggle, None),
+            K_COMMA: (self.op_warp_down, None),
+            K_PERIOD: (self.op_warp_up, None),
+            K_0: (self.op_warp, 10),
+            K_1: (self.op_warp, 11),
+            K_2: (self.op_warp, 12),
+            K_3: (self.op_warp_half, None),
+            K_4: (self.op_null, None),
+            K_5: (self.op_warp_full, None),
+            K_6: (self.op_null, None),
+            K_7: (self.op_null, None),
+            K_8: (self.op_practice, None),
+            K_9: (self.op_warp, 10),
+            K_d: (self.op_det_me, None),
+            K_e: (self.op_distress, rcd.dist_type_generic),
+            K_f: (self.op_distress, rcd.dist_type_carrying),
+            K_r: (self.op_repair, None),
+            K_t: (self.op_tractor_toggle, None),
             }
 
     def op_null(self, event, arg):
@@ -3816,7 +3918,7 @@ class PhaseFlight(Phase):
 
     def op_distress(self, event, arg):
         if not me: return
-        mesg = rcd.pack(arg, cursor(), me, galaxy)
+        mesg = rcd.pack(arg, cursor(me), me, galaxy)
         if mesg: nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
 
     def op_docking_toggle(self, event, arg):
@@ -3830,13 +3932,13 @@ class PhaseFlight(Phase):
         nt.send(cp_orbit.data(1))
 
     def op_planet_lock(self, event, arg):
-        nearest = galaxy.closest_planet(cursor())
+        nearest = galaxy.closest_planet(cursor(me))
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
             me.planet = nearest
 
     def op_player_lock(self, event, arg):
-        nearest = galaxy.closest_ship(cursor())
+        nearest = galaxy.closest_ship(cursor(me))
         if nearest != me:
             nt.send(cp_playlock.data(nearest.n))
 
@@ -3845,7 +3947,7 @@ class PhaseFlight(Phase):
 
     def op_pressor_toggle(self, event, arg):
         if not me: return
-        nearest = galaxy.closest_ship(cursor())
+        nearest = galaxy.closest_ship(cursor(me))
         if nearest != me:
             if me.flags & PFPRESS:
                 nt.send(cp_repress.data(0, nearest.n))
@@ -3867,7 +3969,7 @@ class PhaseFlight(Phase):
 # off) _ (tractor off and reapply), ^ (pressor off and reapply)
     def op_tractor_toggle(self, event, arg):
         if not me: return
-        nearest = galaxy.closest_ship(cursor())
+        nearest = galaxy.closest_ship(cursor(me))
         if nearest != me:
             if me.flags & PFTRACT:
                 nt.send(cp_tractor.data(0, nearest.n))
@@ -3893,11 +3995,13 @@ class PhaseFlight(Phase):
         if me:
             galaxy.message.start()
             self.modal_handler = self.op_message_target
+            self.event_triggers_update = True
 
     def op_message_target(self, event):
+        self.event_triggers_update = True
         if self.is_escape(event) or \
-               event.key == pygame.K_BACKSPACE or \
-               event.key == pygame.K_m:
+               event.key == K_BACKSPACE or \
+               event.key == K_m:
             galaxy.message.abort()
             self.modal_handler = None
             return
@@ -3905,18 +4009,19 @@ class PhaseFlight(Phase):
             self.modal_handler = self.op_message_typing
 
     def op_message_typing(self, event):
+        self.event_triggers_update = True
         if self.is_escape(event):
             galaxy.message.abort()
             self.modal_handler = None
             return
-        if event.key == pygame.K_BACKSPACE:
+        if event.key == K_BACKSPACE:
             if galaxy.message.is_empty():
                 galaxy.message.retarget()
                 self.modal_handler = self.op_message_target
                 return
             galaxy.message.backspace()
             return
-        if event.key == pygame.K_RETURN:
+        if event.key == K_RETURN:
             galaxy.message.send()
             self.modal_handler = None
             return
@@ -3926,48 +4031,51 @@ class PhaseFlight(Phase):
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self, 'galactic')
+        self.alerts = Alerts()
 
     def do(self):
         self.run = True
+        screen.set_clip(r_us) # restrict drawing
         screen.blit(background, (0, 0))
         # draw static background, team borders and team names
         r = []
-        xc, yc = galactic_scale(GWIDTH/2, GWIDTH/2)
-        x1, y1 = galactic_scale(0, 0)
-        x2, y2 = galactic_scale(GWIDTH, GWIDTH)
+        xc, yc = n2gs(GWIDTH/2, GWIDTH/2)
+        x1, y1 = n2gs(0, 0)
+        x2, y2 = n2gs(GWIDTH, GWIDTH)
         r += [pygame.draw.line(screen, (128, 128, 128), (xc, y1), (xc, y2))]
         r += [pygame.draw.line(screen, (128, 128, 128), (x1, yc), (x2, yc))]
-        
+
         size = 24
         font = fc.get('DejaVuSans.ttf', size)
-        
+
         ts = font.render('Romulan', 1, (255, 64, 64))
-        tr = ts.get_rect(left=2, top=2)
+        tr = ts.get_rect(left=r_us.left+2, top=r_us.top+2)
         screen.blit(ts, tr)
         r += [tr]
-        
+
         ts = font.render('Federation', 1, (255, 255, 64))
-        tr = ts.get_rect(left=2, bottom=height-2)
+        tr = ts.get_rect(left=r_us.left+2, bottom=r_us.bottom-2)
         screen.blit(ts, tr)
         r += [tr]
-        
+
         ts = font.render('Orion', 1, (64, 255, 255))
-        tr = ts.get_rect(right=width-2, bottom=height-2)
+        tr = ts.get_rect(right=r_us.right-2, bottom=r_us.bottom-2)
         screen.blit(ts, tr)
         r += [tr]
-        
+
         ts = font.render('Klingon', 1, (64, 255, 64))
-        tr = ts.get_rect(right=width-2, top=2)
+        tr = ts.get_rect(right=r_us.right-2, top=r_us.top+2)
         screen.blit(ts, tr)
         r += [tr]
-        
+
         pygame.display.update(r)
         self.bg = screen.copy()
+        screen.set_clip(r_main)
         self.cycle()
 
     def kb(self, event):
         global ph_flight
-        if event.key == pygame.K_RETURN and self.modal_handler is None:
+        if event.key == K_RETURN and self.modal_handler is None:
             ph_flight = ph_tactical
             self.run = False
         else:
@@ -3975,7 +4083,9 @@ class PhaseFlightGalactic(PhaseFlight):
 
     def update(self):
         t0 = time.time()
+        screen.set_clip(r_us) # restrict drawing
         r = [] # sequence of dirty rectangles for update
+        r += self.alerts.undraw((0,0,0))
         b_warning.clear(screen, self.bg)
         b_reports.clear(screen, self.bg)
         g_players.clear(screen, self.bg)
@@ -3993,9 +4103,11 @@ class PhaseFlightGalactic(PhaseFlight):
         r += g_players.draw(screen)
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
+        r += self.alerts.draw()
         pygame.display.update(r)
+        screen.set_clip(r_main)
         t1 = time.time()
-        galaxy.fps = int ( 1 / ( t1 - t0 ) )
+        galaxy.rps = int ( 1 / ( t1 - t0 ) )
 
 class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
@@ -4021,7 +4133,7 @@ class PhaseFlightTactical(PhaseFlight):
 
     def kb(self, event):
         global ph_flight
-        if event.key == pygame.K_RETURN and self.modal_handler is None:
+        if event.key == K_RETURN and self.modal_handler is None:
             ph_flight = ph_galactic
             self.run = False
         else:
@@ -4043,7 +4155,7 @@ class PhaseFlightTactical(PhaseFlight):
         # if we are incapable of a greater local frame rate than the
         # server is configured to send us updates for, defer one in
         # ten of these extra graphics updates
-        if galaxy.fps < galaxy.ups:
+        if galaxy.rps < galaxy.ups:
             self.pace += 1
             if self.pace < 10: return []
             self.pace = 0
@@ -4060,6 +4172,7 @@ class PhaseFlightTactical(PhaseFlight):
         """ clear, update, and redraw all tactical sprites and non-sprites """
 
         t0 = time.time()
+        screen.set_clip(r_us) # restrict drawing
         r = [] # sequence of dirty rectangles for update
         r += galaxy.phasers_undraw(self.co)
         r += self.borders.undraw(self.co)
@@ -4096,8 +4209,9 @@ class PhaseFlightTactical(PhaseFlight):
         r += b_message.draw(screen)
 
         pygame.display.update(r)
+        screen.set_clip(r_main)
         t1 = time.time()
-        galaxy.fps = int ( 1 / ( t1 - t0 ) )
+        galaxy.rps = int ( 1 / ( t1 - t0 ) )
 
         #r_debug = galaxy.torp_debug_draw()
         #pygame.display.update(r_debug)
@@ -4108,7 +4222,7 @@ class PhaseDisconnected(Phase):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
-        x = screen.get_width()/2
+        x = r_main.centerx
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.text('disconnected', x, 255, 64)
@@ -4252,7 +4366,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, background, width, height, galactic_factor
+    global t_planets, t_players, t_torps, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, background, galactic_factor, r_main, r_us
 
     pygame.init()
     size = width, height = 1000, 1000
@@ -4335,10 +4449,18 @@ def pg_init():
     height = surface.get_height()
     size = width, height
     print "have a surface size %d x %d pixels" % (width, height)
+    r_main = Rect((0, 0), (width, height))
+    r_us = r_main
+    print "r_main", r_main
+    if width > 1000 and height > 1000:
+        left = (width - 1000) / 2
+        top = (height - 1000) / 2
+        r_us = Rect((left, top), (1000, 1000))
+    print "r_us", r_us
     if not opt.debug:
         ic.preload() # 416ms buffered, 787ms unbuffered
 
-    short = min(width, height)
+    short = min(r_us.width, r_us.height)
     galactic_factor = GWIDTH / short
 
     # sprite groups
@@ -4404,10 +4526,18 @@ def nt_play_a_slot():
         ph_outfit.do()
         if ph_outfit.cancelled: break # quit or list chosen during outfit
         # at this point, team and ship choice is accepted by server
+
+        # FIXME: here we utterly rely on arriving network packets
+        # until ship status changes (SP_PSTATUS), and we don't do any
+        # screen updates, and we don't notice if the stream falters.
         while me.status == POUTFIT: nt.recv()
+
         ph_flight = ph_tactical
         while True:
+            # clear screen before starting a display mode
             screen.blit(background, (0, 0))
+            # FIXME: might place display mode independent static
+            # content on screen here, or not clear the whole screen
             pygame.display.flip()
             ph_flight.do()
             if me.status == POUTFIT: break # ship has died
