@@ -3735,6 +3735,14 @@ class PhaseFlight(Phase):
         self.eh_ue.append(b_warning_sprite.ue)
         self.modal_handler = None
         self.event_triggers_update = False
+        self.eh_md.append(self.md_us)
+        self.add_quit_button(self.quit)
+
+    def draw(self):
+        """ draw common ui components for all flight modes """
+        r = []
+        r += self.b_quit.draw()
+        return r
 
 ##     def __del__(self):
 ##         end = time.time()
@@ -3776,21 +3784,21 @@ class PhaseFlight(Phase):
     def update(self):
         raise NotImplemented
 
-    def md(self, event):
-        """ mouse button down event handler
-        position is a list of (x, y) screen coordinates
-        button is a mouse button number
+    def md_us(self, event):
+        """ tactical window mouse button down event handler
         """
-        global me
-        if event.button == 3 and me != None:
-            (x, y) = event.pos
+        if not r_us.collidepoint(event.pos):
+            return False # event not handled
+
+        if not me: return True # event handled
+        (x, y) = event.pos
+        if event.button == 3:
             nt.send(cp_direction.data(s2d(me, x, y)))
-        elif event.button == 2 and me != None:
-            (x, y) = event.pos
+        elif event.button == 2:
             nt.send(cp_phaser.data(s2d(me, x, y)))
-        elif event.button == 1 and me != None:
-            (x, y) = event.pos
+        elif event.button == 1:
             nt.send(cp_torp.data(s2d(me, x, y)))
+        return True
 
     def is_control(self, event):
         return (event.mod == KMOD_CTRL or
@@ -4122,6 +4130,7 @@ class PhaseFlightGalactic(PhaseFlight):
         pygame.display.update(r)
         self.bg = screen.copy()
         screen.set_clip(r_main)
+        pygame.display.update(self.draw())
         self.cycle()
 
     def kb(self, event):
@@ -4179,6 +4188,7 @@ class PhaseFlightTactical(PhaseFlight):
         self.saved_background = background
         self.run = True
         screen.blit(self.bg, (0, 0))
+        pygame.display.update(self.draw())
         self.cycle()
         background = self.saved_background
 
