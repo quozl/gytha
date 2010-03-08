@@ -3,6 +3,7 @@ import pygame
 class MultipleImageSprite(pygame.sprite.Sprite):
     """ a sprite class consisting of multiple images overlaid
         the images are blitted over each other in the order they are added
+        all images share a common centre
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)

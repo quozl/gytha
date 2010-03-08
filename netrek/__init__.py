@@ -6,7 +6,7 @@
 
 """
     pygame netrek
-    Copyright (C) 2007-2009  James Cameron (quozl@us.netrek.org)
+    Copyright (C) 2007-2010  James Cameron (quozl@us.netrek.org)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -947,11 +947,10 @@ class PlanetTacticalSprite(PlanetSprite):
             self.mi_add_image(ic.get('planet-overlay-repair.png'))
         if self.planet.flags & PLFUEL:
             self.mi_add_image(ic.get('planet-overlay-fuel.png'))
-        # FIXME: cache the static flags surfaces here, they will rarely change
 
         # planet name
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
-        font = fc.get('DejaVuSans.ttf', 18)
+        font = fc.get('DejaVuSans.ttf', 17)
         message = "%s" % (self.planet.name)
         text = font.render(message, 1, (92, 92, 92))
         rect = text.get_rect(centerx=60, bottom=120)
@@ -1361,32 +1360,55 @@ class Alerts:
     """ red, yellow, and green alert status
     """
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.lines = []
         self.rect = []
 
-    def line(self, c, sx, sy, ex, ey):
+    def line(self, sx, sy, ex, ey):
         self.lines.append((sx, sy, ex, ey))
-        self.rect.append(pygame.draw.line(screen, c, (sx, sy), (ex, ey)))
+        self.rect.append(pygame.draw.line(screen, self.colour, (sx, sy), (ex, ey)))
 
-    def draw(self):
-        self.lines = []
-        self.rect = []
+    def draw_lines(self, l, t, r, b):
+        self.line(l, t, r, t)
+        self.line(r, t, r, b)
+        self.line(r, b, l, b)
+        self.line(l, b, l, t)
 
-        colour = (0, 255, 0)
+    def pick_colour(self):
+        self.colour = (0, 255, 0)
         if me.flags & PFYELLOW:
-            colour = (255, 255, 0)
+            self.colour = (255, 255, 0)
         elif me.flags & PFRED:
-            colour = (255, 0, 0)
-
-        self.line(colour, r_us.left, r_us.top, r_us.right-1, r_us.top)
-        self.line(colour, r_us.left, r_us.bottom-1, r_us.right-1, r_us.bottom-1)
-        self.line(colour, r_us.left, r_us.top, r_us.left, r_us.bottom-1)
-        self.line(colour, r_us.right-1, r_us.bottom-1, r_us.right-1, r_us.top)
-        return self.rect
+            self.colour = (255, 0, 0)
 
     def undraw(self, colour):
         for (sx, sy, ex, ey) in self.lines:
             pygame.draw.line(screen, colour, (sx, sy), (ex, ey))
+        return self.rect
+
+class TacticalAlerts(Alerts):
+    def __init__(self):
+        Alerts.__init__(self)
+
+    def draw(self):
+        self.reset()
+        self.pick_colour()
+        self.draw_lines(r_us.left, r_us.top, r_us.right-1, r_us.bottom-1)
+        return self.rect
+
+class GalacticAlerts(Alerts):
+    def __init__(self):
+        Alerts.__init__(self)
+
+    def draw(self):
+        self.reset()
+        self.pick_colour()
+        l, t = n2gs(0, 0)
+        r, b = n2gs(GWIDTH-1, GWIDTH-1)
+        self.draw_lines(l, t, r, b)
+        # FIXME: bottom line not visible if main height = 600, why?
         return self.rect
 
 class DebugSprite(pygame.sprite.Sprite):
@@ -1585,10 +1607,14 @@ class MessageSprite(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         galaxy.message = self
-        self.font = fc.get('DejaVuSansMono.ttf', 16)
-        self.maximum = 10
         self.width = 900
         self.height = 400
+        size = 16
+        if r_main.width < 801:
+            size = 14
+            self.width = 750
+        self.font = fc.get('DejaVuSansMono.ttf', size)
+        self.maximum = 10
         self.dirty = True
         self.lines = []
         self.head = ''
@@ -4031,7 +4057,7 @@ class PhaseFlight(Phase):
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self, 'galactic')
-        self.alerts = Alerts()
+        self.alerts = GalacticAlerts()
 
     def do(self):
         self.run = True
@@ -4045,28 +4071,53 @@ class PhaseFlightGalactic(PhaseFlight):
         r += [pygame.draw.line(screen, (128, 128, 128), (xc, y1), (xc, y2))]
         r += [pygame.draw.line(screen, (128, 128, 128), (x1, yc), (x2, yc))]
 
+        if r_us.width == 1000 and r_us.height == 1000:
+
+            ts = ic.get('team-box-rom.png')
+            tr = ts.get_rect(left=x1, top=y1)
+            screen.blit(ts, tr)
+            r += [tr]
+
+            ts = ic.get('team-box-fed.png')
+            tr = ts.get_rect(left=x1, bottom=y2)
+            screen.blit(ts, tr)
+            r += [tr]
+
+            ts = ic.get('team-box-ori.png')
+            tr = ts.get_rect(right=x2, bottom=y2)
+            screen.blit(ts, tr)
+            r += [tr]
+
+            ts = ic.get('team-box-kli.png')
+            tr = ts.get_rect(right=x2, top=y1)
+            screen.blit(ts, tr)
+            r += [tr]
+
         size = 24
         font = fc.get('DejaVuSans.ttf', size)
 
         ts = font.render('Romulan', 1, (255, 64, 64))
-        tr = ts.get_rect(left=r_us.left+2, top=r_us.top+2)
+        tr = ts.get_rect(left=x1+2, top=y1+2)
         screen.blit(ts, tr)
         r += [tr]
 
         ts = font.render('Federation', 1, (255, 255, 64))
-        tr = ts.get_rect(left=r_us.left+2, bottom=r_us.bottom-2)
+        tr = ts.get_rect(left=x1+2, bottom=y2-2)
         screen.blit(ts, tr)
         r += [tr]
 
         ts = font.render('Orion', 1, (64, 255, 255))
-        tr = ts.get_rect(right=r_us.right-2, bottom=r_us.bottom-2)
+        tr = ts.get_rect(right=x2-2, bottom=y2-2)
         screen.blit(ts, tr)
         r += [tr]
 
         ts = font.render('Klingon', 1, (64, 255, 64))
-        tr = ts.get_rect(right=r_us.right-2, top=r_us.top+2)
+        tr = ts.get_rect(right=x2-2, top=y1+2)
         screen.blit(ts, tr)
         r += [tr]
+
+        # FIXME: galactic to be centered on main screen for
+        # --width=800 --height=600 --no-fullscreen
 
         pygame.display.update(r)
         self.bg = screen.copy()
@@ -4113,7 +4164,7 @@ class PhaseFlightTactical(PhaseFlight):
     def __init__(self):
         PhaseFlight.__init__(self, 'tactical')
         self.borders = Borders()
-        self.alerts = Alerts()
+        self.alerts = TacticalAlerts()
         self.halos = Halos()
 
         self.co = (0, 0, 0)
@@ -4226,7 +4277,12 @@ class PhaseDisconnected(Phase):
         self.text('netrek', x, 100, 92)
         self.text(opt.chosen, x, 185, 64)
         self.text('disconnected', x, 255, 64)
-        self.texts = Texts(self.diagnosis(), 50, 455, 12, 18)
+        y = 455
+        size = 12
+        if r_main.width < 801:
+            size = 10
+            y = 350
+        self.texts = Texts(self.diagnosis(), 50, y, size, 18)
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
         pygame.display.flip()
@@ -4636,7 +4692,3 @@ def main():
 # FIXME: dual display
 
 # FIXME: keymap feature, allow use of function keys for actions.
-
-# FIXME: how to maintain static content off edge of valid tactical;
-# (a) mask a valid tactical rect over the master tactical redraw,
-# (b) draw the static content once and hope.
