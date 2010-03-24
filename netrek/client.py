@@ -257,7 +257,7 @@ class Client:
         self.tcp.send(self.cp_udp_req.data(COMM_TCP, 0, 0))
 
     def statistics(self):
-        print 'Client: tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu)
+        print 'network statistics: tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu)
 
     def shutdown(self):
         self.tcp.shutdown(socket.SHUT_RDWR)

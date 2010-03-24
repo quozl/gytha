@@ -1,9 +1,5 @@
 #!/usr/bin/python
 
-# FIXME: offset the tactical and galactic within the main window,
-# creating dark space around it.  requires clipping any sprite draw to
-# "screen".
-
 """
     pygame netrek
     Copyright (C) 2007-2010  James Cameron (quozl@us.netrek.org)
@@ -3038,7 +3034,7 @@ class Phase:
             self.exit(0)
 
     def snap(self, event):
-        pygame.image.save(screen, "netrek-client-pygame-%04d.tga" % self.screenshot)
+        pygame.image.save(screen, "netrek-client-pygame-%04d.jpeg" % self.screenshot)
         print "snapshot taken"
         self.screenshot += 1
 
@@ -3077,7 +3073,7 @@ class PhaseSplash(Phase):
         self.add_quit_button(self.quit)
         pygame.display.flip()
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-splash.tga")
+            pygame.image.save(screen, "netrek-client-pygame-splash.jpeg")
         self.ue_set(100)
         self.fuse_was = self.fuse = opt.splashtime / self.ue_delay
         self.run = True
@@ -3116,7 +3112,7 @@ class PhaseTips(Phase):
         self.add_quit_button(self.quit, name='BACK')
         pygame.display.flip()
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-tips.tga")
+            pygame.image.save(screen, "netrek-client-pygame-tips.jpeg")
         self.run = True
         self.cycle_wait_display() # returns after self.leave is called
 
@@ -3162,7 +3158,7 @@ class PhaseTips(Phase):
         y = 260
         if r_main.height < 1000:
             size = 15
-            x = r.main_centerx - 280
+            x = r_main.centerx - 280
             y = 210
         font = fc.get('DejaVuSans.ttf', size)
         for line in tips:
@@ -3316,7 +3312,7 @@ class PhaseServers(Phase):
             self.warn('click on a server, mate', 1000)
             return
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-servers.tga")
+            pygame.image.save(screen, "netrek-client-pygame-servers.jpeg")
         pygame.display.update(self.b_quit.clear())
         self.warn('connecting, standby')
         opt.chosen = chosen
@@ -3362,7 +3358,7 @@ class PhaseQueue(Phase):
         pygame.display.flip()
         self.run = True
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-queue.tga")
+            pygame.image.save(screen, "netrek-client-pygame-queue.jpeg")
         while self.run:
             packets = self.network_sink()
             if packets > 0: self.data()
@@ -3418,7 +3414,7 @@ class PhaseLogin(Phase):
         self.password = None
         self.run = True
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-login.tga")
+            pygame.image.save(screen, "netrek-client-pygame-login.jpeg")
         self.cancelled = False
         self.cycle() # returns when login is complete, or cancelled
 
@@ -3542,6 +3538,7 @@ class PhaseOutfit(Phase):
         self.cancelled = False
         self.visible = pygame.sprite.OrderedUpdates(())
         self.angle = 0
+        self.screenshot = False
 
     def do(self):
         self.run = True
@@ -3594,8 +3591,6 @@ class PhaseOutfit(Phase):
         self.warn("in netrek all races are equal")
         pygame.display.update(r)
         sp_mask.catch(self.mask)
-        if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-outfit.tga")
         self.cycle() # returns when choice accepted by server, or user cancels
         sp_mask.uncatch()
 
@@ -3614,6 +3609,10 @@ class PhaseOutfit(Phase):
                     sprite.visible = False
         if len(r) > 0:
             pygame.display.update(r)
+            if opt.screenshots:
+                if not self.screenshot:
+                    pygame.image.save(screen, "netrek-client-pygame-outfit.jpeg")
+                    self.screenshot = True
         if mask != 0 and opt.mercenary:
             opt.team = teams[mercenary.pick(mask, galaxy)]
             opt.ship = "cruiser"
@@ -3736,12 +3735,15 @@ class PhaseFlight(Phase):
         self.modal_handler = None
         self.event_triggers_update = False
         self.eh_md.append(self.md_us)
-        self.add_quit_button(self.quit)
+        self.b_quit = None
+        if r_main.width > 1055 and r_main.height > 1055:
+            self.add_quit_button(self.quit)
 
     def draw(self):
         """ draw common ui components for all flight modes """
         r = []
-        r += self.b_quit.draw()
+        if self.b_quit is not None:
+            r += self.b_quit.draw()
         return r
 
 ##     def __del__(self):
@@ -3913,6 +3915,7 @@ class PhaseFlight(Phase):
             K_7: (self.op_null, None),
             K_8: (self.op_practice, None),
             K_9: (self.op_warp, 10),
+            K_c: (self.op_snap, None),
             K_d: (self.op_det_me, None),
             K_e: (self.op_distress, rcd.dist_type_generic),
             K_f: (self.op_distress, rcd.dist_type_carrying),
@@ -4061,6 +4064,9 @@ class PhaseFlight(Phase):
             return
         galaxy.message.typing(event)
         # FIXME: message history, up & down arrow recall
+
+    def op_snap(self, event, arg):
+        self.snap(event)
 
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
@@ -4517,12 +4523,10 @@ def pg_init():
     print "have a surface size %d x %d pixels" % (width, height)
     r_main = Rect((0, 0), (width, height))
     r_us = r_main
-    print "r_main", r_main
     if width > 1000 and height > 1000:
         left = (width - 1000) / 2
         top = (height - 1000) / 2
         r_us = Rect((left, top), (1000, 1000))
-    print "r_us", r_us
     if not opt.debug:
         ic.preload() # 416ms buffered, 787ms unbuffered
 

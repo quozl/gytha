@@ -1,7 +1,7 @@
-PACKAGE=`head -1 debian/changelog|cut -f1 -d\ `
-VERSION=`head -1 debian/changelog|cut -f2 -d\(|cut -f1 -d-`
+PACKAGE=netrek-client-pygame
+VERSION=0.5
 
-all: 
+all:
 	@echo $(PACKAGE)-$(VERSION)
 	echo "To start this Netrek client, run the file netrek-client-pygame"
 
@@ -33,19 +33,25 @@ install:
 	mkdir -p $(DESTDIR)/usr/share/doc/netrek-client-pygame
 	cp ChangeLog $(DESTDIR)/usr/share/doc/netrek-client-pygame
 
-oldpackage:
-	fakeroot dpkg-buildpackage -us -uc
+#
+# Maintainer's Debian packaging section
+#
+DEBIAN_VERSION=$(shell head -1 debian/changelog|cut -f2 -d\(|cut -f1 -d\))
+DEBIAN_PACKAGE=$(shell head -1 debian/changelog|cut -f1 -d\ )
 
 package:
-	python2.6 setup.py bdist_rpm
+	fakeroot dpkg-buildpackage -us -uc
 
+newpackage:
+	python2.6 setup.py bdist_deb
+
+TARGET=~/public_html/external/mine/netrek-client-pygame/
 upload:
-	cp $(PACKAGE)-$(VERSION).tar.gz ~/public_html/external/mine/netrek-client-pygame/
-	mv ../$(PACKAGE)_$(VERSION)*.deb ~/public_html/external/mine/netrek-client-pygame/
-	cp doc/index.phtml ~/public_html/external/mine/netrek-client-pygame/
-	cp doc/*.{jpg,png,gif} ~/public_html/external/mine/netrek-client-pygame/
+	cp $(PACKAGE)-$(VERSION).tar.gz $(TARGET)
+	mv ../$(DEBIAN_PACKAGE)_$(DEBIAN_VERSION)*.deb $(TARGET)
+	cp doc/index.phtml doc/*.jpg $(TARGET)
 
 update:
-	(cd ~/public_html/external/mine/netrek-client-pygame/;rm -f db;make)
+	(cd $(TARGET);rm -f db;make)
 
 release: dist package upload update

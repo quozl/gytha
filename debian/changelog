@@ -1,3 +1,9 @@
+netrek-client-pygame (0.5-0) unstable; urgency=low
+
+  * new upstream release
+
+ -- James Cameron <quozl@us.netrek.org>  Wed, 24 Mar 2010 19:17:41 +1100
+
 netrek-client-pygame (0.4-0) unstable; urgency=low
 
   * new upstream version
