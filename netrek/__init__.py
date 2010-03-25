@@ -1721,9 +1721,7 @@ class MessageSprite(pygame.sprite.Sprite):
         """ process target selection for outgoing message, return true
         if a valid target was selected """
         self.dirty = True
-        if (event.mod == KMOD_SHIFT or
-            event.mod == KMOD_LSHIFT or
-            event.mod == KMOD_RSHIFT):
+        if (event.mod & KMOD_SHIFT):
             targs = { K_a: [MALL, 'ALL'], K_g: [MGOD, 'GOD'] }
             if event.key in targs:
                 (self.group, self.tail) = targs[event.key]
@@ -3482,12 +3480,8 @@ class PhaseLogin(Phase):
 
     def kb(self, event):
         self.unwarn()
-        shift = (event.mod == KMOD_SHIFT or
-                 event.mod == KMOD_LSHIFT or
-                 event.mod == KMOD_RSHIFT)
-        control = (event.mod == KMOD_CTRL or
-                   event.mod == KMOD_LCTRL or
-                   event.mod == KMOD_RCTRL)
+        shift = event.mod & KMOD_SHIFT
+        control = event.mod & KMOD_CTRL
         if event.key == K_LSHIFT or event.key == K_RSHIFT: pass
         elif event.key == K_LCTRL or event.key == K_RCTRL: pass
         elif event.key == K_d and control:
@@ -3686,12 +3680,8 @@ class PhaseOutfit(Phase):
 
     def kb(self, event):
         self.unwarn()
-        shift = (event.mod == KMOD_SHIFT or
-                 event.mod == KMOD_LSHIFT or
-                 event.mod == KMOD_RSHIFT)
-        control = (event.mod == KMOD_CTRL or
-                   event.mod == KMOD_LCTRL or
-                   event.mod == KMOD_RCTRL)
+        shift = event.mod & KMOD_SHIFT
+        control = event.mod & KMOD_CTRL
         if event.key == K_LSHIFT or event.key == K_RSHIFT: pass
         elif event.key == K_LCTRL or event.key == K_RCTRL: pass
         elif event.key == K_d and control:
@@ -3803,14 +3793,10 @@ class PhaseFlight(Phase):
         return True
 
     def is_control(self, event):
-        return (event.mod == KMOD_CTRL or
-                event.mod == KMOD_LCTRL or
-                event.mod == KMOD_RCTRL)
+        return event.mod & KMOD_CTRL
 
     def is_shift(self, event):
-        return (event.mod == KMOD_SHIFT or
-                event.mod == KMOD_LSHIFT or
-                event.mod == KMOD_RSHIFT)
+        return event.mod & KMOD_SHIFT
 
     def is_escape(self, event):
         return (event.key == K_ESCAPE or
