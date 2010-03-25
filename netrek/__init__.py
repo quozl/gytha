@@ -4493,7 +4493,7 @@ def pg_init():
     # screen mode.
 
     if not screen and opt.fullscreen:
-        if videoinfo.current_w != -1 and videoinfo_current_h != -1:
+        if videoinfo.current_w != -1 and videoinfo.current_h != -1:
             print "trying current resolution in full screen mode"
             screen = pygame.display.set_mode((videoinfo.current_w,
                                               videoinfo.current_h), FULLSCREEN)
