@@ -589,26 +589,19 @@ class Phaser(Local):
         each netrek ship has one netrek phaser
         instances created as packets about the phasers are received
         instances are listed in a dictionary of phasers in the galaxy instance
+        (instances of this class are jointly a model and view)
     """
     def __init__(self, n):
         Local.__init__(self, n)
         self.ship = galaxy.ship(n) # forward reference to enclosing class
         self.status = PHFREE
-        self.want = False
-        self.have = False
+        self.want = False # is to be drawn on screen
+        self.have = False # has been drawn on screen
         self.sp_phaser(0, 0, 0, 0, 0)
-
-    def colour(self, team):
-        if team == me.team: return (255, 255, 255)
-        if team == FED: return (255, 255, 0)
-        if team == ROM: return (255, 0, 0)
-        if team == KLI: return (0, 255, 0)
-        if team == ORI: return (0, 255, 255)
-        return (128, 128, 128)
 
     def draw(self):
         self.have = True
-        if self.status == PHMISS:
+        if self.status == PHMISS: # phaser missed, did not hit anything
             s_phaserrange = self.ship.cap.s_phaserrange
             phasedist = 6000
             factor = phasedist * s_phaserrange / 100
@@ -617,28 +610,31 @@ class Phaser(Local):
             ty = int(factor * math.sin(angle))
             (tx, ty) = n2ts(me, self.ship.x + tx, self.ship.y + ty)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
-        elif self.status == PHHIT2:
+        elif self.status == PHHIT2: # phaser hit a plasma owned by target ship
             target = galaxy.plasma(self.target)
             (tx, ty) = n2ts(me, target.x, target.y)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
-        elif self.status == PHHIT:
+        elif self.status == PHHIT: # phaser hit a target ship
             target = galaxy.ship(self.target) # forward reference to enclosing class
             (tx, ty) = n2ts(me, target.x, target.y)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
         self.txty = (tx, ty)
         self.fxfy = (fx, fy)
-        return pygame.draw.line(screen, self.colour(self.ship.team),
-                                (fx, fy), (tx, ty))
+        if self.ship == me:
+            colour = (255, 255, 255)
+        else:
+            colour = brighten(team_colour(self.ship.team))
+        return pygame.draw.line(screen, colour, (fx, fy), (tx, ty))
 
     def undraw(self, colour):
         self.have = False
         return pygame.draw.line(screen, colour, self.fxfy, self.txty)
 
-    def sp_phaser(self, status, dir, x, y, target):
+    def sp_phaser(self, status, direction, x, y, target):
         old = self.status
 
         self.status = status
-        self.dir = dir
+        self.dir = direction
         self.x = x
         self.y = y
         self.target = target
@@ -877,17 +873,9 @@ class PlanetGalacticSprite(PlanetSprite):
             message = "%s" % (self.planet.name)
             if message == "":
                 message = "unknown"
-            colour = (128, 128, 128)
+            colour = team_colour(self.planet.owner)
             if self.planet.armies > 4:
-                if self.planet.owner == FED: colour = (255, 255, 0)
-                if self.planet.owner == ROM: colour = (255, 0, 0)
-                if self.planet.owner == KLI: colour = (0, 255, 0)
-                if self.planet.owner == ORI: colour = (0, 255, 255)
-            else:
-                if self.planet.owner == FED: colour = (128, 128, 0)
-                if self.planet.owner == ROM: colour = (128, 0, 0)
-                if self.planet.owner == KLI: colour = (0, 128, 0)
-                if self.planet.owner == ORI: colour = (0, 128, 128)
+                colour = brighten(colour)
             text = font.render(message, 1, colour)
             rect = text.get_rect(centerx=30, bottom=80)
             self.tag.blit(text, rect)
@@ -953,7 +941,7 @@ class PlanetTacticalSprite(PlanetSprite):
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
         font = fc.get('DejaVuSans.ttf', 17)
         message = "%s" % (self.planet.name)
-        text = font.render(message, 1, (92, 92, 92))
+        text = font.render(message, 1, team_colour(self.planet.owner))
         rect = text.get_rect(centerx=60, bottom=120)
         # FIXME: name may not fit within surface
         image.blit(text, rect)
@@ -4803,15 +4791,7 @@ def main():
     pg_quit()
     return 0
 
-# FIXME: very little reason for outfit phase, default to automatically re-enter
 # FIXME: planets to be partial alpha in tactical view as ships close in?
-
-# socket http://docs.python.org/lib/socket-objects.html
-# select http://docs.python.org/lib/module-select.html
-# struct http://docs.python.org/lib/module-struct.html
-# built-ins http://docs.python.org/lib/built-in-funcs.html
-
-# FIXME: add fast quit, which answers SP_PICKOK with -1 and then CP_QUIT
 
 # FIXME: add graphic indicator of connection status
 # FIXME: discover servers from a cache
