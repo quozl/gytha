@@ -1,0 +1,18 @@
+--- !ditz.rubyforge.org,2008-03-06/issue 
+title: refit at planet or base
+desc: maybe with a popup menu of ships ;-)
+type: :feature
+component: netrek-client-pygame
+release: 
+reporter: James Cameron <quozl@us.netrek.org>
+status: :unstarted
+disposition: 
+creation_time: 2010-03-28 22:05:04.226698 Z
+references: []
+
+id: 54bed8ed56991982a1edb6095d7a297221db5269
+log_events: 
+- - 2010-03-28 22:05:15.632913 Z
+  - James Cameron <quozl@us.netrek.org>
+  - created
+  - requested by hellow for plasma testing
