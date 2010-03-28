@@ -221,3 +221,10 @@ GU_PUCK         =  0x200 # Hockey robot is present
 GU_DOG          =  0x400 # Dogfight robot is present
 GU_INL_DRAFTING =  0x800 # INL draft pre-game is in progress
 GU_INL_DRAFTED  = 0x1000 # INL draft game is in progress
+
+# Plasma Torpedo states
+
+PTFREE = 0
+PTMOVE = 1
+PTEXPLODE = 2
+PTDET = 3

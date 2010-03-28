@@ -548,6 +548,42 @@ class Torp(Local):
         q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx + 200, ty))
         return pygame.Rect.union(p, q)
 
+class Plasma(Local):
+    """ netrek plasma torps
+        each netrek ship has one netrek plasma torp
+        instances created as packets about the plasma torps are received
+        instances are listed in a dictionary in the galaxy instance
+    """
+    def __init__(self, n):
+        Local.__init__(self, n)
+        self.ship = galaxy.ship(n) # forward reference to enclosing class
+        self.status = PTFREE
+        self.sp_plasma_info(0, self.status)
+        self.sp_plasma(0, 0)
+        self.tactical = PlasmaTacticalSprite(self)
+
+    def sp_plasma_info(self, war, status):
+        old = self.status
+
+        self.war = war
+        self.status = status
+
+        try:
+            if old == PTFREE:
+                if status != PTFREE:
+                    self.tactical.show()
+            else:
+                if status == PTFREE:
+                    self.tactical.hide()
+                elif status == PTEXPLODE:
+                    pass
+        except:
+            pass
+
+    def sp_plasma(self, x, y):
+        self.x = x
+        self.y = y
+
 class Phaser(Local):
     """ netrek phasers
         each netrek ship has one netrek phaser
@@ -579,14 +615,12 @@ class Phaser(Local):
             angle = ( self.dir - 64 ) / 128.0 * math.pi
             tx = int(factor * math.cos(angle))
             ty = int(factor * math.sin(angle))
-            (fx, fy) = (self.ship.x, self.ship.y)
-            (tx, ty) = n2ts(me, fx + tx, fy + ty)
-            (fx, fy) = n2ts(me, fx, fy)
+            (tx, ty) = n2ts(me, self.ship.x + tx, self.ship.y + ty)
+            (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
         elif self.status == PHHIT2:
-            (fx, fy) = (self.ship.x, self.ship.y)
-            plasma.x = 100000 # FIXME: track plasma packets
-            plasma.y = 100000
-            (tx, ty) = n2ts(me, plasma.x, plasma.y)
+            target = galaxy.plasma(self.target)
+            (tx, ty) = n2ts(me, target.x, target.y)
+            (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
         elif self.status == PHHIT:
             target = galaxy.ship(self.target) # forward reference to enclosing class
             (tx, ty) = n2ts(me, target.x, target.y)
@@ -613,44 +647,6 @@ class Phaser(Local):
             if self.status != PHFREE: self.want = True
         else:
             if self.status == PHFREE: self.want = False
-
-class Plasma(Local):
-    """ netrek plasma torps
-        each netrek ship has one netrek plasma torp
-        instances created as packets about the plasma torps are received
-        instances are listed in a dictionary in the galaxy instance
-    """
-    def __init__(self, n):
-        Local.__init__(self, n)
-        self.ship = galaxy.ship(n) # forward reference to enclosing class
-        self.status = TFREE
-        self.sp_plasma_info(0, self.status)
-        self.sp_plasma(0, 0)
-        # self.tactical = PlasmaTacticalSprite(self)
-        # FIXME: show plasma on tactical
-
-    def sp_plasma_info(self, war, status):
-        old = self.status
-
-        self.war = war
-        self.status = status
-
-        # FIXME: this code is the same for torps, factorise it
-        try:
-            if old == TFREE:
-                if status != TFREE:
-                    self.tactical.show()
-            else:
-                if status == TFREE:
-                    self.tactical.hide()
-                elif status == TEXPLODE:
-                    pass
-        except:
-            pass
-
-    def sp_plasma(self, x, y):
-        self.x = x
-        self.y = y
 
 class Galaxy:
     """ structure to contain all netrek game objects """
@@ -1129,7 +1125,7 @@ class TorpTacticalSprite(TorpSprite):
         self.pick()
 
     def update(self):
-        # torp image changes only while exploding or change of status
+        # image changes only while exploding or change of status
         if self.torp.status == TEXPLODE:
             self.old_status = self.torp.status
             self.pick()
@@ -1165,6 +1161,42 @@ class TorpTacticalSprite(TorpSprite):
 
     def hide(self):
         t_torps.remove(self)
+
+class PlasmaSprite(pygame.sprite.Sprite):
+    def __init__(self, plasma):
+        self.plasma = plasma
+        self.old_status = plasma.status
+        pygame.sprite.Sprite.__init__(self)
+
+class PlasmaTacticalSprite(PlasmaSprite):
+    """ netrek plasma sprites
+    """
+    def __init__(self, plasma):
+        PlasmaSprite.__init__(self, plasma)
+        self.pick()
+
+    def update(self):
+        if self.plasma.status != self.old_status:
+            self.old_status = self.plasma.status
+            self.pick()
+        self.rect.center = n2ts(me, self.plasma.x, self.plasma.y)
+
+    def pick(self):
+        if self.plasma.status == PTMOVE:
+            self.image = ic.get('plasma-move.png')
+            self.rect = self.image.get_rect()
+        elif self.plasma.status == TEXPLODE:
+            self.image = ic.get('plasma-explode.png')
+            self.rect = self.image.get_rect()
+        else:
+            self.image = None
+            self.rect = None
+
+    def show(self):
+        t_plasma.add(self)
+
+    def hide(self):
+        t_plasma.remove(self)
 
 class Halos:
     def __init__(self):
@@ -2272,7 +2304,7 @@ class CP_PLASMA(CP):
 
     def data(self, direction):
         if opt.cp: print "CP_PLASMA direction=",direction
-        return struct.pack(self.format, self.code, direction)
+        return struct.pack(self.format, self.code, direction & 255)
 
 class CP_TORP(CP):
     code = 6
@@ -3946,10 +3978,14 @@ class PhaseFlight(Phase):
             K_c: (self.op_cloak_toggle, None),
             K_d: (self.op_det, None),
             K_e: (self.op_docking_toggle, None),
+            K_f: (self.op_plasma, None),
+            K_k: (self.op_course, None),
             K_l: (self.op_player_lock, None),
             K_m: (self.op_message, None),
             K_o: (self.op_orbit, None),
+            K_p: (self.op_phaser, None),
             K_s: (self.op_shield_toggle, None),
+            K_t: (self.op_torp, None),
             K_u: (self.op_shield_toggle, None),
             K_x: (self.op_beam_down, None),
             K_y: (self.op_pressor_toggle, None),
@@ -4020,6 +4056,10 @@ class PhaseFlight(Phase):
         else:
             nt.send(cp_cloak.data(1))
 
+    def op_course(self, event, arg):
+        (x, y) = pygame.mouse.get_pos()
+        nt.send(cp_direction.data(s2d(me, x, y)))
+
     def op_det(self, event, arg):
         nt.send(cp_det_torps.data())
 
@@ -4046,11 +4086,19 @@ class PhaseFlight(Phase):
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
 
+    def op_phaser(self, event, arg):
+        (x, y) = pygame.mouse.get_pos()
+        nt.send(cp_phaser.data(s2d(me, x, y)))
+
     def op_planet_lock(self, event, arg):
         nearest = galaxy.closest_planet(cursor(me))
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
             me.planet = nearest
+
+    def op_plasma(self, event, arg):
+        (x, y) = pygame.mouse.get_pos()
+        nt.send(cp_plasma.data(s2d(me, x, y)))
 
     def op_player_lock(self, event, arg):
         nearest = galaxy.closest_ship(cursor(me))
@@ -4079,6 +4127,10 @@ class PhaseFlight(Phase):
             nt.send(cp_shield.data(0))
         else:
             nt.send(cp_shield.data(1))
+
+    def op_torp(self, event, arg):
+        (x, y) = pygame.mouse.get_pos()
+        nt.send(cp_torp.data(s2d(me, x, y)))
 
 # FIXME: adopt netrek-client-cow tractor off, and reapply keys, $ (all
 # off) _ (tractor off and reapply), ^ (pressor off and reapply)
@@ -4330,12 +4382,14 @@ class PhaseFlightTactical(PhaseFlight):
         b_reports.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
         t_torps.clear(screen, self.bg)
+        t_plasma.clear(screen, self.bg)
         t_players.clear(screen, self.bg)
         t_planets.clear(screen, self.bg)
 
         r += self.extra()
         t_planets.update()
         t_players.update()
+        t_plasma.update()
         t_torps.update()
         b_warning.update()
         b_reports.update()
@@ -4343,6 +4397,7 @@ class PhaseFlightTactical(PhaseFlight):
 
         r += t_planets.draw(screen)
         r += t_players.draw(screen)
+        r += t_plasma.draw(screen)
         r += t_torps.draw(screen)
         r += galaxy.phasers_draw()
         r += self.borders.draw()
@@ -4514,7 +4569,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, background, galactic_factor, r_main, r_us
+    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, background, galactic_factor, r_main, r_us
 
     pygame.init()
     size = width, height = 1000, 1000
@@ -4613,6 +4668,7 @@ def pg_init():
     t_planets = pygame.sprite.OrderedUpdates(())
     t_players = pygame.sprite.OrderedUpdates(())
     t_torps = pygame.sprite.OrderedUpdates(())
+    t_plasma = pygame.sprite.OrderedUpdates(())
     g_locator = pygame.sprite.OrderedUpdates(())
     g_locator.add(LocatorSprite())
     g_planets = pygame.sprite.OrderedUpdates(())
@@ -4770,8 +4826,6 @@ def main():
 
 # FIXME: list buttons do not show server list if --server used, avoid
 # rendering them.
-
-# FIXME: 'k' key, 'p' key
 
 # FIXME: new version notification
 
