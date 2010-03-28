@@ -562,6 +562,14 @@ class Phaser(Local):
         self.have = False
         self.sp_phaser(0, 0, 0, 0, 0)
 
+    def colour(self, team):
+        if team == me.team: return (255, 255, 255)
+        if team == FED: return (255, 255, 0)
+        if team == ROM: return (255, 0, 0)
+        if team == KLI: return (0, 255, 0)
+        if team == ORI: return (0, 255, 255)
+        return (128, 128, 128)
+
     def draw(self):
         self.have = True
         if self.status == PHMISS:
@@ -585,7 +593,8 @@ class Phaser(Local):
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
         self.txty = (tx, ty)
         self.fxfy = (fx, fy)
-        return pygame.draw.line(screen, (255, 255, 255), (fx, fy), (tx, ty))
+        return pygame.draw.line(screen, self.colour(self.ship.team),
+                                (fx, fy), (tx, ty))
 
     def undraw(self, colour):
         self.have = False
