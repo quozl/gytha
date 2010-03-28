@@ -1481,6 +1481,7 @@ class DebugSprite(pygame.sprite.Sprite):
 
 class ReportSprite(pygame.sprite.Sprite):
     """ netrek reports
+        FIXME: graphical display instead of text
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -1530,7 +1531,7 @@ class ReportSprite(pygame.sprite.Sprite):
              'practice', # GU_PRACTICE
              # also set by INL robot during a pause, in pre-game, or post-game
              'chaos', # GU_CHAOS
-# also set by INL robot in post-game
+             # also set by INL robot in post-game
              'paused', # GU_PAUSED
              'league', # GU_INROBOT
              'newbie', # GU_NEWBIE
@@ -1943,8 +1944,9 @@ class Texts:
         return sprite
 
 class Field:
-    def __init__(self, prompt, value, x, y):
+    def __init__(self, prompt, value, x, y, echo=True):
         self.value = value
+        self.echo = echo
         self.fn = fn = fc.get('DejaVuSans.ttf', 36)
         self.sw = sw = screen.get_width()
         self.sh = sh = screen.get_height()
@@ -1955,7 +1957,7 @@ class Field:
         self.pg = screen.subsurface(self.pr).copy()
         r1 = screen.blit(ps, pr)
         # highlight entry area
-        self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 300, pr.height)
+        self.br = pygame.Rect(pr.right, pr.top, sw - pr.right - 200, pr.height)
         self.bg = screen.subsurface(self.br).copy()
         pygame.display.update(r1)
         self.enter()
@@ -1967,7 +1969,9 @@ class Field:
         return screen.blit(self.bg, self.br)
 
     def draw(self):
-        ts = self.fn.render(self.value, 1, (255, 255, 255))
+        value = self.value
+        if not self.echo: value = '*' * len(self.value)
+        ts = self.fn.render(value, 1, (255, 255, 255))
         tr = ts.get_rect(topleft=self.pc)
         tr.left = self.pr.right
         return screen.blit(ts, tr)
@@ -1992,8 +1996,9 @@ class Field:
 
     def append(self, char):
         self.value = self.value + char
-        r1 = self.draw()
-        pygame.display.update(r1)
+        r1 = self.highlight()
+        r2 = self.draw()
+        pygame.display.update([r1, r2])
 
     def backspace(self):
         self.value = self.value[:-1]
@@ -3515,7 +3520,7 @@ class PhaseLogin(Phase):
             self.chuck_cp_login()
         elif self.focused == self.name:
             if self.password == None:
-                self.password = Field("password ? ", "", r_main.centerx, r_main.height*0.8)
+                self.password = Field("password ? ", "", r_main.centerx, r_main.height*0.8, echo=False)
                 # FIXME: password prompt appears momentarily if guest selected
                 # FIXME: #1187683521 force no echo for password
             else:
