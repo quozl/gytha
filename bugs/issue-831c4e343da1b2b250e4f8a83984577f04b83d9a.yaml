@@ -9,8 +9,8 @@ type: :feature
 component: netrek-client-pygame
 release: 
 reporter: James Cameron <quozl@us.netrek.org>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :reorg
 creation_time: 2009-03-31 09:40:30.043874 Z
 references: []
 
@@ -20,3 +20,7 @@ log_events:
   - James Cameron <quozl@us.netrek.org>
   - created
   - ""
+- - 2010-03-28 07:17:02.103972 Z
+  - James Cameron <quozl@us.netrek.org>
+  - closed with disposition reorg
+  - apparently fixed long ago
