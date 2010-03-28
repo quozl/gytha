@@ -1005,18 +1005,9 @@ class ShipTacticalSprite(ShipSprite):
         ShipSprite.__init__(self, ship)
         self.tag = None
         self.pick()
-        self.explosions = [
-            'exp-10.png',
-            'exp-09.png',
-            'exp-08.png',
-            'exp-07.png',
-            'exp-06.png',
-            'exp-05.png',
-            'exp-04.png',
-            'exp-03.png',
-            'exp-02.png',
-            'exp-01.png',
-            'exp-00.png', ]
+        self.explosions = [ 'exp-10.png', 'exp-09.png', 'exp-08.png',
+            'exp-07.png', 'exp-06.png', 'exp-05.png', 'exp-04.png',
+            'exp-03.png', 'exp-02.png', 'exp-01.png', 'exp-00.png' ]
 
     def update(self):
         new = self.ship.dir, self.ship.team, self.ship.shiptype, self.ship.status, self.ship.flags, self.ship.fuse
@@ -1035,7 +1026,6 @@ class ShipTacticalSprite(ShipSprite):
             self.mi_add_image(ic.get('explosion.png'))
 
     def add_ship(self):
-        # FIXME: obtain imagery for galactic view
         # IMAGERY: ???-??-40x40.png
         if self.ship.shiptype != STARBASE:
             rotation = self.ship.dir
@@ -1048,19 +1038,15 @@ class ShipTacticalSprite(ShipSprite):
 
     def add_tag(self):
         if not self.tag:
-            self.tag = pygame.Surface((40, 40), pygame.SRCALPHA, 32)
-            font = fc.get('DejaVuSans.ttf', 24)
+            pos = 76
+            self.tag = pygame.Surface((pos, pos), pygame.SRCALPHA, 32)
+            font = fc.get('DejaVuSans.ttf', 20)
             message = slot_decode(self.ship.n)
-            colour = (255, 255, 255)
-            flags = self.ship.flags
-            if flags & PFPRACTR:
-                colour = (0, 255, 0)
-            elif flags & PFROBOT:
-                colour = (255, 0, 0)
-            elif flags & PFBPROBOT:
-                colour = (0, 0, 255)
+            colour = team_colour(self.ship.team)
+            if self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT):
+                colour = (255, 0, 255)
             text = font.render(message, 1, colour)
-            rect = text.get_rect(center=(20, 20))
+            rect = text.get_rect(top=0, right=pos)
             self.tag.blit(text, rect)
         self.mi_add_image(self.tag)
 
@@ -1072,7 +1058,8 @@ class ShipTacticalSprite(ShipSprite):
             self.add_explosion()
         else:
             self.add_ship()
-            self.add_tag()
+            if not flags & PFCLOAK:
+                self.add_tag()
 
         if status == PALIVE:
             if flags & PFCLOAK:
@@ -1082,7 +1069,6 @@ class ShipTacticalSprite(ShipSprite):
                 # IMAGERY: shield-80x80.png
                 self.mi_add_image(ic.get('shield-80x80.png'))
 
-        # FIXME: not show or show differently if PFCLOAK
         self.mi_commit()
 
     def show(self):
