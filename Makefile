@@ -1,5 +1,5 @@
 PACKAGE=netrek-client-pygame
-VERSION=0.5
+VERSION=0.6
 
 all:
 	@echo $(PACKAGE)-$(VERSION)

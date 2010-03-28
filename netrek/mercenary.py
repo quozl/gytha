@@ -8,7 +8,7 @@ def show(avail, prefix):
     print prefix + ' [' + x + ']'
 
 def pick(mask, galaxy):
-    debug = True
+    debug = False
     if debug: print "mercenary mode, temporary debugging output follows"
     count = {}  # count of players by team
     large = IND # team with largest number of players

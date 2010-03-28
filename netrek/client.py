@@ -18,6 +18,7 @@ class Client:
         self.time = time.time()
         self.mode_requested = COMM_UDP
         self.mode = None
+        self.has_quit = False
         self.x = None
         self.timeout = 0.04
         self.fd = []
@@ -79,6 +80,7 @@ class Client:
         self.udp_peerport = None
         self.fd.append(self.udp)
         self.ct = self.cu = 0
+        self.has_quit = False
         return True
 
     def tcp_send(self, data):

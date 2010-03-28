@@ -60,22 +60,53 @@ class IC:
             self.cache_scale2xed[(name)] = scaled
         return self.cache_scale2xed[(name)]
 
-    def preload(self):
-        names = []
-        t0 = time.time()
+    def preload_scan(self):
+        self.names = []
         for path in self.paths:
             for dirpath, dirnames, filenames in os.walk('images'):
                 for name in filenames:
                     if '.png' not in name and '.jpg' not in name:
                         continue
-                    if name not in names:
-                        names.append(name)
-        names.sort()
-        t1 = time.time()
-        for name in names:
+                    if name not in self.names:
+                        self.names.append(name)
+        import random
+        self.names.sort()
+
+    def preload_early(self):
+        """ preload cache with known large images that cost more than
+        a hundredth of a second on the developer's hardware ... these
+        images will certainly cause the splash bouncer update to
+        stumble """
+        self.get('team-box-fed.png')
+        self.get('team-box-kli.png')
+        self.get('team-box-ori.png')
+        self.get('team-box-rom.png')
+        self.get('hubble-crab.jpg')
+        self.get('hubble-helix.jpg')
+        self.get('hubble-orion.jpg')
+        self.get('hubble-spire.jpg')
+        self.get('exp-04.png')
+        self.get('exp-05.png')
+        self.get('exp-06.png')
+
+    def preload_one(self):
+        """ preload just one image, intended to be called on updates
+        of the splash bouncer """
+        for name in self.names:
+            t0 = time.time()
             self.get(name)
-        t2 = time.time()
-        return "IC: preload scan=%.3f load=%.3f" % (t1 - t0, t2 - t1)
+            self.names.remove(name)
+            t1 = time.time()
+            el = t1 - t0
+            if el > 0.01:
+                print "image was slow to load, %.3f sec file %s" % (el, name)
+            return
+
+    def preload_rest(self):
+        """ preload the remaining images in the scan """
+        for name in self.names:
+            self.get(name)
+            self.names.remove(name)
 
     def statistics(self):
         """ calculate and print cache statistics """

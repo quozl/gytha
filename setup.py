@@ -9,7 +9,7 @@ if sys.version_info < (2, 4):
 
 setup(
     name="netrek-client-pygame",
-    version="0.3",
+    version="0.6",
     description= "This is a client for the multi-player game of Netrek",
     author="James Cameron",
     author_email="quozl@us.netrek.org",
@@ -35,9 +35,15 @@ setup(
             'Operating System :: POSIX :: Linux',
             'Operating System :: MacOS :: MacOS X',
             'Operating System :: Microsoft :: Windows',
-            'Operating System :: Microsoft :: Windows :: Windows 95/98/2000', 
+            'Operating System :: Microsoft :: Windows :: Windows 95/98/2000',
             'Operating System :: Microsoft :: Windows :: Windows NT/2000',
             'Programming Language :: Python',
             'Topic :: Games/Entertainment :: Arcade'
     ]
+#
+# FIXME: include graphics assets in sdist
+# http://docs.python.org/release/2.5.2/dist/node12.html
+#    package_dir = { 'netrek' : [ 'netrek', 'images' ] },
+#    package_data = { 'netrek' : [ 'images/*.png', 'images/*.jpg' ] }
+#
 )
