@@ -275,6 +275,13 @@ class Planet(Local):
         self.flags = flags
         self.armies = armies
 
+    def op_info(self):
+        lines = ['Planet ' + self.name, '',
+                 'Armies %r' % self.armies,
+                 'Owner %r' % self.owner,
+                 'Flags %x' % self.flags]
+        return lines
+
     def set_box(self, x, y):
         """ create a proximity bounding box around the planet """
         t = 13000
@@ -349,6 +356,12 @@ class Ship(Local):
         self.ppcf = 1 # planet proximity check fuse
         self.fuse = None
 
+    def op_info(self):
+        lines = ['Ship ' + self.mapchars, '',
+                 'Name %r' % self.name, '',
+                 'Kills %r' % self.kills]
+        return lines
+
     def visibility(self):
         if self.status == PALIVE or self.status == PEXPLODE:
             self.galactic.show()
@@ -362,6 +375,10 @@ class Ship(Local):
 
     def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
+##         if me == self:
+##             if not self.flags & PFSHIELD:
+##                 if flags & PFSHIELD:
+##                     sound_off.play()
         self.hostile = hostile
         self.swar = swar
         self.armies = armies
@@ -624,6 +641,7 @@ class Phaser(Local):
             colour = (255, 255, 255)
         else:
             colour = brighten(team_colour(self.ship.team))
+	    # FIXME: incorrect colours have been sighted
         return pygame.draw.line(screen, colour, (fx, fy), (tx, ty))
 
     def undraw(self, colour):
@@ -797,6 +815,18 @@ class Galaxy:
         """ return the closest friendly player to coordinates """
         return self.closest(xy, self.ships, [self.is_friend, self.is_alive])
 
+    def closest_thing(self, xy):
+        """ return the closest player or planet to coordinates """
+        cs = self.closest_ship(xy)
+        cp = self.closest_planet(xy)
+        if cs == me and cp != me: return cp
+        if cs != me and cp == me: return cs
+        x, y = xy
+        ds = (cs.x - x)**2 + (cs.y - y)**2
+        dp = (cp.x - x)**2 + (cp.y - y)**2
+        if ds < dp: return cs
+        return cp
+
     def sp_message(self, m_flags, m_recipt, m_from, mesg):
         if m_flags == (MVALID | MTEAM | MDISTR):
             d = rcd.msg()
@@ -847,11 +877,13 @@ class PlanetGalacticSprite(PlanetSprite):
 
     def add_armies(self):
         image = pygame.Surface((30, 60), pygame.SRCALPHA, 32)
-        font = fc.get('DejaVuSans-Bold.ttf', 12)
         message = "%d" % (self.planet.armies)
         if self.planet.armies == 0:
-            message = "-"
-        colour = (255, 255, 255)
+            message = " "
+        colour = (128, 128, 128)
+        if self.planet.flags & PLAGRI:
+            colour = (255, 255, 255)
+        font = fc.get('DejaVuSans.ttf', 12)
         text = font.render(message, 1, colour)
         rect = text.get_rect(top=0, centerx=15)
         image.blit(text, rect)
@@ -869,7 +901,7 @@ class PlanetGalacticSprite(PlanetSprite):
                self.armies != self.planet.armies:
             self.name = self.planet.name
             self.tag = pygame.Surface((60, 80), pygame.SRCALPHA, 32)
-            font = fc.get('DejaVuSans.ttf', 8)
+            font = fc.get('DejaVuSans.ttf', 9)
             message = "%s" % (self.planet.name)
             if message == "":
                 message = "unknown"
@@ -987,9 +1019,21 @@ class ShipGalacticSprite(ShipSprite):
         self.rect.center = n2gs(self.ship.x, self.ship.y)
 
     def pick(self):
-        # FIXME: obtain imagery for galactic view
-        # IMAGERY: ???-8x8.png
-        self.image = ic.get_rotated(teams[self.ship.team]+"-8x8.png", self.ship.dir / 8 * 8)
+        size = 22
+        message = slot_decode(self.ship.n)
+        colour = team_colour(self.ship.team)
+        if me == self.ship:
+            colour = (128, 128, 128)
+        if self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT):
+            size = 16
+        if self.ship.flags & (PFCLOAK):
+            message = '?'
+        if self.ship.status == PEXPLODE:
+            message = '*'
+        if self.ship.kills > 1.99:
+            colour = brighten(colour)
+        font = fc.get('DejaVuSans.ttf', size)
+        self.image = font.render(message, 1, colour)
         self.rect = self.image.get_rect()
 
     def show(self):
@@ -1611,6 +1655,83 @@ class MessageLine():
             self.colour = team_colour(galaxy.ship(m_from).team)
         self.expires = nt.time + 15
         self.expired = False
+
+class InfoSprite(pygame.sprite.Sprite):
+    """ info window,
+        user requested information on screen objects
+        including help
+    """
+    def __init__(self, icon, lines):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = fc.get('DejaVuSans.ttf', 16)
+        self.icon = ic.get(icon)
+        #self.close_icon = ic.get('close.png')
+        self.lines = lines
+        self.pad = 1
+        self.border = 2
+        self.pick()
+
+    def pick(self):
+        x = self.border + self.pad + self.icon.get_rect().width
+        y = self.border + self.pad
+
+        # build lines of text as surfaces
+        surfaces = []
+        longest = 0
+        for line in self.lines:
+            surface = self.font.render(line, 1, (250, 250, 250))
+            surfaces.append(surface)
+            rect = surface.get_rect()
+            y = y + rect.height + 1
+            longest = max(longest, rect.width)
+        x += longest + self.pad
+
+        # calculate expected image size
+        #x += self.close_icon.get_rect().width
+        x += self.pad + self.border
+        y += self.pad + self.border
+
+        # create image, with a 50% alpha background
+        self.image = pygame.Surface((x, y), pygame.SRCALPHA, 32)
+        self.image.fill((32, 16, 32, 128))
+
+        # draw into the image
+        x = self.border + self.pad
+        y = self.border + self.pad
+
+        # place the icon at top left
+        rect = self.icon.get_rect(left=x, top=y)
+        self.image.blit(self.icon, rect)
+        x += rect.width + self.pad
+
+        # place supplied text to the right of icon
+        w = x
+        for surface in surfaces:
+            rect = surface.get_rect(left=x, top=y)
+            self.image.blit(surface, rect)
+            y = y + rect.height + 1
+            if rect.right > w: w = rect.right
+        x = w + self.pad
+
+        # place an icon at bottom right
+        #rect = self.close_icon.get_rect(left=x, bottom=y)
+        #self.image.blit(self.close_icon, rect)
+        #x += rect.width
+
+        # pad
+        x += self.pad + self.border
+        y += self.pad + self.border
+
+        # surround the written image area with a purple border
+        rect = pygame.Rect(0, 0, x - self.border, y - self.border)
+        pygame.draw.rect(self.image, (255, 128, 255), rect, self.border)
+
+        # FIXME: position near object being queried rather than screen
+        # centre, and move with the object
+        # FIXME: show one for each planet, enemy ship, and so forth,
+        # shaded into background
+        self.rect = self.image.get_rect(centerx=r_us.centerx,
+                                        centery=r_us.centery)
 
 class MessageSprite(pygame.sprite.Sprite):
     """ message window,
@@ -3958,6 +4079,8 @@ class PhaseFlight(Phase):
             K_d: (self.op_det, None),
             K_e: (self.op_docking_toggle, None),
             K_f: (self.op_plasma, None),
+            K_h: (self.op_help, None),
+            K_i: (self.op_info, None),
             K_k: (self.op_course, None),
             K_l: (self.op_player_lock, None),
             K_m: (self.op_message, None),
@@ -4061,6 +4184,59 @@ class PhaseFlight(Phase):
             nt.send(cp_dockperm.data(0))
         else:
             nt.send(cp_dockperm.data(1))
+
+    def op_info(self, event, arg):
+        global b_info_sprite
+        if b_info_sprite:
+            b_info.remove(b_info_sprite)
+            b_info_sprite = None
+            return
+
+        nearest = galaxy.closest_thing(cursor(me))
+        if nearest == me:
+            b_info_sprite = InfoSprite('netrek.png', ['this is you'])
+            b_info.add(b_info_sprite)
+        else:
+            text = nearest.op_info()
+            b_info_sprite = InfoSprite('netrek.png', text)
+            b_info.add(b_info_sprite)
+
+    def op_help(self, event, arg):
+        global b_info_sprite
+        if b_info_sprite:
+            b_info.remove(b_info_sprite)
+            b_info_sprite = None
+            return
+
+        tips = [ "Netrek Help",
+    "",
+    "Press a number to set engine speed,",
+    "",
+    "You are the ship in the centre of the screen,",
+    "",
+    "Right-click to steer,",
+    "",
+    "Left-click to fire torpedo, point ahead of target,",
+    "",
+    "Middle-click to fire phaser, point at target,",
+    "",
+    "To orbit a planet point at it and press ' ; ',",
+    "",
+    "Killing enemy ships only moves them home,",
+    "",
+    "People in your team will try to communicate, please listen,",
+    "",
+    "Capture planets by getting a kill,",
+    "   ... pick up armies from your planet with ' z ',",
+    "   ... bomb the enemy planet with ' b ',",
+    "   ... beam down the armies with ' x ',",
+    "   ... repeat until it changes team.",
+    "",
+    "If someone kills you, they can begin to capture your planets,",
+    "so come straight back in and defend!",
+    "" ]
+        b_info_sprite = InfoSprite('netrek.png', tips)
+        b_info.add(b_info_sprite)
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
@@ -4357,6 +4533,7 @@ class PhaseFlightTactical(PhaseFlight):
         # returned by the sprite draw method, per group class
         # RenderUpdates, which is a subclass of the group class
         # OrderedUpdates that we use here.
+        b_info.clear(screen, self.bg)
         b_message.clear(screen, self.bg)
         b_reports.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
@@ -4373,6 +4550,7 @@ class PhaseFlightTactical(PhaseFlight):
         b_warning.update()
         b_reports.update()
         b_message.update()
+        b_info.update()
 
         r += t_planets.draw(screen)
         r += t_players.draw(screen)
@@ -4384,6 +4562,7 @@ class PhaseFlightTactical(PhaseFlight):
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
         r += b_message.draw(screen)
+        r += b_info.draw(screen)
 
         pygame.display.update(r)
         screen.set_clip(r_main)
@@ -4548,10 +4727,22 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, background, galactic_factor, r_main, r_us
+    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info_sprite, b_info, background, galactic_factor, r_main, r_us
 
+##     pygame.mixer.pre_init(44100, -16, 2, 1024)
     pygame.init()
     size = width, height = 1000, 1000
+
+##     def load_sound(name):
+##         try:
+##             sound = pygame.mixer.Sound(name)
+##         except:
+##             sound = pygame.mixer.Sound(os.path.join(opt.assets, name))
+##         return sound
+
+##     global sound_off
+##     sound_off = load_sound('/tmp/off.ogg')
+##     sound_off.play()
 
     videoinfo = pygame.display.Info()
     print "current display resolution is %d x %d pixels" % (videoinfo.current_w, videoinfo.current_h)
@@ -4661,6 +4852,8 @@ def pg_init():
         b_reports.add(DebugSprite())
     b_message = pygame.sprite.OrderedUpdates()
     b_message.add(MessageSprite())
+    b_info = pygame.sprite.OrderedUpdates()
+    b_info_sprite = None
 
     background = screen.copy()
     background.fill((0, 0, 0))
