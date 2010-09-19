@@ -225,6 +225,10 @@ def cursor(me):
     x, y = pygame.mouse.get_pos()
     return s2g(me, x, y)
 
+def intragalactic(xy):
+    x, y = xy
+    return (0 < x < GWIDTH) and (0 < y < GWIDTH)
+
 def d2a(dir):
     """ convert netrek direction (0-255) to angle in degrees (0-359)
     """
@@ -246,6 +250,12 @@ class Local:
         self.tactical = None # pygame sprite on tactical
         self.galactic = None # pygame sprite on galactic
 
+    def op_info_update(self):
+        if b_info_sprite and b_info_sprite.track == self:
+            b_info_sprite.lines = self.op_info()
+            b_info_sprite.pick()
+            b_info_sprite.update()
+
 class Planet(Local):
     """ netrek planets
         each server has a number of planets
@@ -254,32 +264,54 @@ class Planet(Local):
     """
     def __init__(self, n):
         Local.__init__(self, n)
-        self.x = -10001
-        self.y = -10001
+        self.x = self.y = -10001
         self.name = ''
-        self.sp_planet(0, 0, 0, 0)
+        self.owner = self.info = self.flags = self.armies = 0
         self.tactical = PlanetTacticalSprite(self) # forward reference
         self.galactic = PlanetGalacticSprite(self) # forward reference
         self.nearby = False
 
     def sp_planet_loc(self, x, y, name):
+        old = (self.x, self.y, self.name)
         if self.x != x or self.y != y:
             self.x = x
             self.y = y
             self.set_box(x, y)
         self.name = name
+        if old != (self.x, self.y, self.name):
+            self.op_info_update()
 
     def sp_planet(self, owner, info, flags, armies):
+        old = (self.owner, self.info, self.flags, self.armies)
         self.owner = owner
         self.info = info
         self.flags = flags
         self.armies = armies
+        if old != (self.owner, self.info, self.flags, self.armies):
+            self.op_info_update()
 
     def op_info(self):
-        lines = ['Planet ' + self.name, '',
-                 'Armies %r' % self.armies,
-                 'Owner %r' % self.owner,
-                 'Flags %x' % self.flags]
+        lines = [self.name + ' (a planet)', '']
+        if self.info & me.team:
+            if self.armies != 0:
+                lines.append(teams_long[self.owner].title() + ' ')
+                lines.append('Armies %r' % self.armies)
+            else:
+                lines.append('Independent, no armies')
+            lines.append('')
+            if self.flags & PLFUEL: lines.append('FUELS')
+            if self.flags & PLREPAIR: lines.append('REPAIRS')
+            if self.flags & PLAGRI: lines.append('AGRICULTURAL')
+            if self.flags & PLHOME: lines.append('HOME')
+            if self.flags & PLCHEAP: lines.append('CHEAP')
+            if self.flags & PLCORE: lines.append('CORE')
+            for team in teams_playable:
+                if self.info & team:
+                    if team != self.owner:
+                        name = teams_long[team].title()
+                        lines.append('Scanned by %s ' % name)
+        else:
+            lines.append('Not scanned, please orbit to scan')
         return lines
 
     def set_box(self, x, y):
@@ -330,7 +362,7 @@ class Ship(Local):
         self.team = 0
         self.mapchars = ''
         # sp_kills
-        self.kills = 0
+        self.kills = 0 # hundredths
         self.sp_kills_me_shown = False
         # sp_player
         self.dir = 0
@@ -357,9 +389,38 @@ class Ship(Local):
         self.fuse = None
 
     def op_info(self):
-        lines = ['Ship ' + self.mapchars, '',
-                 'Name %r' % self.name, '',
-                 'Kills %r' % self.kills]
+        lines = [self.mapchars + ' ' + self.name + ' (a ship)', '']
+        lines.append(teams_long[self.team].title())
+        lines.append(ships_long[self.shiptype].title())
+        lines.append('(' + ships_use[self.shiptype].title() + ')')
+        lines.append('')
+        if self.kills > 0:
+            lines.append('Kills %.2f' % (self.kills / 100.0))
+        else:
+            lines.append('Mostly harmless')
+        lines.append('')
+        if self.team == me.team:
+            lines.append('Is on your team')
+        else:
+            if self.war & me.team:
+                lines.append('At war with you')
+            else:
+                if self.hostile & me.team:
+                    lines.append('Hostile to you')
+                else:
+                    lines.append('At peace with you')
+        lines.append('')
+        if self.flags & PFSHIELD: lines.append('SHIELDS')
+        if self.flags & PFBOMB: lines.append('BOMBING')
+        if self.flags & PFORBIT: lines.append('ORBITING')
+        if self.flags & PFCLOAK: lines.append('CLOAKED')
+        if self.flags & PFROBOT: lines.append('ROBOT')
+        if self.flags & PFPRACTR: lines.append('PRACTICE ROBOT')
+        if self.flags & PFDOCK: lines.append('DOCKED')
+        if self.flags & PFDOCKOK: lines.append('DOCKING PERMITTED')
+        if self.flags & PFTWARP: lines.append('TRANSWARP ENGAGED')
+        if self.flags & PFBPROBOT: lines.append('INTELLIGENT ROBOT')
+        if self == me: lines.append('(this is you, by the way)')
         return lines
 
     def visibility(self):
@@ -410,6 +471,7 @@ class Ship(Local):
     def sp_hostile(self, war, hostile):
         self.war = war
         self.hostile = hostile
+        self.op_info_update()
         # FIXME: display this data, on player list
 
     def sp_player_info(self, shiptype, team):
@@ -417,6 +479,7 @@ class Ship(Local):
         self.cap = galaxy.caps[shiptype]
         self.team = team
         self.mapchars = '%s%s' % (teams[team][:1].upper(), slot_decode(self.n))
+        self.op_info_update()
         # FIXME: display this data, on player list
 
     def sp_kills(self, kills):
@@ -425,8 +488,8 @@ class Ship(Local):
             if self.kills != kills:
                 self.sp_kills_me_shown = False
         self.kills = kills
+        self.op_info_update()
         # FIXME: display this data, on player list
-        # FIXME: show kills on tactical sprite for ship
 
     def sp_player(self, dir, speed, x, y):
         global me
@@ -464,6 +527,7 @@ class Ship(Local):
     def sp_flags(self, tractor, flags):
         self.tractor = tractor
         self.flags = flags
+        self.op_info_update()
         # FIXME: display this data, visible tractors on tactical
 
     def sp_pstatus(self, status):
@@ -819,11 +883,13 @@ class Galaxy:
         """ return the closest player or planet to coordinates """
         cs = self.closest_ship(xy)
         cp = self.closest_planet(xy)
-        if cs == me and cp != me: return cp
-        if cs != me and cp == me: return cs
         x, y = xy
+        dm = (me.x - x)**2 + (me.y - y)**2
         ds = (cs.x - x)**2 + (cs.y - y)**2
         dp = (cp.x - x)**2 + (cp.y - y)**2
+        if dm < ds and dm < dp: return me
+        if cs == me and cp != me: return cp
+        if cs != me and cp == me: return cs
         if ds < dp: return cs
         return cp
 
@@ -1030,7 +1096,7 @@ class ShipGalacticSprite(ShipSprite):
             message = '?'
         if self.ship.status == PEXPLODE:
             message = '*'
-        if self.ship.kills > 1.99:
+        if self.ship.kills > 199:
             colour = brighten(colour)
         font = fc.get('DejaVuSans.ttf', size)
         self.image = font.render(message, 1, colour)
@@ -1661,18 +1727,26 @@ class InfoSprite(pygame.sprite.Sprite):
         user requested information on screen objects
         including help
     """
-    def __init__(self, icon, lines):
+    def __init__(self, lines, track=None):
         pygame.sprite.Sprite.__init__(self)
         self.font = fc.get('DejaVuSans.ttf', 16)
-        self.icon = ic.get(icon)
+        #self.icon = ic.get(icon)
         #self.close_icon = ic.get('close.png')
         self.lines = lines
-        self.pad = 1
+        self.pad = 20
         self.border = 2
+        self.track = track
         self.pick()
+        self.update()
+
+    def update(self):
+        if self.track:
+            self.rect.center = n2ts(me, self.track.x, self.track.y)
+        else:
+            self.rect.center = (r_us.centerx, r_us.centery)
 
     def pick(self):
-        x = self.border + self.pad + self.icon.get_rect().width
+        x = self.border + self.pad # + self.icon.get_rect().width
         y = self.border + self.pad
 
         # build lines of text as surfaces
@@ -1693,16 +1767,16 @@ class InfoSprite(pygame.sprite.Sprite):
 
         # create image, with a 50% alpha background
         self.image = pygame.Surface((x, y), pygame.SRCALPHA, 32)
-        self.image.fill((32, 16, 32, 128))
+        self.image.fill((48, 24, 48, 128))
 
         # draw into the image
         x = self.border + self.pad
         y = self.border + self.pad
 
         # place the icon at top left
-        rect = self.icon.get_rect(left=x, top=y)
-        self.image.blit(self.icon, rect)
-        x += rect.width + self.pad
+        #rect = self.icon.get_rect(left=x, top=y)
+        #self.image.blit(self.icon, rect)
+        #x += rect.width + self.pad
 
         # place supplied text to the right of icon
         w = x
@@ -1726,10 +1800,6 @@ class InfoSprite(pygame.sprite.Sprite):
         rect = pygame.Rect(0, 0, x - self.border, y - self.border)
         pygame.draw.rect(self.image, (255, 128, 255), rect, self.border)
 
-        # FIXME: position near object being queried rather than screen
-        # centre, and move with the object
-        # FIXME: show one for each planet, enemy ship, and so forth,
-        # shaded into background
         self.rect = self.image.get_rect(centerx=r_us.centerx,
                                         centery=r_us.centery)
 
@@ -4192,14 +4262,24 @@ class PhaseFlight(Phase):
             b_info_sprite = None
             return
 
-        nearest = galaxy.closest_thing(cursor(me))
-        if nearest == me:
-            b_info_sprite = InfoSprite('netrek.png', ['this is you'])
+        xy = cursor(me)
+        if not intragalactic(xy):
+            text = ['Negative Energy Barrier',
+                    '',
+                    'The edge of the playing area.',
+                    '',
+                    'Ships bounce off this harmlessly.',
+                    'Torpedos explode damaging ships nearby.',
+                    'Phasers do nothing.']
+            # FIXME: track to the barrier
+            b_info_sprite = InfoSprite(text)
             b_info.add(b_info_sprite)
-        else:
-            text = nearest.op_info()
-            b_info_sprite = InfoSprite('netrek.png', text)
-            b_info.add(b_info_sprite)
+            return
+
+        nearest = galaxy.closest_thing(xy)
+        text = nearest.op_info()
+        b_info_sprite = InfoSprite(text, track=nearest)
+        b_info.add(b_info_sprite)
 
     def op_help(self, event, arg):
         global b_info_sprite
@@ -4235,7 +4315,7 @@ class PhaseFlight(Phase):
     "If someone kills you, they can begin to capture your planets,",
     "so come straight back in and defend!",
     "" ]
-        b_info_sprite = InfoSprite('netrek.png', tips)
+        b_info_sprite = InfoSprite(tips)
         b_info.add(b_info_sprite)
 
     def op_orbit(self, event, arg):
