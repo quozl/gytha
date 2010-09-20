@@ -3024,6 +3024,7 @@ class SP_FEATURE(SP):
                 nt.send(cp_feature.data('S', 0, 0, 1, 'RC_DISTRESS'))
             nt.send(cp_feature.data('S', 0, 0, 1, 'SHIP_CAP'))
             nt.send(cp_feature.data('S', 2, 0, 1, 'SP_GENERIC_32'))
+            nt.send(cp_feature.data('S', 0, 0, 1, 'TIPS'))
 
         if name == 'UPS':
             galaxy.ups = value
@@ -3858,6 +3859,7 @@ class PhaseOutfit(Phase):
         self.visible = pygame.sprite.OrderedUpdates(())
         self.angle = 0
         self.screenshot = False
+        self.tips = None
 
     def do(self):
         self.run = True
@@ -3911,6 +3913,7 @@ class PhaseOutfit(Phase):
         self.warn("in netrek all races are equal")
         pygame.display.update(r)
         sp_mask.catch(self.mask)
+        self.draw_tips()
         self.cycle() # returns when choice accepted by server, or user cancels
         sp_mask.uncatch()
 
@@ -4024,6 +4027,7 @@ class PhaseOutfit(Phase):
             if nearest != None:
                 self.warn(nearest.description)
             self.box = nearest
+        self.draw_tips()
 
     def kb(self, event):
         self.unwarn()
@@ -4062,6 +4066,14 @@ class PhaseOutfit(Phase):
         self.b_list.clear()
         pygame.display.flip()
         self.run = False
+
+    def draw_tips(self):
+        tips = galaxy.motd.tips()
+        if self.tips != tips:
+            if tips:
+                self.tips_text = Texts(tips, 400, 650, 24, 18)
+                pygame.display.flip()
+                self.tips = tips
 
 class PhaseFlight(Phase):
     def __init__(self, name):
