@@ -145,6 +145,15 @@ ships_use = { SCOUT:      'very fast, very weak',
               ATT:        'for cheating'
             }
 
+ship_keys = { 's': SCOUT,
+              'd': DESTROYER,
+              'c': CRUISER,
+              'b': BATTLESHIP,
+              'a': ASSAULT,
+              'o': STARBASE,
+              'g': SGALAXY,
+              '*': ATT }
+
 PLREPAIR = 0x010
 PLFUEL = 0x020
 PLAGRI = 0x040

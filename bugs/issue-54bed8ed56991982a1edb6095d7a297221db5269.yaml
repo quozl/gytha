@@ -5,8 +5,8 @@ type: :feature
 component: netrek-client-pygame
 release: 
 reporter: James Cameron <quozl@us.netrek.org>
-status: :unstarted
-disposition: 
+status: :closed
+disposition: :fixed
 creation_time: 2010-03-28 22:05:04.226698 Z
 references: []
 
@@ -16,3 +16,7 @@ log_events:
   - James Cameron <quozl@us.netrek.org>
   - created
   - requested by hellow for plasma testing
+- - 2010-09-20 10:30:15.080339 Z
+  - James Cameron <quozl@us.netrek.org>
+  - closed with disposition fixed
+  - ""

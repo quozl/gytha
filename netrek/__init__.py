@@ -3004,6 +3004,10 @@ class SP_WARNING(SP):
         self.text = strnul(message)
         self.seen = False
 
+    def synthetic(self, text):
+        self.text = text
+        self.seen = False
+
 class SP_FEATURE(SP):
     code = 60
     format = "!bcbbi80s"
@@ -4191,6 +4195,7 @@ class PhaseFlight(Phase):
             K_m: (self.op_message, None, 'compose a message'),
             K_o: (self.op_orbit, None, 'orbit planet'),
             K_p: (self.op_phaser, None),
+            K_r: (self.op_refit, None, 'refit'),
             K_s: (self.op_shield_toggle, None, 'shields (on/off)'),
             K_t: (self.op_torp, None),
             K_u: (self.op_shield_toggle, None),
@@ -4487,6 +4492,19 @@ class PhaseFlight(Phase):
 
     def op_snap(self, event, arg):
         self.snap(event)
+
+    def op_refit(self, event, arg):
+        if me:
+            self.modal_handler = self.op_refit_next
+            self.event_triggers_update = True
+            sp_warning.synthetic('Scout, Destroyer, Cruiser, '
+                                 'Battleship, Assault, Outpost?')
+
+    def op_refit_next(self, event):
+        key = pygame.key.name(event.key)
+        if ship_keys.has_key(key):
+            nt.send(cp_refit.data(ship_keys[key]))
+        self.modal_handler = None
 
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
