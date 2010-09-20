@@ -4887,6 +4887,7 @@ def pg_init():
 
 ##     pygame.mixer.pre_init(44100, -16, 2, 1024)
     pygame.init()
+    pygame.key.set_repeat(250, 100)
     size = width, height = 1000, 1000
 
 ##     def load_sound(name):
