@@ -1741,7 +1741,10 @@ class InfoSprite(pygame.sprite.Sprite):
 
     def update(self):
         if self.track:
-            self.rect.center = n2ts(me, self.track.x, self.track.y)
+            if ph_flight == ph_tactical:
+                self.rect.center = n2ts(me, self.track.x, self.track.y)
+            else:
+                self.rect.center = n2gs(self.track.x, self.track.y)
         else:
             self.rect.center = (r_us.centerx, r_us.centery)
 
@@ -4507,6 +4510,7 @@ class PhaseFlightGalactic(PhaseFlight):
         global ph_flight
         if event.key == K_RETURN and self.modal_handler is None:
             ph_flight = ph_tactical
+            if b_info_sprite: b_info_sprite.update()
             self.run = False
         else:
             return PhaseFlight.kb(self, event)
@@ -4516,6 +4520,7 @@ class PhaseFlightGalactic(PhaseFlight):
         screen.set_clip(r_us) # restrict drawing
         r = [] # sequence of dirty rectangles for update
         r += self.alerts.undraw((0,0,0))
+        b_info.clear(screen, self.bg)
         b_warning.clear(screen, self.bg)
         b_reports.clear(screen, self.bg)
         g_players.clear(screen, self.bg)
@@ -4527,6 +4532,7 @@ class PhaseFlightGalactic(PhaseFlight):
         g_players.update()
         b_warning.update()
         b_reports.update()
+        b_info.update()
 
         r += g_locator.draw(screen)
         r += g_planets.draw(screen)
@@ -4534,6 +4540,7 @@ class PhaseFlightGalactic(PhaseFlight):
         r += b_reports.draw(screen)
         r += b_warning.draw(screen)
         r += self.alerts.draw()
+        r += b_info.draw(screen)
         pygame.display.update(r)
         screen.set_clip(r_main)
         t1 = time.time()
@@ -4565,6 +4572,7 @@ class PhaseFlightTactical(PhaseFlight):
         global ph_flight
         if event.key == K_RETURN and self.modal_handler is None:
             ph_flight = ph_galactic
+            if b_info_sprite: b_info_sprite.update()
             self.run = False
         else:
             return PhaseFlight.kb(self, event)
