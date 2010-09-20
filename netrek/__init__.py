@@ -4141,7 +4141,7 @@ class PhaseFlight(Phase):
         # check for control key sequences pressed
         if (self.is_control(event)):
             if self.keys_control.has_key(event.key):
-                (handler, argument) = self.keys_control[event.key]
+                (handler, argument) = self.keys_control[event.key][:2]
                 handler(event, argument)
                 return
 
@@ -4153,13 +4153,13 @@ class PhaseFlight(Phase):
         # check for shift key sequences pressed
         if (self.is_shift(event)):
             if self.keys_shift.has_key(event.key):
-                (handler, argument) = self.keys_shift[event.key]
+                (handler, argument) = self.keys_shift[event.key][:2]
                 handler(event, argument)
                 return
 
         # check for normal keys pressed
         if self.keys_normal.has_key(event.key):
-            (handler, argument) = self.keys_normal[event.key]
+            (handler, argument) = self.keys_normal[event.key][:2]
             handler(event, argument)
             return
 
@@ -4168,35 +4168,35 @@ class PhaseFlight(Phase):
     def set_keys(self):
         """ define dictionaries to map keys to operations """
         self.keys_normal = {
-            K_0: (self.op_warp, 0),
+            K_0: (self.op_warp, 0, 'engine stop'),
             K_1: (self.op_warp, 1),
             K_2: (self.op_warp, 2),
             K_3: (self.op_warp, 3),
-            K_4: (self.op_warp, 4),
+            K_4: (self.op_warp, 4, 'cruise'),
             K_5: (self.op_warp, 5),
             K_6: (self.op_warp, 6),
             K_7: (self.op_warp, 7),
             K_8: (self.op_warp, 8),
             K_9: (self.op_warp, 9),
-            K_SEMICOLON: (self.op_planet_lock, None),
-            K_b: (self.op_bomb, None),
-            K_c: (self.op_cloak_toggle, None),
-            K_d: (self.op_det, None),
+            K_SEMICOLON: (self.op_planet_lock, None, 'lock on planet'),
+            K_b: (self.op_bomb, None, 'start bombing'),
+            K_c: (self.op_cloak_toggle, None, 'cloak (on/off)'),
+            K_d: (self.op_det, None, 'detonate nearby enemy torps'),
             K_e: (self.op_docking_toggle, None),
             K_f: (self.op_plasma, None),
-            K_h: (self.op_help, None),
-            K_i: (self.op_info, None),
+            K_h: (self.op_help, None, 'help'),
+            K_i: (self.op_info, None, 'show info about object'),
             K_k: (self.op_course, None),
-            K_l: (self.op_player_lock, None),
-            K_m: (self.op_message, None),
-            K_o: (self.op_orbit, None),
+            K_l: (self.op_player_lock, None, 'lock on player'),
+            K_m: (self.op_message, None, 'compose a message'),
+            K_o: (self.op_orbit, None, 'orbit planet'),
             K_p: (self.op_phaser, None),
-            K_s: (self.op_shield_toggle, None),
+            K_s: (self.op_shield_toggle, None, 'shields (on/off)'),
             K_t: (self.op_torp, None),
             K_u: (self.op_shield_toggle, None),
-            K_x: (self.op_beam_down, None),
-            K_y: (self.op_pressor_toggle, None),
-            K_z: (self.op_beam_up, None),
+            K_x: (self.op_beam_down, None, 'beam down'),
+            K_y: (self.op_pressor_toggle, None, 'pressor'),
+            K_z: (self.op_beam_up, None, 'beam up'),
             }
         self.keys_control = {
             K_HASH: (self.op_distress, rcd.dist_type_other2),
@@ -4221,14 +4221,14 @@ class PhaseFlight(Phase):
             K_n: (self.op_distress, rcd.dist_type_no_gas),
             K_o: (self.op_distress, rcd.dist_type_ogg),
             K_p: (self.op_distress, rcd.dist_type_ogging),
-            K_t: (self.op_distress, rcd.dist_type_take),
+            K_t: (self.op_distress, rcd.dist_type_take, 'signal team for a take'),
             }
         self.keys_shift = {
             K_COMMA: (self.op_warp_down, None),
             K_PERIOD: (self.op_warp_up, None),
             K_0: (self.op_warp, 10),
             K_1: (self.op_warp, 11),
-            K_2: (self.op_warp, 12),
+            K_2: (self.op_warp, 12, 'max warp'),
             K_3: (self.op_warp_half, None),
             K_4: (self.op_null, None),
             K_5: (self.op_warp_full, None),
@@ -4237,11 +4237,11 @@ class PhaseFlight(Phase):
             K_8: (self.op_practice, None),
             K_9: (self.op_warp, 10),
             K_c: (self.op_snap, None),
-            K_d: (self.op_det_me, None),
-            K_e: (self.op_distress, rcd.dist_type_generic),
-            K_f: (self.op_distress, rcd.dist_type_carrying),
-            K_r: (self.op_repair, None),
-            K_t: (self.op_tractor_toggle, None),
+            K_d: (self.op_det_me, None, 'cancel my torps'),
+            K_e: (self.op_distress, rcd.dist_type_generic, 'emergency'),
+            K_f: (self.op_distress, rcd.dist_type_carrying, 'carrying'),
+            K_r: (self.op_repair, None, 'repair (on/off)'),
+            K_t: (self.op_tractor_toggle, None, 'tractor (on/off)'),
             }
 
     def op_null(self, event, arg):
@@ -4321,34 +4321,55 @@ class PhaseFlight(Phase):
             if b_info:
                 b_info.empty()
 
-        # show help
-        tips = [ "Netrek Help",
-    "",
-    "Press a number to set engine speed,",
-    "",
-    "You are the ship in the centre of the screen,",
-    "",
-    "Right-click to steer,",
-    "",
-    "Left-click to fire torpedo, point ahead of target,",
-    "",
-    "Middle-click to fire phaser, point at target,",
-    "",
-    "To orbit a planet point at it and press ' ; ',",
-    "",
-    "Killing enemy ships only moves them home,",
-    "",
-    "People in your team will try to communicate, please listen,",
-    "",
-    "Capture planets by getting a kill,",
-    "   ... pick up armies from your planet with ' z ',",
-    "   ... bomb the enemy planet with ' b ',",
-    "   ... beam down the armies with ' x ',",
-    "   ... repeat until it changes team.",
-    "",
-    "If someone kills you, they can begin to capture your planets,",
-    "so come straight back in and defend!",
-    "" ]
+        # help varies according to shift key
+        if not self.is_shift(event):
+            tips = [
+                "Netrek Help",
+                "",
+                "Press a number to set engine speed,",
+                "",
+                "You are the ship in the centre of the screen,",
+                "",
+                "Right-click to steer,",
+                "",
+                "Left-click to fire torpedo, point ahead of target,",
+                "",
+                "Middle-click to fire phaser, point at target,",
+                "",
+                "To orbit a planet point at it and press ' ; ',",
+                "",
+                "Killing enemy ships only moves them home,",
+                "",
+                "People in your team will try to communicate, please listen,",
+                "",
+                "Capture planets by getting a kill,",
+                "   ... pick up armies from your planet with ' z ',",
+                "   ... bomb the enemy planet with ' b ',",
+                "   ... beam down the armies with ' x ',",
+                "   ... repeat until it changes team.",
+                "",
+                "If someone kills you, they can begin to capture your planets,",
+                "so come straight back in and defend!",
+                "",
+                "Press shift H for keyboard help"]
+        else:
+            tips = ['Netrek Keyboard Help', '']
+            gap = '  '
+            for key, key_tuple in self.keys_normal.iteritems():
+                if len(key_tuple) < 3: continue
+                name = pygame.key.name(key)
+                tips.append(name + gap + key_tuple[2])
+            for key, key_tuple in self.keys_shift.iteritems():
+                if len(key_tuple) < 3: continue
+                name = 'shift ' + pygame.key.name(key).upper()
+                tips.append(name + gap + key_tuple[2])
+            for key, key_tuple in self.keys_control.iteritems():
+                if len(key_tuple) < 3: continue
+                name = 'control ' + pygame.key.name(key)
+                tips.append(name + gap + key_tuple[2])
+            # FIXME: sort these in a fashion that leads to learning
+            # rather than the default order in the table
+
         InfoSprite(tips, expires=35)
         self.op_info_prior_target = self.op_help
 
