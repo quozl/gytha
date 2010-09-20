@@ -4218,7 +4218,8 @@ class PhaseFlight(Phase):
             K_AT: (self.op_distress, rcd.dist_type_other1),
             K_b: (self.op_distress, rcd.dist_type_bomb),
             K_c: (self.op_distress, rcd.dist_type_space_control),
-            K_e: (self.op_distress, rcd.dist_type_escorting),
+            K_e: (self.op_distress, rcd.dist_type_escorting,
+                  'signal taker you are escort'),
             K_f: (self.op_distress, rcd.dist_type_free_beer),
             K_h: (self.op_distress, rcd.dist_type_crippled),
             K_l: (self.op_distress, rcd.dist_type_controlling),
@@ -4226,7 +4227,8 @@ class PhaseFlight(Phase):
             K_n: (self.op_distress, rcd.dist_type_no_gas),
             K_o: (self.op_distress, rcd.dist_type_ogg),
             K_p: (self.op_distress, rcd.dist_type_ogging),
-            K_t: (self.op_distress, rcd.dist_type_take, 'signal team for a take'),
+            K_t: (self.op_distress, rcd.dist_type_take,
+                  'signal team you are taker'),
             }
         self.keys_shift = {
             K_COMMA: (self.op_warp_down, None),
