@@ -251,10 +251,14 @@ class Local:
         self.galactic = None # pygame sprite on galactic
 
     def op_info_update(self):
-        if b_info_sprite and b_info_sprite.track == self:
-            b_info_sprite.lines = self.op_info()
-            b_info_sprite.pick()
-            b_info_sprite.update()
+        for sprite in b_info:
+            if sprite.track != self:
+                return
+            if not sprite.alive():
+                return
+            sprite.lines = self.op_info()
+            sprite.pick()
+            sprite.update()
 
 class Planet(Local):
     """ netrek planets
@@ -725,6 +729,11 @@ class Phaser(Local):
             if self.status != PHFREE: self.want = True
         else:
             if self.status == PHFREE: self.want = False
+
+class Tag(Local):
+    def __init__(self, xy):
+        Local.__init__(self, 0)
+        self.x, self.y = xy
 
 class Galaxy:
     """ structure to contain all netrek game objects """
@@ -1727,7 +1736,7 @@ class InfoSprite(pygame.sprite.Sprite):
         user requested information on screen objects
         including help
     """
-    def __init__(self, lines, track=None):
+    def __init__(self, lines, track=None, expires=5):
         pygame.sprite.Sprite.__init__(self)
         self.font = fc.get('DejaVuSans.ttf', 16)
         #self.icon = ic.get(icon)
@@ -1736,10 +1745,17 @@ class InfoSprite(pygame.sprite.Sprite):
         self.pad = 20
         self.border = 2
         self.track = track
+        self.expires = nt.time + expires
+        self.expired = False
         self.pick()
         self.update()
+        self.add(b_info)
 
     def update(self):
+        if nt.time > self.expires:
+            self.kill()
+            return
+
         if self.track:
             if ph_flight == ph_tactical:
                 self.rect.center = n2ts(me, self.track.x, self.track.y)
@@ -4259,10 +4275,8 @@ class PhaseFlight(Phase):
             nt.send(cp_dockperm.data(1))
 
     def op_info(self, event, arg):
-        global b_info_sprite
-        if b_info_sprite:
-            b_info.remove(b_info_sprite)
-            b_info_sprite = None
+        if b_info:
+            b_info.empty()
             return
 
         xy = cursor(me)
@@ -4274,21 +4288,16 @@ class PhaseFlight(Phase):
                     'Ships bounce off this harmlessly.',
                     'Torpedos explode damaging ships nearby.',
                     'Phasers do nothing.']
-            # FIXME: track to the barrier
-            b_info_sprite = InfoSprite(text)
-            b_info.add(b_info_sprite)
+            InfoSprite(text, track=Tag(xy), expires=10)
             return
 
         nearest = galaxy.closest_thing(xy)
         text = nearest.op_info()
-        b_info_sprite = InfoSprite(text, track=nearest)
-        b_info.add(b_info_sprite)
+        InfoSprite(text, track=nearest)
 
     def op_help(self, event, arg):
-        global b_info_sprite
-        if b_info_sprite:
-            b_info.remove(b_info_sprite)
-            b_info_sprite = None
+        if b_info:
+            b_info.empty()
             return
 
         tips = [ "Netrek Help",
@@ -4318,8 +4327,7 @@ class PhaseFlight(Phase):
     "If someone kills you, they can begin to capture your planets,",
     "so come straight back in and defend!",
     "" ]
-        b_info_sprite = InfoSprite(tips)
-        b_info.add(b_info_sprite)
+        InfoSprite(tips, expires=35)
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
@@ -4510,7 +4518,6 @@ class PhaseFlightGalactic(PhaseFlight):
         global ph_flight
         if event.key == K_RETURN and self.modal_handler is None:
             ph_flight = ph_tactical
-            if b_info_sprite: b_info_sprite.update()
             self.run = False
         else:
             return PhaseFlight.kb(self, event)
@@ -4572,7 +4579,6 @@ class PhaseFlightTactical(PhaseFlight):
         global ph_flight
         if event.key == K_RETURN and self.modal_handler is None:
             ph_flight = ph_galactic
-            if b_info_sprite: b_info_sprite.update()
             self.run = False
         else:
             return PhaseFlight.kb(self, event)
@@ -4815,7 +4821,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info_sprite, b_info, background, galactic_factor, r_main, r_us
+    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info, background, galactic_factor, r_main, r_us
 
 ##     pygame.mixer.pre_init(44100, -16, 2, 1024)
     pygame.init()
@@ -4941,7 +4947,6 @@ def pg_init():
     b_message = pygame.sprite.OrderedUpdates()
     b_message.add(MessageSprite())
     b_info = pygame.sprite.OrderedUpdates()
-    b_info_sprite = None
 
     background = screen.copy()
     background.fill((0, 0, 0))
