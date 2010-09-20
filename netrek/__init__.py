@@ -735,6 +735,19 @@ class Tag(Local):
         Local.__init__(self, 0)
         self.x, self.y = xy
 
+class NegativeEnergyBarrier(Tag):
+    def __init__(self, xy):
+        Tag.__init__(self, xy)
+
+    def op_info(self):
+        return ['Negative Energy Barrier',
+                '',
+                'The edge of the playing area.',
+                '',
+                'Ships bounce off this harmlessly.',
+                'Torpedos explode damaging ships nearby.',
+                'Phasers do nothing.']
+
 class Galaxy:
     """ structure to contain all netrek game objects """
     def __init__(self):
@@ -889,7 +902,9 @@ class Galaxy:
         return self.closest(xy, self.ships, [self.is_friend, self.is_alive])
 
     def closest_thing(self, xy):
-        """ return the closest player or planet to coordinates """
+        """ return the closest thing to coordinates """
+        if not intragalactic(xy):
+            return NegativeEnergyBarrier(xy)
         cs = self.closest_ship(xy)
         cp = self.closest_planet(xy)
         x, y = xy
@@ -1736,9 +1751,9 @@ class InfoSprite(pygame.sprite.Sprite):
         user requested information on screen objects
         including help
     """
-    def __init__(self, lines, track=None, expires=5):
+    def __init__(self, lines, track=None, expires=7):
         pygame.sprite.Sprite.__init__(self)
-        self.font = fc.get('DejaVuSans.ttf', 16)
+        self.font = fc.get('DejaVuSansCondensed.ttf', 18)
         #self.icon = ic.get(icon)
         #self.close_icon = ic.get('close.png')
         self.lines = lines
@@ -4054,6 +4069,7 @@ class PhaseFlight(Phase):
         self.modal_handler = None
         self.event_triggers_update = False
         self.eh_md.append(self.md_us)
+        self.op_info_prior_target = None
 
     def cycle(self):
         """ main in-flight event loop, returns when no longer flying """
@@ -4275,31 +4291,37 @@ class PhaseFlight(Phase):
             nt.send(cp_dockperm.data(1))
 
     def op_info(self, event, arg):
-        if b_info:
-            b_info.empty()
-            return
+        # first time, show info about thing
+        # second time, dismiss info if key was pressed over same thing
+        # and info is still visible,
+        # otherwise, show info about thing.
+        thing = galaxy.closest_thing(cursor(me))
+        if self.op_info_prior_target == thing:
+            self.op_info_prior_target = None
+            if b_info:
+                b_info.empty()
+                return
+        else:
+            if b_info: b_info.empty()
 
-        xy = cursor(me)
-        if not intragalactic(xy):
-            text = ['Negative Energy Barrier',
-                    '',
-                    'The edge of the playing area.',
-                    '',
-                    'Ships bounce off this harmlessly.',
-                    'Torpedos explode damaging ships nearby.',
-                    'Phasers do nothing.']
-            InfoSprite(text, track=Tag(xy), expires=10)
-            return
-
-        nearest = galaxy.closest_thing(xy)
-        text = nearest.op_info()
-        InfoSprite(text, track=nearest)
+        InfoSprite(thing.op_info(), track=thing)
+        self.op_info_prior_target = thing
 
     def op_help(self, event, arg):
-        if b_info:
-            b_info.empty()
-            return
 
+        # if help was previously requested and is still visible, dismiss it
+        if self.op_info_prior_target == self.op_help:
+            if b_info:
+                b_info.empty()
+                self.op_info_prior_target = None
+                return
+
+        # if info was previously requested and is still visible, destroy it
+        if self.op_info_prior_target != None:
+            if b_info:
+                b_info.empty()
+
+        # show help
         tips = [ "Netrek Help",
     "",
     "Press a number to set engine speed,",
@@ -4328,6 +4350,7 @@ class PhaseFlight(Phase):
     "so come straight back in and defend!",
     "" ]
         InfoSprite(tips, expires=35)
+        self.op_info_prior_target = self.op_help
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
