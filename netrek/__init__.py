@@ -1109,6 +1109,8 @@ class ShipGalacticSprite(ShipSprite):
         self.rect.center = n2gs(self.ship.x, self.ship.y)
 
     def pick(self):
+        self.mi_begin()
+        self.mi_add_image(ic.get('ring-36x36.png'))
         size = 22
         message = slot_decode(self.ship.n)
         colour = team_colour(self.ship.team)
@@ -1125,6 +1127,8 @@ class ShipGalacticSprite(ShipSprite):
         font = fc.get('DejaVuSans.ttf', size)
         self.image = font.render(message, 1, colour)
         self.rect = self.image.get_rect()
+        self.mi_add_image(self.image)
+        self.mi_commit()
 
     def show(self):
         g_players.add(self)
