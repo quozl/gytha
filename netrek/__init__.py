@@ -4083,6 +4083,7 @@ class PhaseFlight(Phase):
         self.event_triggers_update = False
         self.eh_md.append(self.md_us)
         self.op_info_prior_target = None
+        self.hinted = False
 
     def cycle(self):
         """ main in-flight event loop, returns when no longer flying """
@@ -4409,18 +4410,6 @@ class PhaseFlight(Phase):
         InfoSprite(tips, expires=20+len(tips))
         self.op_info_prior_target = self.op_help_keyboard
 
-    def tips(self):
-        tips = galaxy.motd.tips()
-        if not tips:
-            return
-
-        if b_info:
-            b_info.empty()
-        self.op_info_prior_target = self.tips
-        tips.append('')
-        tips.append('Press backspace to clear tips.')
-        InfoSprite(tips, expires=10+len(tips))
-
     def op_dismiss(self, event, arg):
         if b_info:
             b_info.empty()
@@ -4488,6 +4477,7 @@ class PhaseFlight(Phase):
 
     def op_warp(self, event, arg):
         nt.send(cp_speed.data(arg))
+        self.hint_dismiss()
 
     def op_warp_half(self, event, arg):
         if me: self.op_warp(event, me.cap.s_maxspeed / 2)
@@ -4553,6 +4543,34 @@ class PhaseFlight(Phase):
         if ship_keys.has_key(key):
             nt.send(cp_refit.data(ship_keys[key]))
         self.modal_handler = None
+
+    def tips(self):
+        tips = galaxy.motd.tips()
+        if not tips:
+            return
+
+        if b_info:
+            b_info.empty()
+        self.op_info_prior_target = self.tips
+        tips.append('')
+        tips.append('Press backspace to clear tips.')
+        InfoSprite(tips, expires=10+len(tips))
+
+    def hint(self):
+        if self.hinted:
+            return False
+
+        tips = ['Press h for help']
+        InfoSprite(tips, expires=300, track=Tag((me.x, me.y + 3000)))
+        self.op_info_prior_target = self.hint
+        self.hinted = True
+        return True
+
+    def hint_dismiss(self):
+        if self.op_info_prior_target == self.hint:
+            if b_info:
+                b_info.empty()
+            self.op_info_prior_target = None
 
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
@@ -5111,7 +5129,8 @@ def nt_play_a_slot():
         while me.status == POUTFIT: nt.recv()
 
         ph_flight = ph_tactical
-        ph_tactical.tips()
+        if not ph_tactical.hint():
+            ph_tactical.tips()
         while True:
             # clear screen before starting a display mode
             screen.blit(background, (0, 0))
