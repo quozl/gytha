@@ -20,8 +20,6 @@ class MOTD:
             self.status = STATE_PARAMETERS
         if self.status in [STATE_INITIAL, STATE_TIPS]:
             self.list.append(text)
-        if self.status in [STATE_TIPS]:
-            print text
 
     def get(self):
         return self.list

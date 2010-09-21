@@ -3913,7 +3913,6 @@ class PhaseOutfit(Phase):
         self.warn("in netrek all races are equal")
         pygame.display.update(r)
         sp_mask.catch(self.mask)
-        self.draw_tips()
         self.cycle() # returns when choice accepted by server, or user cancels
         sp_mask.uncatch()
 
@@ -4027,7 +4026,6 @@ class PhaseOutfit(Phase):
             if nearest != None:
                 self.warn(nearest.description)
             self.box = nearest
-        self.draw_tips()
 
     def kb(self, event):
         self.unwarn()
@@ -4067,13 +4065,6 @@ class PhaseOutfit(Phase):
         pygame.display.flip()
         self.run = False
 
-    def draw_tips(self):
-        tips = galaxy.motd.tips()
-        if self.tips != tips:
-            if tips:
-                self.tips_text = Texts(tips, 400, 650, 24, 18)
-                pygame.display.flip()
-                self.tips = tips
 
 class PhaseFlight(Phase):
     def __init__(self, name):
@@ -4214,6 +4205,7 @@ class PhaseFlight(Phase):
             K_x: (self.op_beam_down, None, 'beam down'),
             K_y: (self.op_pressor_toggle, None, 'pressor'),
             K_z: (self.op_beam_up, None, 'beam up'),
+            K_BACKSPACE: (self.op_dismiss, None),
             }
         self.keys_control = {
             K_HASH: (self.op_distress, rcd.dist_type_other2),
@@ -4259,6 +4251,7 @@ class PhaseFlight(Phase):
             K_d: (self.op_det_me, None, 'cancel my torps'),
             K_e: (self.op_distress, rcd.dist_type_generic, 'emergency'),
             K_f: (self.op_distress, rcd.dist_type_carrying, 'carrying'),
+            K_h: (self.op_help_keyboard, None),
             K_r: (self.op_repair, None, 'repair (on/off)'),
             K_t: (self.op_tractor_toggle, None, 'tractor (on/off)'),
             }
@@ -4340,57 +4333,92 @@ class PhaseFlight(Phase):
             if b_info:
                 b_info.empty()
 
-        # help varies according to shift key
-        if not self.is_shift(event):
-            tips = [
-                "Netrek Help",
-                "",
-                "Press a number to set engine speed,",
-                "",
-                "You are the ship in the centre of the screen,",
-                "",
-                "Right-click to steer,",
-                "",
-                "Left-click to fire torpedo, point ahead of target,",
-                "",
-                "Middle-click to fire phaser, point at target,",
-                "",
-                "To orbit a planet point at it and press ' ; ',",
-                "",
-                "Killing enemy ships only moves them home,",
-                "",
-                "People in your team will try to communicate, please listen,",
-                "",
-                "Capture planets by getting a kill,",
-                "   ... pick up armies from your planet with ' z ',",
-                "   ... bomb the enemy planet with ' b ',",
-                "   ... beam down the armies with ' x ',",
-                "   ... repeat until it changes team.",
-                "",
-                "If someone kills you, they can begin to capture your planets,",
-                "so come straight back in and defend!",
-                "",
-                "Press shift H for keyboard help"]
-        else:
-            tips = ['Netrek Keyboard Help', '']
-            gap = '  '
-            for key, key_tuple in self.keys_normal.iteritems():
-                if len(key_tuple) < 3: continue
-                name = pygame.key.name(key)
-                tips.append(name + gap + key_tuple[2])
-            for key, key_tuple in self.keys_shift.iteritems():
-                if len(key_tuple) < 3: continue
-                name = 'shift ' + pygame.key.name(key).upper()
-                tips.append(name + gap + key_tuple[2])
-            for key, key_tuple in self.keys_control.iteritems():
-                if len(key_tuple) < 3: continue
-                name = 'control ' + pygame.key.name(key)
-                tips.append(name + gap + key_tuple[2])
-            # FIXME: sort these in a fashion that leads to learning
-            # rather than the default order in the table
+        tips = [
+            "Netrek Help",
+            "",
+            "Press a number to set engine speed,",
+            "",
+            "You are the ship in the centre of the screen,",
+            "",
+            "Right-click to steer,",
+            "",
+            "Left-click to fire torpedo, point ahead of target,",
+            "",
+            "Middle-click to fire phaser, point at target,",
+            "",
+            "To orbit a planet point at it and press ' ; ',",
+            "",
+            "Killing enemy ships only moves them home,",
+            "",
+            "People in your team will try to communicate, please listen,",
+            "",
+            "Capture planets by getting a kill,",
+            "   ... pick up armies from your planet with ' z ',",
+            "   ... bomb the enemy planet with ' b ',",
+            "   ... beam down the armies with ' x ',",
+            "   ... repeat until it changes team.",
+            "",
+            "If someone kills you, they can begin to capture your planets,",
+            "so come straight back in and defend!",
+            "",
+            "Press shift H for keyboard help, or backspace to clear"]
 
-        InfoSprite(tips, expires=35)
+        InfoSprite(tips, expires=10+len(tips)*2)
         self.op_info_prior_target = self.op_help
+
+    def op_help_keyboard(self, event, arg):
+
+        # if help was previously requested and is still visible, dismiss it
+        if self.op_info_prior_target == self.op_help_keyboard:
+            if b_info:
+                b_info.empty()
+                self.op_info_prior_target = None
+                return
+
+        # if info was previously requested and is still visible, destroy it
+        if self.op_info_prior_target != None:
+            if b_info:
+                b_info.empty()
+
+        tips = ['Netrek Keyboard Help', '']
+        gap = '  '
+        for key, key_tuple in self.keys_normal.iteritems():
+            if len(key_tuple) < 3: continue
+            name = pygame.key.name(key)
+            tips.append(name + gap + key_tuple[2])
+        for key, key_tuple in self.keys_shift.iteritems():
+            if len(key_tuple) < 3: continue
+            name = 'shift ' + pygame.key.name(key).upper()
+            tips.append(name + gap + key_tuple[2])
+        for key, key_tuple in self.keys_control.iteritems():
+            if len(key_tuple) < 3: continue
+            name = 'control ' + pygame.key.name(key)
+            tips.append(name + gap + key_tuple[2])
+        # FIXME: sort these in a fashion that leads to learning
+        # rather than the default order in the table
+        tips.append('enter' + gap + 'switch view')
+        tips.append('')
+        tips.append('Press backspace to clear keyboard help.')
+
+        InfoSprite(tips, expires=20+len(tips))
+        self.op_info_prior_target = self.op_help_keyboard
+
+    def tips(self):
+        tips = galaxy.motd.tips()
+        if not tips:
+            return
+
+        if b_info:
+            b_info.empty()
+        self.op_info_prior_target = self.tips
+        tips.append('')
+        tips.append('Press backspace to clear tips.')
+        InfoSprite(tips, expires=10+len(tips))
+
+    def op_dismiss(self, event, arg):
+        if b_info:
+            b_info.empty()
+        self.op_info_prior_target = None
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
@@ -5077,6 +5105,7 @@ def nt_play_a_slot():
         while me.status == POUTFIT: nt.recv()
 
         ph_flight = ph_tactical
+        ph_tactical.tips()
         while True:
             # clear screen before starting a display mode
             screen.blit(background, (0, 0))
