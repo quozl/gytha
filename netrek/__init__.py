@@ -281,7 +281,7 @@ class Planet(Local):
             self.x = x
             self.y = y
             self.set_box(x, y)
-        self.name = name
+        self.name = name.split('\0')[0]
         if old != (self.x, self.y, self.name):
             self.op_info_update()
 
@@ -295,7 +295,7 @@ class Planet(Local):
             self.op_info_update()
 
     def op_info(self):
-        lines = [self.name + ' (a planet)', '']
+        lines = ['%s (a planet)' % self.name, '']
         if self.info & me.team:
             if self.armies != 0:
                 lines.append(teams_long[self.owner].title() + ' ')
@@ -393,10 +393,10 @@ class Ship(Local):
         self.fuse = None
 
     def op_info(self):
-        lines = [self.mapchars + ' ' + self.name + ' (a ship)', '']
+        lines = ['%s %s (a ship)' % (self.mapchars, self.name), '']
         lines.append(teams_long[self.team].title())
-        lines.append(ships_long[self.shiptype].title())
-        lines.append('(' + ships_use[self.shiptype].title() + ')')
+        lines.append(ships_long[self.shiptype].title() +
+                     ' (' + ships_use[self.shiptype].title() + ')')
         lines.append('')
         if self.kills > 0:
             lines.append('Kills %.2f' % (self.kills / 100.0))
@@ -467,7 +467,7 @@ class Ship(Local):
 
     def sp_pl_login(self, rank, name, monitor, login):
         self.rank = rank
-        self.name = name
+        self.name = name.split('\0')[0]
         self.monitor = monitor
         self.login = login
         # FIXME: display this data, on player list
