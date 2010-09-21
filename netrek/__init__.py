@@ -1796,9 +1796,10 @@ class InfoSprite(pygame.sprite.Sprite):
             rect = surface.get_rect()
             y = y + rect.height + 1
             longest = max(longest, rect.width)
-        x += longest + self.pad
+        x += longest
 
         # calculate expected image size
+        #x += self.pad
         #x += self.close_icon.get_rect().width
         x += self.pad + self.border
         y += self.pad + self.border
@@ -1823,9 +1824,10 @@ class InfoSprite(pygame.sprite.Sprite):
             self.image.blit(surface, rect)
             y = y + rect.height + 1
             if rect.right > w: w = rect.right
-        x = w + self.pad
+        x = w
 
         # place an icon at bottom right
+        #x += self.pad
         #rect = self.close_icon.get_rect(left=x, bottom=y)
         #self.image.blit(self.close_icon, rect)
         #x += rect.width
