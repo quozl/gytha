@@ -962,22 +962,38 @@ class PlanetGalacticSprite(PlanetSprite):
         PlanetSprite.__init__(self, planet)
         self.pick()
         g_planets.add(self)
-        self.name = None
-        self.armies = None
 
     def add_armies(self):
-        image = pygame.Surface((30, 60), pygame.SRCALPHA, 32)
-        message = "%d" % (self.planet.armies)
         if self.planet.armies == 0:
-            message = " "
+            return
+        tag = pygame.Surface((30, 74), pygame.SRCALPHA, 32)
+        message = "%d" % (self.planet.armies)
         colour = (128, 128, 128)
         if self.planet.flags & PLAGRI:
             colour = (255, 255, 255)
         font = fc.get('DejaVuSans.ttf', 12)
         text = font.render(message, 1, colour)
         rect = text.get_rect(top=0, centerx=15)
-        image.blit(text, rect)
-        self.mi_add_image(image)
+        tag.blit(text, rect)
+        self.mi_add_image(tag)
+
+    def add_flags(self):
+        if not self.planet.flags & (PLFUEL | PLREPAIR):
+            return
+        pos = 70
+        tag = pygame.Surface((pos, 30), pygame.SRCALPHA, 32)
+        colour = team_colour(self.planet.owner)
+        if self.planet.flags & PLFUEL:
+            font = fc.get('DejaVuSans.ttf', 12)
+            text = font.render('F', 1, colour)
+            rect = text.get_rect(left=0, centery=15)
+            tag.blit(text, rect)
+        if self.planet.flags & PLREPAIR:
+            font = fc.get('DejaVuSans.ttf', 12)
+            text = font.render('R', 1, colour)
+            rect = text.get_rect(right=pos, centery=15)
+            tag.blit(text, rect)
+        self.mi_add_image(tag)
 
     def add_icon(self):
         # IMAGERY: planet-???-30x30.png
@@ -987,31 +1003,26 @@ class PlanetGalacticSprite(PlanetSprite):
     def add_name(self):
         if self.planet.name == '':
             return
-        if not self.tag or self.name != self.planet.name or \
-               self.armies != self.planet.armies:
-            self.name = self.planet.name
-            self.tag = pygame.Surface((60, 80), pygame.SRCALPHA, 32)
-            font = fc.get('DejaVuSans.ttf', 9)
-            message = "%s" % (self.planet.name)
-            if message == "":
-                message = "unknown"
-            colour = team_colour(self.planet.owner)
-            if self.planet.armies > 4:
-                colour = brighten(colour)
-            text = font.render(message, 1, colour)
-            rect = text.get_rect(centerx=30, bottom=80)
-            self.tag.blit(text, rect)
-        self.mi_add_image(self.tag)
+        tag = pygame.Surface((92, 74), pygame.SRCALPHA, 32)
+        font = fc.get('DejaVuSans.ttf', 12)
+        message = "%s" % (self.planet.name)
+        colour = team_colour(self.planet.owner)
+        if self.planet.armies > 4:
+            colour = brighten(colour)
+        text = font.render(message, 1, colour)
+        rect = text.get_rect(centerx=46, bottom=74)
+        tag.blit(text, rect)
+        self.mi_add_image(tag)
 
     def pick(self):
         self.mi_begin()
 
         self.add_icon()
-        # FIXME: render planet flags
 
         # render planet armies
         if self.planet.info & me.team:
             self.add_armies()
+            self.add_flags()
 
         # render planet name
         self.add_name()
@@ -1110,12 +1121,9 @@ class ShipGalacticSprite(ShipSprite):
 
     def pick(self):
         self.mi_begin()
-        self.mi_add_image(ic.get('ring-36x36.png'))
         size = 22
         message = slot_decode(self.ship.n)
         colour = team_colour(self.ship.team)
-        if me == self.ship:
-            colour = (128, 128, 128)
         if self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT):
             size = 16
         if self.ship.flags & (PFCLOAK):
@@ -1124,6 +1132,13 @@ class ShipGalacticSprite(ShipSprite):
             message = '*'
         if self.ship.kills > 199:
             colour = brighten(colour)
+        pos = 36
+        ring = pygame.Surface((pos, pos), pygame.SRCALPHA, 32)
+        rgba = list(colour)
+        rgba.append(128)
+        pygame.draw.ellipse(ring, rgba, pygame.Rect((0, 6), (pos, 24)), 2)
+        pygame.draw.ellipse(ring, rgba, pygame.Rect((6, 0), (24, pos)), 2)
+        self.mi_add_image(ring)
         font = fc.get('DejaVuSans.ttf', size)
         self.image = font.render(message, 1, colour)
         self.rect = self.image.get_rect()
@@ -1142,6 +1157,7 @@ class ShipTacticalSprite(ShipSprite):
     def __init__(self, ship):
         ShipSprite.__init__(self, ship)
         self.tag = None
+        self.old_tag = None
         self.pick()
         self.explosions = [ 'exp-10.png', 'exp-09.png', 'exp-08.png',
             'exp-07.png', 'exp-06.png', 'exp-05.png', 'exp-04.png',
@@ -1175,7 +1191,9 @@ class ShipTacticalSprite(ShipSprite):
             self.mi_add_image(ic.get_rotated('netrek.png', rotation / 16 * 16))
 
     def add_tag(self):
-        if not self.tag:
+        new = self.ship.team, self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT)
+        if new != self.old_tag:
+            self.old_tag = new
             pos = 76
             self.tag = pygame.Surface((pos, pos), pygame.SRCALPHA, 32)
             font = fc.get('DejaVuSans.ttf', 20)
