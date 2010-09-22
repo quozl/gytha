@@ -394,6 +394,7 @@ class Ship(Local):
 
     def op_info(self):
         lines = ['%s %s (a ship)' % (self.mapchars, self.name), '']
+        # FIXME: tell more about self
         lines.append(teams_long[self.team].title())
         lines.append(ships_long[self.shiptype].title() +
                      ' (' + ships_use[self.shiptype].title() + ')')
@@ -3470,6 +3471,7 @@ class PhaseTips(Phase):
     "numbers are slower or faster,",
     "",
     "2.  you are the ship in the centre of the screen,",
+            # FIXME: but not if you are in galactic view
     "",
     "3.  use right-click on the mouse to steer toward a point in space, you",
     "will find it easier to turn at lower speeds,",
@@ -3974,6 +3976,7 @@ class PhaseOutfit(Phase):
         b = IconTextButton(clicked, False, 'go-previous.png',
                            'Play Again', 18, (192, 192, 192),
                            self.place_above_blame, 20)
+        # FIXME: show shortcut space bar
         self.eh_add_clickable(b)
         self.b_join = b
 
@@ -4364,6 +4367,7 @@ class PhaseFlight(Phase):
             "Press a number to set engine speed,",
             "",
             "You are the ship in the centre of the screen,",
+            # FIXME: but not if you are in galactic view
             "",
             "Right-click to steer,",
             "",
@@ -5242,3 +5246,5 @@ def main():
 # FIXME: dual display
 
 # FIXME: keymap feature, allow use of function keys for actions.
+
+# FIXME: dashboard should show percentages or proportions, per petria

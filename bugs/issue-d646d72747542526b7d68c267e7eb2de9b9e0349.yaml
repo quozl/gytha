@@ -23,3 +23,12 @@ log_events:
   - James Cameron <quozl@us.netrek.org>
   - commented
   - a tips feature was added that relates to this ticket.
+- - 2010-09-21 03:23:16.384564 Z
+  - James Cameron <quozl@us.netrek.org>
+  - commented
+  - |-
+    tips on metaserver list, done
+    tips in flight, done, h key
+    keyboard map in flight, done, H key
+    ship classes not yet done
+    rank information not yet done
