@@ -5168,7 +5168,8 @@ def nt_play_a_slot():
 
         ph_flight = ph_tactical
         if not ph_tactical.hint():
-            ph_tactical.tips()
+            if me.flags & PFGREEN:
+                ph_tactical.tips()
         while True:
             # clear screen before starting a display mode
             screen.blit(background, (0, 0))
