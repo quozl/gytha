@@ -190,6 +190,8 @@ r_us = Rect((50, 50), (1000, 1000))
 # types.
 #
 
+rounds = 0
+
 def n2gs(x, y):
     """ netrek to galactic screen coordinate conversion
     """
@@ -3916,7 +3918,11 @@ class PhaseOutfit(Phase):
             # FIXME: slide ships into race on race positions, omitting other races
             x = (box_r - box_l) / 2 + box_l
             y = (box_b - box_t) / 2 + box_t
-            for ship in [CRUISER, ASSAULT, SCOUT, BATTLESHIP, DESTROYER, STARBASE]:
+            permit = [CRUISER, ASSAULT, SCOUT, BATTLESHIP, DESTROYER, STARBASE]
+            if rounds < 50: permit = permit[:-1]
+            if rounds < 20: permit = [CRUISER, ASSAULT, SCOUT]
+            if rounds < 10: permit = [CRUISER]
+            for ship in permit:
                 x = x + dx * sx
                 y = y + dy * sy
                 # IMAGERY: ???-??.png
@@ -4006,8 +4012,11 @@ class PhaseOutfit(Phase):
         nt.send(cp_outfit.data(team, ship))
 
     def sp_pickok(self, state):
+        global rounds
+
         if state == 1:
             self.run = False
+            rounds += 1
             return
 
         self.unwarn()
