@@ -4682,7 +4682,7 @@ class PhaseFlightGalactic(PhaseFlight):
 
     def kb(self, event):
         global ph_flight
-        if event.key == K_RETURN and self.modal_handler is None:
+        if (event.key == K_RETURN or event.key == K_TAB) and self.modal_handler is None:
             ph_flight = ph_tactical
             self.run = False
         else:
@@ -4743,7 +4743,7 @@ class PhaseFlightTactical(PhaseFlight):
 
     def kb(self, event):
         global ph_flight
-        if event.key == K_RETURN and self.modal_handler is None:
+        if (event.key == K_RETURN or event.key == K_TAB) and self.modal_handler is None:
             ph_flight = ph_galactic
             self.run = False
         else:
