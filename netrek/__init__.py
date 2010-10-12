@@ -4617,30 +4617,37 @@ class PhaseFlightGalactic(PhaseFlight):
         xc, yc = n2gs(GWIDTH/2, GWIDTH/2)
         x1, y1 = n2gs(0, 0)
         x2, y2 = n2gs(GWIDTH, GWIDTH)
-        r += [pygame.draw.line(screen, (128, 128, 128), (xc, y1), (xc, y2))]
-        r += [pygame.draw.line(screen, (128, 128, 128), (x1, yc), (x2, yc))]
+        r += [pygame.draw.line(screen, (96, 96, 96), (xc, y1), (xc, y2))]
+        r += [pygame.draw.line(screen, (96, 96, 96), (x1, yc), (x2, yc))]
+        t = (galaxy.tournament_teams & 0xf) | (galaxy.tournament_teams >> 4)
+        if t == 0:
+            t = ALL_TEAMS
 
         if r_us.width == 1000 and r_us.height == 1000:
 
-            ts = ic.get('team-box-rom.png')
-            tr = ts.get_rect(left=x1, top=y1)
-            screen.blit(ts, tr)
-            r += [tr]
+            if t & ROM:
+                ts = ic.get('team-box-rom.png')
+                tr = ts.get_rect(left=x1, top=y1)
+                screen.blit(ts, tr)
+                r += [tr]
 
-            ts = ic.get('team-box-fed.png')
-            tr = ts.get_rect(left=x1, bottom=y2)
-            screen.blit(ts, tr)
-            r += [tr]
+            if t & FED:
+                ts = ic.get('team-box-fed.png')
+                tr = ts.get_rect(left=x1, bottom=y2)
+                screen.blit(ts, tr)
+                r += [tr]
 
-            ts = ic.get('team-box-ori.png')
-            tr = ts.get_rect(right=x2, bottom=y2)
-            screen.blit(ts, tr)
-            r += [tr]
+            if t & ORI:
+                ts = ic.get('team-box-ori.png')
+                tr = ts.get_rect(right=x2, bottom=y2)
+                screen.blit(ts, tr)
+                r += [tr]
 
-            ts = ic.get('team-box-kli.png')
-            tr = ts.get_rect(right=x2, top=y1)
-            screen.blit(ts, tr)
-            r += [tr]
+            if t & KLI:
+                ts = ic.get('team-box-kli.png')
+                tr = ts.get_rect(right=x2, top=y1)
+                screen.blit(ts, tr)
+                r += [tr]
 
         size = 24
         font = fc.get('DejaVuSans.ttf', size)

@@ -42,9 +42,10 @@ FED=0x1
 ROM=0x2
 KLI=0x4
 ORI=0x8
+ALL_TEAMS = FED | ROM | KLI | ORI
 
 teams = {IND: 'ind', FED: 'fed', ROM: 'rom', KLI: 'kli', ORI: 'ori',
-         FED | ROM | KLI | ORI: 'login'}
+         ALL_TEAMS: 'login'}
 
 teams_long = { IND: 'independent',
                FED: 'federation',
