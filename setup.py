@@ -10,11 +10,11 @@ if sys.version_info < (2, 4):
 setup(
     name="netrek-client-pygame",
     version="0.6",
-    description= "This is a client for the multi-player game of Netrek",
+    description= "Netrek, a multi-player real-time 2D strategy game.",
     author="James Cameron",
     author_email="quozl@us.netrek.org",
     license="GNU General Public License (GPL)",
-    long_description="Netrek is the probably the first video game which can accurately be described as a sport.  It has more in common with basketball than with arcade games or Quake.  Its vast and expanding array of tactics and strategies allows for many different play styles; the best players are the ones who think fastest, not necessarily the ones who twitch most effectively.  It can be enjoyed as a twitch game, since the dogfighting system is extremely robust, but the things that really set Netrek apart from other video games are the team and strategic aspects.  Team play is dynamic and varied, with roles constantly changing as the game state changes.  Strategic play is explored in organized league games; after 6+ years of league play, strategies were still being invented and refined.",
+    long_description="Your team starts with ten planets.  Each player flies a starship.  You shoot at enemy ships with torpedos and phasers.  You fly to, scan and bomb enemy planets to deny their use by the enemy team.  You protect your own planets by preventing the enemy from reaching them.  Once you make a kill, and don't die, you beam up armies from the planets you protected, and drop them on the enemy planets that have been bombed.  Your team wins when all the enemy planets are taken.  Your team loses if all your planets are taken from you.  Strategies include escorting, controlling space, and coordinated attacks.",
     keywords = "netrek client pygame",
     url = "http://quozl.linux.org.au/netrek-client-pygame/",
     download_url = "http://james.tooraweenah.com/darcs/netrek-client-pygame/",
