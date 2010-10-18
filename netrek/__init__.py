@@ -791,7 +791,7 @@ class Galaxy:
         self.ship_aging()
 
     def planet(self, n):
-        if not self.planets.has_key(n):
+        if n not in self.planets:
             planet = Planet(n)
             self.planets[n] = planet
         return self.planets[n]
@@ -801,7 +801,7 @@ class Galaxy:
             planet.proximity(me.x, me.y)
 
     def ship(self, n):
-        if not self.ships.has_key(n):
+        if n not in self.ships:
             self.ships[n] = Ship(n)
         return self.ships[n]
 
@@ -816,7 +816,7 @@ class Galaxy:
         return r
 
     def torp(self, n):
-        if not self.torps.has_key(n):
+        if n not in self.torps:
             self.torps[n] = Torp(n)
         return self.torps[n]
 
@@ -831,7 +831,7 @@ class Galaxy:
         return r
 
     def phaser(self, n):
-        if not self.phasers.has_key(n):
+        if n not in self.phasers:
             self.phasers[n] = Phaser(n)
         return self.phasers[n]
 
@@ -848,12 +848,12 @@ class Galaxy:
         return r
 
     def plasma(self, n):
-        if not self.plasmas.has_key(n):
+        if n not in self.plasmas:
             self.plasmas[n] = Plasma(n)
         return self.plasmas[n]
 
     def cap(self, n):
-        if not self.caps.has_key(n):
+        if n not in self.caps:
             self.caps[n] = Cap(n)
         return self.caps[n]
 
@@ -2728,7 +2728,7 @@ class SP:
         """ given a packet type return a tuple consisting of
             (size, instance), or (1, self) if type not known
         """
-        if not sp_table.has_key(number):
+        if number in not sp_table:
             return (1, self)
         return sp_table[number]
 
@@ -3608,7 +3608,7 @@ class PhaseServers(Phase):
             self.lag = pygame.time.get_ticks() - self.sent
             self.warn('ping ' + str(self.lag) + ' ms', 1500)
             self.timing = False
-        if not server.has_key('y'):
+        if 'y' not in server:
             y = 300 + self.dy * self.n
             self.n += 1
         else:
@@ -4184,7 +4184,7 @@ class PhaseFlight(Phase):
 
         # check for control key sequences pressed
         if (self.is_control(event)):
-            if self.keys_control.has_key(event.key):
+            if event.key in self.keys_control:
                 (handler, argument) = self.keys_control[event.key][:2]
                 handler(event, argument)
                 return
@@ -4196,13 +4196,13 @@ class PhaseFlight(Phase):
 
         # check for shift key sequences pressed
         if (self.is_shift(event)):
-            if self.keys_shift.has_key(event.key):
+            if event.key in self.keys_shift:
                 (handler, argument) = self.keys_shift[event.key][:2]
                 handler(event, argument)
                 return
 
         # check for normal keys pressed
-        if self.keys_normal.has_key(event.key):
+        if event.key in self.keys_normal:
             (handler, argument) = self.keys_normal[event.key][:2]
             handler(event, argument)
             return
@@ -4571,7 +4571,7 @@ class PhaseFlight(Phase):
 
     def op_refit_next(self, event):
         key = pygame.key.name(event.key)
-        if ship_keys.has_key(key):
+        if key in ship_keys:
             nt.send(cp_refit.data(ship_keys[key]))
         self.modal_handler = None
 
