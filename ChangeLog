@@ -1,3 +1,10 @@
+Mon Oct 18 10:09:39 2010  James Cameron  <quozl@us.netrek.org>
+
+	* netrek/: an extensive rewrite, see the source repository commit
+	log for more details.
+
+	http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=summary
+
 Tue Sep 25 16:11:15 2007  James Cameron  <quozl@us.netrek.org>
 
 	* netrek.py (PhaseServers.update): fix crash reported by Dar1us on
