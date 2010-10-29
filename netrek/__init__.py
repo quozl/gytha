@@ -3553,6 +3553,10 @@ class PhaseServers(Phase):
         self.timing = False
         self.sent = pygame.time.get_ticks()
         self.lag = 0
+        # FIXME: on Microsoft Windows according to a contributor, this
+        # high rate of user events causes the pygame event queue to
+        # fill, the solution may be to pull events from the queue more
+        # frequently in cycle_wait.
         self.ue_set(100)
         self.fuse_was = opt.metaserver_refresh_interval * 1000 / self.ue_delay
         self.fuse = self.fuse_was / 2

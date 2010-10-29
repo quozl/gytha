@@ -148,6 +148,8 @@ class Client:
         initial login data burst because of the MOTD and torp arrays. """
 
         # find out how much is available right now
+        # FIXME: on Microsoft Windows socket.MSG_DONTWAIT is not
+        # defined and can be omitted, according to a contributor.
         pbytes = self.tcp.recv_into(self.buffer, self.bufsiz, socket.MSG_PEEK + socket.MSG_DONTWAIT)
         if pbytes > 1024:
             return self.tcp_readable_stream()
