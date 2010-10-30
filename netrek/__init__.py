@@ -504,7 +504,8 @@ class Ship(Local):
             if self.x < 0 and x > 0:
                 self.px = self.x = x
                 self.py = self.y = y
-                galaxy.planets_proximity_check() # forward reference to enclosing class
+                # forward reference to enclosing class
+                galaxy.planets_proximity_check()
             if self.speed != speed:
                 self.sp_player_me_speed_shown = False
         elif me:
@@ -528,7 +529,8 @@ class Ship(Local):
                 if abs(self.x - self.px) > 1000 or abs(self.y - self.py) > 1000:
                     self.px = self.x
                     self.py = self.y
-                    galaxy.planets_proximity_check() # forward reference to enclosing class
+                    # forward reference to enclosing class
+                    galaxy.planets_proximity_check()
                 self.ppcf = 20
 
     def sp_flags(self, tractor, flags):
@@ -541,7 +543,7 @@ class Ship(Local):
         # was alive now exploding
         if self.status == PALIVE and status == PEXPLODE:
             galaxy.se.append(self)
-            self.fuse = 10 * galaxy.ups / 10;
+            self.fuse = 10 * galaxy.ups / 10
         # was exploding now not
         if self.status == PEXPLODE and status != PEXPLODE:
             if self in galaxy.se:
@@ -2728,7 +2730,7 @@ class SP:
         """ given a packet type return a tuple consisting of
             (size, instance), or (1, self) if type not known
         """
-        if number in not sp_table:
+        if number not in sp_table:
             return (1, self)
         return sp_table[number]
 

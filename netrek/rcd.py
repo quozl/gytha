@@ -22,7 +22,7 @@ netrek-client-vanilla, input.c,
 """
 
 import struct
-from constants import *
+import constants
 
 # The binary messages will only be delivered to us if we send a
 # CP_FEATURE packet of RC_DISTRESS.  We may send binary messages
