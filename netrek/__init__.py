@@ -144,7 +144,7 @@ import mercenary
 import options
 import rcd
 
-VERSION = "0.6"
+VERSION = "0.6.1"
 
 WELCOME = [
 "Netrek Client Pygame %s" % (VERSION),
