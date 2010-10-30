@@ -4,7 +4,7 @@ parser = OptionParser()
 parser.add_option("-F", "--fullscreen",
                   action="store_true", dest="fullscreen", default=True,
                   help="force fullscreen mode on")
-parser.add_option("--no-fullscreen",
+parser.add_option("--no-fullscreen", "--no-full-screen",
                   action="store_false", dest="fullscreen",
                   help="force fullscreen mode off")
 parser.add_option("-s", "--server", "--host", dest="server",
