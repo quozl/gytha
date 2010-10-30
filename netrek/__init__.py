@@ -155,6 +155,16 @@ WELCOME = [
 "conditions; see source for details."
 ]
 
+INSTRUCTIONS_SERVERS = [
+'Welcome to Netrek, a multi-player real-time 2D strategy game.',
+'',
+'Pick a server to begin playing.','',
+'Each Netrek galaxy is shared to players through a server.  These servers',
+'are listed here, from the Netrek metaserver.  Please choose a server to',
+'play on, then click on it with your middle button to join as a mercenary,',
+'or with the left button to login.'
+]
+
 ic = IC()
 fc = FC()
 
@@ -2170,6 +2180,9 @@ class TextsLine(SpriteBacked):
         SpriteBacked.__init__(self)
 
 class Texts:
+    """
+    a group of sprites for lines of text, one sprite per line
+    """
     def __init__(self, texts, x, y, lines=24, size=18):
         self.group = pygame.sprite.OrderedUpdates()
         self.left = x
@@ -2190,6 +2203,7 @@ class Texts:
 
     def draw(self):
         self.rects = self.group.draw(screen)
+        return self.rects
 
     def add(self, text):
         if self.lines < 1: return None
@@ -3282,13 +3296,13 @@ class Phase:
         return rect(centerx=self.blame_rect.centerx,
                     bottom=self.blame_rect.top-arg)
 
-    def welcome(self):
+    def welcome(self, colour=(255, 255, 255)):
         font = fc.get('DejaVuSansMono.ttf', 14)
         x = r_main.centerx - 300
         y = int(r_main.bottom * 0.79)
         wr = None
         for line in WELCOME:
-            ts = font.render(line, 1, (255, 255, 255))
+            ts = font.render(line, 1, colour)
             tr = ts.get_rect(left=x, top=y)
             y = tr.bottom
             screen.blit(ts, tr)
@@ -3543,9 +3557,11 @@ class PhaseServers(Phase):
         x = r_main.centerx
         self.text('netrek', x, 100, 92)
         self.text('server list', x, 175, 64)
-        self.welcome()
+        self.welcome(colour=(128, 128, 128))
         self.add_quit_button(self.quit)
         self.add_tips_button(self.tips)
+        self.instructions = None
+        self.pinger = None
         pygame.display.flip()
         self.bouncer = Bouncer(225, 20, x, 240)
         self.dy = 40 # vertical spacing
@@ -3559,6 +3575,7 @@ class PhaseServers(Phase):
         self.ue_set(100)
         self.fuse_was = opt.metaserver_refresh_interval * 1000 / self.ue_delay
         self.fuse = self.fuse_was / 2
+        self.warn('pick a server to connect to', 2500)
         self.cycle_wait() # returns after self.leave is called
         self.ue_clear()
 
@@ -3566,19 +3583,19 @@ class PhaseServers(Phase):
         # IMAGERY: servers-icon.png
         return Icon('servers-icon.png', 70, y)
 
+    def place_xy(self, rect, arg):
+        x, y = arg
+        return rect(left=x, centery=y)
+
     def server_name(self, y, server):
         """ server name, shade by age """
-        colour = 64
+        colour = 96
         age = server['age']
         if age < 3000: colour = 128
         if age < 300: colour = 192
         if age < 180: colour = 255
         colour = (colour, colour, colour)
         return Text(server['name'] + ' ' + server['comment'], self.place_xy, (100, y), 22, colour)
-
-    def place_xy(self, rect, arg):
-        x, y = arg
-        return rect(left=x, centery=y)
 
     def server_queue(self, y, server):
         return Text('Queue of ' + str(server['queue']), self.place_xy, (r_main.centerx - 10, y), 22, (255, 64, 64))
@@ -3606,10 +3623,23 @@ class PhaseServers(Phase):
         # position being taken already by a metaserver entry.
         # FIXME: old multicast entries not expired when they leave.
         redraw = []
+        # defer instructions until at least one server appears
+        if not self.instructions:
+            self.instructions = Texts(INSTRUCTIONS_SERVERS,
+                                      r_main.centerx - 300,
+                                      r_main.height * 0.55, 8, 14)
+            rs = self.instructions.draw()
+            for r in rs:
+                redraw.append(r)
         server = self.mc.servers[name]
         if self.timing and server['source'] == 'r':
             self.lag = pygame.time.get_ticks() - self.sent
-            self.warn('ping ' + str(self.lag) + ' ms', 1500)
+            x = 'ping ' + str(self.lag) + ' ms'
+            def place(rect, arg):
+                x, y = arg
+                return rect(centerx=x, centery=y)
+            self.pinger = Text(x, place, (r_main.centerx, 240), 14, (255, 255, 255))
+            redraw.append(self.pinger.draw())
             self.timing = False
         if 'y' not in server:
             y = 300 + self.dy * self.n
@@ -3641,6 +3671,9 @@ class PhaseServers(Phase):
 
         self.fuse -= 1
         if self.fuse < 0:
+            if self.pinger:
+                pygame.display.update(self.pinger.clear())
+                self.pinger = None
             self.sent = pygame.time.get_ticks()
             self.timing = True
             self.mc.query(opt.metaserver)
