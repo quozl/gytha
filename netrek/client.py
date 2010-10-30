@@ -5,6 +5,7 @@ MSG_PEEK = socket.MSG_PEEK
 try:
     MSG_DONTWAIT = socket.MSG_DONTWAIT
 except:
+    # on some platforms socket.MSG_DONTWAIT is not defined
     MSG_DONTWAIT = 0
 
 class Error(Exception):
@@ -154,7 +155,8 @@ class Client:
         initial login data burst because of the MOTD and torp arrays. """
 
         # find out how much is available right now
-        pbytes = self.tcp.recv_into(self.buffer, self.bufsiz, socket.MSG_PEEK + socket.MSG_DONTWAIT)
+        pbytes = self.tcp.recv_into(self.buffer, self.bufsiz,
+                                    MSG_PEEK + MSG_DONTWAIT)
         if pbytes > 1024:
             return self.tcp_readable_stream()
 
