@@ -1,6 +1,12 @@
 import sys, socket, select, errno, time, struct, array
 from constants import *
 
+MSG_PEEK = socket.MSG_PEEK
+try:
+    MSG_DONTWAIT = socket.MSG_DONTWAIT
+except:
+    MSG_DONTWAIT = 0
+
 class Error(Exception):
     pass
 
@@ -148,8 +154,6 @@ class Client:
         initial login data burst because of the MOTD and torp arrays. """
 
         # find out how much is available right now
-        # FIXME: on Microsoft Windows socket.MSG_DONTWAIT is not
-        # defined and can be omitted, according to a contributor.
         pbytes = self.tcp.recv_into(self.buffer, self.bufsiz, socket.MSG_PEEK + socket.MSG_DONTWAIT)
         if pbytes > 1024:
             return self.tcp_readable_stream()
