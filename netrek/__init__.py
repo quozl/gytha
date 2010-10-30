@@ -3327,6 +3327,7 @@ class Phase:
         return n
 
     def display_sink_wait(self):
+        self.display_sink()
         event = pygame.event.wait()
         self.display_sink_event(event)
 
