@@ -2231,7 +2231,8 @@ class Field:
         self.enter()
 
     def highlight(self):
-        return screen.fill((0,127,0), self.br)
+        screen.blit(self.bg, self.br)
+        return pygame.draw.rect(screen, (128, 128, 255), self.br, 1)
 
     def unhighlight(self):
         return screen.blit(self.bg, self.br)
