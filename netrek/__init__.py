@@ -3729,7 +3729,8 @@ class PhaseOutfit(PhaseNonFlight):
         self.screenshot = False
         self.tips = None
         self.add_quit_button(self.quit)
-        self.add_list_button(self.list)
+        if not opt.server:
+            self.add_list_button(self.list)
 
     def do(self):
         """ unlike the earlier display phases, this one exists for the
@@ -3743,7 +3744,8 @@ class PhaseOutfit(PhaseNonFlight):
         self.text('ship and race', x, 255, 64)
         self.blame()
         self.b_quit.draw()
-        self.b_list.draw()
+        if not opt.server:
+            self.b_list.draw()
         self.join_enabled = (self.last_team != None and not nt.has_quit)
         if self.join_enabled:
             # offer rejoin if a team was previously selected and
@@ -3937,7 +3939,8 @@ class PhaseOutfit(PhaseNonFlight):
 
     def proceed(self):
         self.b_quit.clear()
-        self.b_list.clear()
+        if not opt.server:
+            self.b_list.clear()
         pygame.display.flip()
         self.run = False
 
@@ -4689,7 +4692,7 @@ class PhaseDisconnected(PhaseNonFlight):
             y = 350
         self.texts = Texts(self.diagnosis(), 50, y, size, 18)
         self.add_quit_button(self.quit)
-        if opt.server == None:
+        if not opt.server:
             self.add_list_button(self.list)
         pygame.display.flip()
         self.run = True
