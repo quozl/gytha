@@ -162,12 +162,16 @@ WELCOME = [
 INSTRUCTIONS_SERVERS = [
 'Welcome to Netrek, a multi-player real-time 2D strategy game.',
 '',
-'Pick a server to begin playing.','',
+'Pick a server to begin playing.',
+'',
 'Each Netrek galaxy is shared to players through a server.  These servers',
 'are listed here, from the Netrek metaserver.  Number of players is shown',
 'to the right.  Click on a server with your middle mouse button to',
 'join as an anonymous mercenary, or with your left button to login.'
 ]
+
+# number of rounds played this session
+rounds = 0
 
 # rectangle of entire window
 # changed when screen capabilities are determined
@@ -200,8 +204,6 @@ r_us = Rect((50, 50), (1000, 1000))
 # the following functions are for conversions between these coordinate
 # types.
 #
-
-rounds = 0
 
 def n2gs(x, y):
     """ netrek to galactic screen coordinate conversion
@@ -4667,7 +4669,7 @@ class PhaseFlightTactical(PhaseFlight):
 
 class PhaseDisconnected(PhaseNonFlight):
     def __init__(self, screen):
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.background("hubble-helix.jpg")
         x = r_main.centerx
         self.text('netrek', x, 100, 92)
