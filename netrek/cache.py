@@ -4,9 +4,6 @@ that a second pygame.image.load for the same file causes the file to
 be opened again. """
 import pygame, os, time
 
-# FIXME: learn what needs to be loaded, and preload it during server
-# connect or other pregame UI pauses
-
 class IC:
     """ an image cache """
     def __init__(self):
@@ -171,3 +168,6 @@ class FC:
         if key not in self.cache:
             self.cache[key] = self.read(name, size)
         return self.cache[key]
+
+ic = IC()
+fc = FC()
