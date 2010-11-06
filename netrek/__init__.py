@@ -3457,6 +3457,9 @@ class PhaseServers(PhaseNonFlight):
         pygame.display.update(redraw)
 
     def network_sink(self):
+        """ redefining the standard network_sink: while on this screen
+        in particular, check for replies from the metaserver that we
+        requested. """
         self.mc.recv()
 
     def ue(self, event):
@@ -4830,6 +4833,60 @@ def pg_fd():
         n = ctypes.cast(n+8, ctypes.POINTER(ctypes.c_int)).contents.value
     except:
         print "unable to identify file descriptor of X socket, slowing"
+
+        """
+
+        The effect of this is profound, but usually only noticed by
+        expert players firing bursts of torpedoes.
+
+        The effect is input lag.
+
+        Normally nt.recv will wake the process on either a network
+        event or a display event.  Without a call to nt.set_pg_fd,
+        nt.recv will stall until a packet arrives from the server,
+        or a 0.04 second timeout expires.
+
+        Therefore if the X socket descriptor cannot be identified, or
+        in the case of non-X SDL usage, such as on Mac OS X or
+        Microsoft Windows, the player will experience input lag, where
+        response to keyboard or mouse events will be delayed by up to
+        the 0.04 second timeout.
+
+        Consider the two timing diagrams that follow.  These are
+        timelines, with a scale of 0.002 seconds per character, with
+        characters representing different things:
+
+        External events:
+
+                |  server update boundary at 10 updates (0.1 sec)
+                <  packet from server (lagged by 6ms from server)
+                e  keyboard or mouse event (from the player)
+
+        Generated events:
+
+                d  display update based on packet received from server
+                >  packet to server based on keyboard or mouse event
+                =  the 0.04 second timeout on select in nt.recv
+
+        a.  Normal case, with X socket descriptor used by nt.recv
+
+        0.0 sec                                           0.1 sec
+        |                                                 |
+        |   <      e                                      |   <
+        |                                                 |
+        |    d      >                                     |    d
+        -------------------------------------------------------------
+
+        b.  Abnormal case, with X socket descriptor unknown
+
+        0.0 sec                                           0.1 sec
+        |                                                 |
+        |   <      e                                      |   <
+        |===  ==================== ==================== ==|===  =====
+        |    d                    >                       |    d
+        -------------------------------------------------------------
+
+        """
         return
 
     if n > 255:
