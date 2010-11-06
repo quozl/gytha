@@ -160,9 +160,9 @@ INSTRUCTIONS_SERVERS = [
 '',
 'Pick a server to begin playing.','',
 'Each Netrek galaxy is shared to players through a server.  These servers',
-'are listed here, from the Netrek metaserver.  Please choose a server to',
-'play on, then click on it with your middle button to join as a mercenary,',
-'or with the left button to login.'
+'are listed here, from the Netrek metaserver.  Number of players is shown',
+'to the right.  Click on a server with your middle mouse button to',
+'join as an anonymous mercenary, or with your left button to login.'
 ]
 
 ic = IC()
