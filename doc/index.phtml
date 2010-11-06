@@ -1,8 +1,17 @@
-<?php $title = "netrek-client-pygame"; include('../header.inc'); ?>
-Netrek, a multi-player real-time 2D strategy game, a multiplatform client<br>
-by James Cameron, 2010-10-27<p>
+<?php
+if (preg_match('/gytha/', $_SERVER['REQUEST_URI'])) {
+    $title = 'gytha';
+} else {
+    $title = 'netrek-client-pygame';
+}
+include('../header.inc'); ?>
+
+gytha, a Netrek client,<br>
+by James Cameron, 2010-11-05<p>
 
 <h3>Introduction</h3>
+
+Netrek is a multi-player real-time 2D strategy game.<p>
 
 Your team starts with ten planets.  Each player flies a starship.  You
 shoot at enemy ships with torpedos and phasers.  You fly to, scan and
@@ -17,20 +26,53 @@ Your team wins when all the enemy planets are taken.  Your team loses
 if all your planets are taken from you.  Strategies include escorting,
 controlling space, and coordinated attacks.<p>
 
-<h3>Synopsis</h3>
+<h3>Downloads</h3>
 
-How to begin playing Netrek using only a Python and Pygame software
-configuration, on any operating system supported by them.<p>
+<h4>Microsoft Windows - 32-bit</h4>
 
-Package is a game client program with images derived from other Netrek
-clients.<p>
+Embarrassingly, there has only been a volunteer build of gytha for
+64-bit.  If you can help, please contact me on quozl@us.netrek.org.
+The <a href="build-on-windows.phtml">building on windows</a>
+instructions may be a good starting point.<p>
+
+<h4>Microsoft Windows - 64-bit</h4>
+
+For players, download the installer <a
+href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win64.exe">gytha-0.6.1-win64.exe</a>
+and run it.<p>
+
+For developers, see also <a href="build-on-windows.phtml">building on
+windows</a> which was copied from <a
+href="http://gytha.oggthebase.org/">Zachary Uram's page</a>.
+
+<h4>Mac OS X</h4>
+
+Not available.  To contribute a build, please write to me.
+
+<h4>Linux</h4>
+
+<ul>
+<li>install dependencies
+<pre>
+apt-get install python-pygame ttf-dejavu-core
+</pre>
+<p>
+<li>download the source release (see below)
+<li>unpack it
+<li>run the file <i>netrek-client-pygame</i>
+</ul>
+
+<h3>What is it?</h3>
+
+Gytha is a client for Netrek.  It is multiplatform, in that it works
+on multiple operating systems.<p>
 
 <h3>Resources</h3>
 
 <ul>
 
 <li><a
-href="netrek-client-pygame-0.6.1.tar.gz">netrek-client-pygame-0.6.1.tar.gz</a>
+href="<?php echo $title;?>-0.6.1.tar.gz"><?php echo $title;?>-0.6.1.tar.gz</a>
 source release,
 
 <li><a href="https://launchpad.net/netrek-client-pygame">launchpad netrek-client-pygame</a>,
@@ -39,13 +81,9 @@ source release,
 href="http://james.tooraweenah.com/darcs/netrek-client-pygame/">http://james.tooraweenah.com/darcs/netrek-client-pygame/</a>
 source repository (darcs),
 
-<li><a href="http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=summary">source repository changes</a>
+<li><a href="http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=summary">source repository changes</a> <a href="http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=rss"><img src="rss.gif"></a>,
 
-<li><a href="http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=rss"><img src="rss.gif"></a>, RSS feed for source repository changes,
-
-<li><a href="http://www.netrek.org/">www.netrek.org</a>,
-<li><a href="http://www.python.org/">www.python.org</a>,
-<li><a href="http://www.pygame.org/">www.pygame.org</a>.
+<li><a href="http://www.netrek.org/">www.netrek.org</a>
 </ul>
 
 <h3>Screenshots</h3>
