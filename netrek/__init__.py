@@ -2113,16 +2113,19 @@ class SpriteBacked(pygame.sprite.Sprite):
         self.rect.y = y
 
 class Clickable:
-    """ a clickable screen object """
-    def __init__(self, clicked):
+    """ a clickable screen object, the clicked callback is called when
+    a mouse up event occurs within the object, after a mouse down event
+    had been previously seen. """
+    def __init__(self, clicked, buttons=[1]):
         self.clicked = clicked
         self.arm = False
+        self.buttons = [1]
 
     def md(self, event):
         if not self.rect.collidepoint(event.pos[0], event.pos[1]):
             self.arm = False
             return False
-        if event.button != 1:
+        if event.button not in self.buttons:
             self.arm = False
             return True
         self.arm = True
@@ -2132,13 +2135,51 @@ class Clickable:
         if not self.rect.collidepoint(event.pos[0], event.pos[1]):
             self.arm = False
             return False
-        if event.button != 1:
+        if event.button not in self.buttons:
             self.arm = False
             return True
         if not self.arm: return True
         self.clicked(event)
         self.arm = False
         return True
+
+class ClickableHot(Clickable):
+    """ a clickable screen object, with a hot area highlight, so that
+    when the mouse moves into the area the highlight is drawn, and
+    cleared when the mouse leaves.  Descendent is responsible for
+    setting up image_hot and image_cold. """
+    def __init__(self, clicked):
+        Clickable.__init__(self, clicked)
+        self.hot = False
+
+    def mm(self, event):
+        if not self.rect.collidepoint(event.pos[0], event.pos[1]):
+            if self.hot:
+                self.hot = False
+                return True
+        else:
+            if not self.hot:
+                self.hot = True
+                return True
+        return False
+
+    def update(self):
+        if self.hot:
+            if self.image != self.image_hot:
+                self.image = self.image_hot
+                return True
+        else:
+            if self.image != self.image_cold:
+                self.image = self.image_cold
+                return True
+        return False
+
+    def check_cursor_under(self):
+        """ make button hot if cursor was left in the area """
+        (mx, my) = pygame.mouse.get_pos()
+        if self.rect.collidepoint(mx, my):
+            self.hot = True
+            self.update()
 
 class Icon(SpriteBacked):
     """ a sprite for icons, a simple image """
@@ -2211,6 +2252,85 @@ class Texts:
         sprite.draw()
         return sprite
 
+class TextButton(Text, Clickable):
+    def __init__(self, clicked, text, rf, rfa, size, colour):
+        self.text = text
+        Text.__init__(self, text, rf, rfa, size, colour)
+        Clickable.__init__(self, clicked)
+
+class IconButton(Icon, Clickable):
+    def __init__(self, clicked, image, rf, rfa):
+        Icon.__init__(self, image, 0, 0, rf, rfa)
+        Clickable.__init__(self, clicked)
+
+class IconTextButton(ClickableHot, Text, Icon):
+    def __init__(self, clicked, swap, image, text, size, colour, rf, rfa):
+        # create the icon part and keep
+        Icon.__init__(self, image, 0, 0, None, None)
+        gs = self.image
+        gr = gs.get_rect()
+        # create the text part and keep
+        Text.__init__(self, text, None, None, size, colour)
+        ts = self.image
+        tr = ts.get_rect()
+        # define size to hold both
+        pad = 4
+        w = pad + gr.width + pad + tr.width + pad
+        h = max(gr.height, tr.height)
+        # make image to hold both
+        self.image = pygame.Surface((w, h), pygame.SRCALPHA, 32)
+        # lateral swap icon and text if requested
+        if swap:
+            (gs, gr, ts, tr) = (ts, tr, gs, gr)
+        # blit both into image
+        gr.left = pad
+        gr.centery = h/2
+        self.image.blit(gs, gr)
+        tr.left = gr.right + 1 + pad
+        tr.centery = gr.centery
+        self.image.blit(ts, tr)
+        # align image per rf/rfa
+        self.rect = rf(self.image.get_rect, rfa)
+        self.image_cold = self.image
+        # prepare a highlight image
+        self.image_hot = self.image.copy()
+        pygame.draw.rect(self.image_hot, (128, 128, 255),
+                         self.image_hot.get_rect(), 1)
+        ClickableHot.__init__(self, clicked)
+
+class HorizontalAssemblyButton(ClickableHot, SpriteBacked):
+    """ a button composed of multiple image surfaces set side by side,
+    where each item passed also includes an x coordinate
+    preference. """
+    def __init__(self, clicked, items, pad, rf, rfa):
+        ClickableHot.__init__(self, clicked)
+        SpriteBacked.__init__(self)
+        # determine the surface dimensions
+        x = y = 0
+        for item in items:
+            (surface, position) = item
+            if position:
+                x = max(x, position)
+            x += surface.get_width() + pad
+            y = max(y, surface.get_height())
+        # create an image to hold the surfaces
+        self.image = pygame.Surface((x, y), pygame.SRCALPHA, 32)
+        # place each surface into the image, left to right
+        x = 0
+        for item in items:
+            (surface, position) = item
+            if position:
+                x = position
+            rect = surface.get_rect(left=x, centery=y/2)
+            self.image.blit(surface, rect)
+            x += rect.width + pad
+        self.rect = rf(self.image.get_rect, rfa)
+        self.image_cold = self.image
+        # prepare a highlight image
+        self.image_hot = self.image.copy()
+        pygame.draw.rect(self.image_hot, (128, 128, 255),
+                         self.image_hot.get_rect(), 1)
+
 class Field:
     def __init__(self, prompt, value, x, y, echo=True):
         self.value = value
@@ -2276,46 +2396,6 @@ class Field:
     def delete(self):
         self.value = ""
         self.redraw()
-
-class TextButton(Text, Clickable):
-    def __init__(self, clicked, text, rf, rfa, size, colour):
-        self.text = text
-        Text.__init__(self, text, rf, rfa, size, colour)
-        Clickable.__init__(self, clicked)
-
-class IconButton(Icon, Clickable):
-    def __init__(self, clicked, image, rf, rfa):
-        Icon.__init__(self, image, 0, 0, rf, rfa)
-        Clickable.__init__(self, clicked)
-
-class IconTextButton(Text, Icon, Clickable):
-    def __init__(self, clicked, swap, image, text, size, colour, rf, rfa):
-        # create the icon part and keep
-        Icon.__init__(self, image, 0, 0, None, None)
-        gs = self.image
-        gr = gs.get_rect()
-        # create the text part and keep
-        Text.__init__(self, text, None, None, size, colour)
-        ts = self.image
-        tr = ts.get_rect()
-        # define size to hold both
-        w = gr.width + tr.width
-        h = max(gr.height, tr.height)
-        # make image to hold both
-        self.image = pygame.Surface((w, h), pygame.SRCALPHA, 32)
-        # lateral swap icon and text if requested
-        if swap:
-            (gs, gr, ts, tr) = (ts, tr, gs, gr)
-        # blit both into image
-        gr.left = 0
-        gr.centery = h/2
-        self.image.blit(gs, gr)
-        tr.left = gr.right+1
-        tr.centery = gr.centery
-        self.image.blit(ts, tr)
-        # align image per rf/rfa
-        self.rect = rf(self.image.get_rect, rfa)
-        Clickable.__init__(self, clicked)
 
 """ animations
 """
@@ -3190,132 +3270,24 @@ class SP_GENERIC_32(SP):
 class Phase:
     """ display phases common code """
     def __init__(self):
-        self.warn_on = False
-        self.warn_fuse = 0
         self.ue_hz = 10
         self.ue_delay = 1000 / self.ue_hz
         self.screenshot = 0
         self.run = False
         self.eh_md = [] # event handlers, mouse down
         self.eh_mu = [] # event handlers, mouse up
+        self.eh_mm = [] # event handlers, mouse movement
         self.eh_ue = [] # event handlers, user events (timers)
 
     def eh_add_clickable(self, b):
         self.eh_md.append(b.md)
         self.eh_mu.append(b.mu)
+        self.eh_mm.append(b.mm)
 
-    def place_top_left(self, rect, arg):
-        return rect(left=1, top=1)
-
-    def place_top_right(self, rect, arg):
-        return rect(right=r_main.right-1, top=1)
-
-    def place_bottom_right(self, rect, arg):
-        return rect(right=r_main.right-1, bottom=r_main.bottom-1)
-
-    def place_bottom_left(self, rect, arg):
-        return rect(left=r_main.left+1, bottom=r_main.bottom-1)
-
-    def add_quit_button(self, clicked, image='activity-stop.png',
-                        placement=None):
-        b = IconTextButton(clicked, True, image,
-                           'QUIT', 18, (192, 192, 192),
-                           self.place_bottom_right, None)
-        b.draw()
-        self.eh_add_clickable(b)
-        self.b_quit = b
-
-    def add_list_button(self, clicked, image='system-restart.png'):
-        b = IconTextButton(clicked, False, image,
-                           'Server List', 18, (192, 192, 192),
-                           self.place_bottom_left, None)
-        b.draw()
-        self.eh_add_clickable(b)
-        self.b_list = b
-
-    def add_tips_button(self, clicked):
-        b = IconTextButton(clicked, False, 'help.png',
-                           'Tips for Getting Started', 18, (192, 192, 192),
-                           self.place_above_welcome, 10)
-        b.draw()
-        self.eh_add_clickable(b)
-        self.b_tips = b
-
-    def warn(self, message, ms=0):
-        font = fc.get('DejaVuSans.ttf', 32)
-        text = font.render(message, 1, (255, 127, 127))
-        self.warn_br = text.get_rect(centerx=r_main.centerx,
-                                     bottom=r_main.bottom)
-        self.warn_bg = screen.subsurface(self.warn_br.clip(screen.get_rect())).copy()
-        r1 = screen.blit(text, self.warn_br)
-        pygame.display.update(r1)
-        self.warn_on = True
-        self.warn_fuse = ms / self.ue_delay
-
-    def unwarn(self):
-        if self.warn_on:
-            r1 = screen.blit(self.warn_bg, self.warn_br)
-            pygame.display.update(r1)
-            self.warn_on = False
-
-    def warn_ue(self):
-        if self.warn_fuse > 0:
-            self.warn_fuse = self.warn_fuse - 1
-            if self.warn_fuse == 0:
-                self.unwarn()
-
-    def background(self, name="invalid.png"):
-        # centre a background image onto the screen
-        screen.fill((0,0,0))
-        if opt.no_backgrounds: return
-        if r_main.width > 1024 or r_main.height > 1000:
-            background = ic.get_scale2xed(name)
-        else:
-            background = ic.get(name)
-        bh = background.get_height()
-        bw = background.get_width()
-        tr = background.get_rect(center=(r_main.centerx, r_main.centery))
-        screen.blit(background, tr)
-
-    def text(self, text, x, y, size=72, colour=(255, 255, 255)):
-        font = fc.get('DejaVuSans.ttf', size)
-        ts = font.render(text, 1, colour)
-        tr = ts.get_rect(center=(x, y))
-        screen.blit(ts, tr)
-        return tr
-
-    def blame(self):
-        text_a = "software by quozl@us.netrek.org and stephen@thorne.id.au"
-        text_b = ""
-        if not opt.no_backgrounds: text_b += "backgrounds by hubble, "
-        text_b += "ships by pascal"
-        tra = self.text(text_a, r_main.centerx, r_main.bottom-90, 16)
-        trb = self.text(text_b, r_main.centerx, r_main.bottom-70, 16)
-        self.blame_rect = pygame.Rect.union(tra, trb)
-
-    def place_above_blame(self, rect, arg):
-        return rect(centerx=self.blame_rect.centerx,
-                    bottom=self.blame_rect.top-arg)
-
-    def welcome(self, colour=(255, 255, 255)):
-        font = fc.get('DejaVuSansMono.ttf', 14)
-        x = r_main.centerx - 300
-        y = int(r_main.bottom * 0.79)
-        wr = None
-        for line in WELCOME:
-            ts = font.render(line, 1, colour)
-            tr = ts.get_rect(left=x, top=y)
-            y = tr.bottom
-            screen.blit(ts, tr)
-            if wr:
-                wr = pygame.Rect.union(wr, tr)
-            else:
-                wr = tr
-        self.welcome_rect = wr
-
-    def place_above_welcome(self, rect, arg):
-        return rect(centerx=self.welcome_rect.centerx,
-                    bottom=self.welcome_rect.top-arg)
+    def eh_del_clickable(self, b):
+        if b.md in self.eh_md: self.eh_md.remove(b.md)
+        if b.mu in self.eh_mu: self.eh_mu.remove(b.mu)
+        if b.mm in self.eh_mm: self.eh_mm.remove(b.mm)
 
     def network_sink(self):
         return nt.recv()
@@ -3364,7 +3336,9 @@ class Phase:
     def mm(self, event):
         # FIXME: watch for MOUSEMOTION and update object information panes
         # for planets or ships (on tactical or galactic)
-        pass
+        for eh in self.eh_mm:
+            if eh(event): return True
+        return False
 
     def md(self, event):
         for eh in self.eh_md:
@@ -3425,11 +3399,149 @@ class Phase:
         while self.run:
             self.display_sink_wait()
 
-class PhaseSplash(Phase):
+class PhaseNonFlight(Phase):
+    def __init__(self):
+        Phase.__init__(self)
+        self.buttons = pygame.sprite.OrderedUpdates(())
+        self.warn_on = False
+        self.warn_fuse = 0
+
+    def background(self, name="invalid.png"):
+        # centre a background image onto the screen
+        screen.fill((0,0,0))
+        if opt.no_backgrounds: return
+        if r_main.width > 1024 or r_main.height > 1000:
+            background = ic.get_scale2xed(name)
+        else:
+            background = ic.get(name)
+        bh = background.get_height()
+        bw = background.get_width()
+        tr = background.get_rect(center=(r_main.centerx, r_main.centery))
+        screen.blit(background, tr)
+
+    def _place_top_left(self, rect, arg):
+        return rect(left=1, top=1)
+
+    def _place_top_right(self, rect, arg):
+        return rect(right=r_main.right-1, top=1)
+
+    def _place_bottom_right(self, rect, arg):
+        return rect(right=r_main.right-1, bottom=r_main.bottom-1)
+
+    def _place_bottom_left(self, rect, arg):
+        return rect(left=r_main.left+1, bottom=r_main.bottom-1)
+
+    def _add_button(self, b):
+        b.draw()
+        self.eh_add_clickable(b)
+        self.buttons.add(b)
+
+    def add_quit_button(self, clicked, image='activity-stop.png',
+                        placement=None):
+        b = IconTextButton(clicked, True, image,
+                           'QUIT', 18, (192, 192, 192),
+                           self._place_bottom_right, None)
+        self._add_button(b)
+        self.b_quit = b
+        return b
+
+    def add_list_button(self, clicked, image='system-restart.png'):
+        b = IconTextButton(clicked, False, image,
+                           'Server List', 18, (192, 192, 192),
+                           self._place_bottom_left, None)
+        self._add_button(b)
+        self.b_list = b
+        return b
+
+    def add_tips_button(self, clicked):
+        b = IconTextButton(clicked, False, 'help.png',
+                           'Tips for Getting Started', 18, (192, 192, 192),
+                           self.place_above_welcome, 10)
+        self._add_button(b)
+        self.b_tips = b
+        return b
+
+    def text(self, text, x, y, size=72, colour=(255, 255, 255)):
+        font = fc.get('DejaVuSans.ttf', size)
+        ts = font.render(text, 1, colour)
+        tr = ts.get_rect(center=(x, y))
+        screen.blit(ts, tr)
+        return tr
+
+    def blame(self):
+        text_a = "software by quozl@us.netrek.org and stephen@thorne.id.au"
+        text_b = ""
+        if not opt.no_backgrounds: text_b += "backgrounds by hubble, "
+        text_b += "ships by pascal"
+        tra = self.text(text_a, r_main.centerx, r_main.bottom-90, 16)
+        trb = self.text(text_b, r_main.centerx, r_main.bottom-70, 16)
+        self.blame_rect = pygame.Rect.union(tra, trb)
+
+    def place_above_blame(self, rect, arg):
+        return rect(centerx=self.blame_rect.centerx,
+                    bottom=self.blame_rect.top-arg)
+
+    def welcome(self, colour=(255, 255, 255)):
+        font = fc.get('DejaVuSansMono.ttf', 14)
+        x = r_main.centerx - 300
+        y = int(r_main.bottom * 0.79)
+        wr = None
+        for line in WELCOME:
+            ts = font.render(line, 1, colour)
+            tr = ts.get_rect(left=x, top=y)
+            y = tr.bottom
+            screen.blit(ts, tr)
+            if wr:
+                wr = pygame.Rect.union(wr, tr)
+            else:
+                wr = tr
+        self.welcome_rect = wr
+
+    def place_above_welcome(self, rect, arg):
+        return rect(centerx=self.welcome_rect.centerx,
+                    bottom=self.welcome_rect.top-arg)
+
+    def warn(self, message, ms=0):
+        font = fc.get('DejaVuSans.ttf', 32)
+        text = font.render(message, 1, (255, 127, 127))
+        self.warn_br = text.get_rect(centerx=r_main.centerx,
+                                     bottom=r_main.bottom)
+        self.warn_bg = screen.subsurface(self.warn_br.clip(screen.get_rect())).copy()
+        r1 = screen.blit(text, self.warn_br)
+        pygame.display.update(r1)
+        self.warn_on = True
+        self.warn_fuse = ms / self.ue_delay
+
+    def unwarn(self):
+        if self.warn_on:
+            r1 = screen.blit(self.warn_bg, self.warn_br)
+            pygame.display.update(r1)
+            self.warn_on = False
+
+    def warn_ue(self):
+        if self.warn_fuse > 0:
+            self.warn_fuse = self.warn_fuse - 1
+            if self.warn_fuse == 0:
+                self.unwarn()
+
+    def mm(self, event):
+        for eh in self.eh_mm:
+            if eh(event):
+                r = []
+                for s in self.buttons:
+                    if s.update():
+                        s.clear()
+                        r.append(s.draw())
+                if len(r):
+                    pygame.display.update(r)
+                return True
+        return False
+
+class PhaseSplash(PhaseNonFlight):
     """ splash screen, shows welcome for a short time, and the player
     is to either wait for the timer to expire, or click to cancel """
     def __init__(self, screen):
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.background("hubble-helix.jpg")
         self.text("netrek", r_main.centerx, r_main.centery, 144)
         self.bouncer = Bouncer(200, 200, r_main.centerx, r_main.centery,
@@ -3468,11 +3580,11 @@ class PhaseSplash(Phase):
         pygame.display.flip()
         self.run = False
 
-class PhaseTips(Phase):
-    """ splash screen, shows welcome for a short time, and the player
-    is to either wait for the timer to expire, or click to cancel """
+class PhaseTips(PhaseNonFlight):
+    """ playing tips documentation screen, shows tips text, and the
+    player is to click on the server list or quit button """
     def __init__(self, screen):
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.background("hubble-helix.jpg")
         self.text('netrek', r_main.centerx, 100, 92)
         self.text('tips', r_main.centerx, 175, 64)
@@ -3545,14 +3657,14 @@ class PhaseTips(Phase):
         pygame.display.flip()
         self.run = False
 
-class PhaseServers(Phase):
+class PhaseServers(PhaseNonFlight):
     """ metaserver list, a list of services is shown, the list is
     derived from the metaserver and multicast discovery, and the
     player is to either select one with mouse, wait for the list to
     update, or quit. """
     def __init__(self, screen, mc):
         self.cancelled = False
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.screen = screen
         self.background("hubble-orion.jpg")
         x = r_main.centerx
@@ -3580,15 +3692,11 @@ class PhaseServers(Phase):
         self.cycle_wait() # returns after self.leave is called
         self.ue_clear()
 
-    def server_icon(self, y):
+    def server_icon(self):
         # IMAGERY: servers-icon.png
-        return Icon('servers-icon.png', 70, y)
+        return [ic.get('servers-icon.png'), None]
 
-    def place_xy(self, rect, arg):
-        x, y = arg
-        return rect(left=x, centery=y)
-
-    def server_name(self, y, server):
+    def server_name(self, server):
         """ server name, shade by age """
         colour = 96
         age = server['age']
@@ -3596,19 +3704,23 @@ class PhaseServers(Phase):
         if age < 300: colour = 192
         if age < 180: colour = 255
         colour = (colour, colour, colour)
-        return Text(server['name'] + ' ' + server['comment'], self.place_xy, (100, y), 22, colour)
+        font = fc.get('DejaVuSans.ttf', 22)
+        text = server['name'] + ' ' + server['comment']
+        return [font.render(text, 1, colour), 40]
 
-    def server_queue(self, y, server):
-        return Text('Queue of ' + str(server['queue']), self.place_xy, (r_main.centerx - 10, y), 22, (255, 64, 64))
+    def server_queue(self, server):
+        font = fc.get('DejaVuSans.ttf', 22)
+        text = 'Queue of ' + str(server['queue'])
+        return [font.render(text, 1, (255, 64, 64)), r_main.centerx - 120]
 
-    def server_players(self, y, server):
+    def server_players(self, server):
         s = []
         # per player icon
-        gx = r_main.centerx
+        gx = r_main.centerx - 55
         for x in range(min(server['players'], 16)):
             # per player icon
             # IMAGERY: servers-player.png
-            s.append(Icon('servers-player.png', gx, y))
+            s.append([ic.get('servers-player.png'), gx])
             # space them out for visual counting
             if (x % 4) == 3:
                 gx = gx + 35
@@ -3647,20 +3759,28 @@ class PhaseServers(Phase):
             self.n += 1
         else:
             y = server['y']
-            for sprite in server['sprites']:
-                redraw.append(sprite.clear())
-        sprites = []
-        sprites.append(self.server_icon(y))
-        sprites.append(self.server_name(y, server))
+            button = server['button']
+            redraw.append(button.clear())
+            self.eh_del_clickable(button)
+            self.buttons.remove(button)
+        s = []
+        s.append(self.server_icon())
+        s.append(self.server_name(server))
         if server['queue'] > 0:
-            sprites.append(self.server_queue(y, server))
+            s.append(self.server_queue(server))
         else:
-            sprites += self.server_players(y, server)
+            s += self.server_players(server)
+        s.append([pygame.Surface((1, 1), pygame.SRCALPHA, 32), r_main.width-110])
+        def place_y(rect, y):
+            return rect(left=55, centery=y)
+        button = HorizontalAssemblyButton(self.join, s, 0, place_y, y)
+        button.buttons = [1, 2]
+        self.buttons.add(button)
+        self.eh_add_clickable(button)
+        button.check_cursor_under()
         self.mc.servers[name]['y'] = y
-        self.mc.servers[name]['sprites'] = sprites
-
-        for sprite in sprites:
-            redraw.append(sprite.draw())
+        self.mc.servers[name]['button'] = button
+        redraw.append(button.draw())
         pygame.display.update(redraw)
 
     def network_sink(self):
@@ -3690,6 +3810,13 @@ class PhaseServers(Phase):
         if abs(self.bouncer.cy - y) < 50:
             self.warn('that is the metaserver query refresh timer, mate', 2000)
             return
+
+    def join(self, event):
+        self.unwarn()
+        if event.button != 1 and event.button != 2:
+            self.warn('not that button, mate', 500)
+            return
+        y = event.pos[1]
         distance = self.dy
         chosen = None
         for k, v in self.mc.servers.iteritems():
@@ -3727,7 +3854,7 @@ class PhaseServers(Phase):
         pygame.display.update(self.b_quit.clear())
         self.run = False
 
-class PhaseQueue(Phase):
+class PhaseQueue(PhaseNonFlight):
     """ queue, the player is told their position in the queue, the
     position updates as other players leave, or our player may
     quit. """
@@ -3735,7 +3862,7 @@ class PhaseQueue(Phase):
         self.cancelled = False
         if me != None:
             return
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.background("hubble-crab.jpg")
         x = r_main.centerx
         self.text('netrek', x, 100, 92)
@@ -3780,12 +3907,12 @@ class PhaseQueue(Phase):
         pygame.display.flip()
         self.run = False
 
-class PhaseLogin(Phase):
+class PhaseLogin(PhaseNonFlight):
     """ login, the server message of the day (MOTD) is displayed, and
     the player is to type a character name and password, the name may
     be guest, or the player may quit. """
     def __init__(self, screen):
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.background("hubble-crab.jpg")
         x = r_main.centerx
         self.text('netrek', x, 100, 92)
@@ -3815,7 +3942,9 @@ class PhaseLogin(Phase):
             self.chuck_cp_login()
         elif self.focused == self.name:
             if self.password == None:
-                self.password = Field("password ? ", "", r_main.centerx, r_main.height*0.8, echo=False)
+                self.password = Field("password ? ", "",
+                                      r_main.centerx, r_main.height*0.8,
+                                      echo=False)
                 # FIXME: password prompt appears momentarily if guest selected
                 # FIXME: #1187683521 force no echo for password
             else:
@@ -3831,7 +3960,8 @@ class PhaseLogin(Phase):
 
     def chuck_cp_login_attempt(self):
         self.catch_sp_login_attempt()
-        nt.send(cp_login.data(1, str(self.name.value), str(self.password.value), 'pynetrek'))
+        nt.send(cp_login.data(1, str(self.name.value),
+                              str(self.password.value), 'gytha'))
 
     def throw_sp_login_attempt(self, accept, flags, keymap):
         if accept == 1:
@@ -3847,7 +3977,7 @@ class PhaseLogin(Phase):
         self.catch_sp_login()
         nt.send(cp_updates.data(1000000/opt.updates))
         nt.send(cp_login.data(0, str(self.name.value),
-                              str(self.password.value), 'pynetrek'))
+                              str(self.password.value), 'gytha'))
 
     def throw_sp_login(self, accept, flags, keymap):
         if accept == 1:
@@ -3906,7 +4036,7 @@ class PhaseLogin(Phase):
         pygame.display.flip()
         self.run = False
 
-class PhaseOutfit(Phase):
+class PhaseOutfit(PhaseNonFlight):
     """ team and ship selection, the available teams and ships are
     displayed, and the player may select one, or quit """
     # FIXME: automatic quit timeout display
@@ -3915,7 +4045,7 @@ class PhaseOutfit(Phase):
     # FIXME: add a relinquish slot button, for rejoining end of queue
     # FIXME: add a BACK button that disconnects, reconnects, for login
     def __init__(self, screen):
-        Phase.__init__(self)
+        PhaseNonFlight.__init__(self)
         self.run = True
         self.box = None
         self.last_team = None
@@ -3936,7 +4066,9 @@ class PhaseOutfit(Phase):
         self.blame()
         self.add_quit_button(self.quit)
         self.add_list_button(self.list)
-        self.add_join_button(self.join)
+        self.join_enabled = (self.last_team != None and not nt.has_quit)
+        if self.join_enabled:
+            self.buttons.add(self.add_join_button(self.join))
         pygame.display.flip()
         box_l = int(r_main.width * 0.212)
         box_t = 300
@@ -3979,7 +4111,8 @@ class PhaseOutfit(Phase):
         # FIXME: show logged in players
         # FIXME: show planet status
         # FIXME: show whydead
-        self.warn("in netrek all races are equal")
+        if not nt.has_quit:
+            self.warn("pick a ship")
         pygame.display.update(r)
         sp_mask.catch(self.mask)
         self.cycle() # returns when choice accepted by server, or user cancels
@@ -4008,20 +4141,20 @@ class PhaseOutfit(Phase):
             opt.team = teams[mercenary.pick(mask, galaxy)]
             opt.ship = "cruiser"
             opt.mercenary = False
-        # FIXME: display SP_WARNING packets (confirm team change)
-        # using WarningSprite
         self.auto()
         # offer rejoin if a team was previously selected and player did not quit
-        if self.last_team != None and not nt.has_quit:
+        if self.join_enabled:
             pygame.display.update(self.b_join.draw())
 
     def add_join_button(self, clicked):
         b = IconTextButton(clicked, False, 'go-previous.png',
                            'Play Again', 18, (192, 192, 192),
                            self.place_above_blame, 20)
+        b.draw()
         # FIXME: show shortcut space bar
         self.eh_add_clickable(b)
         self.b_join = b
+        return b
 
     def auto(self):
         # attempt auto-refit if command line arguments are supplied
@@ -4093,6 +4226,7 @@ class PhaseOutfit(Phase):
         # FIXME: click on ship icon requests CP_OUTFIT with team and ship
 
     def mm(self, event):
+        PhaseNonFlight.mm(self, event)
         nearest = self.nearest(event.pos)
         if nearest != self.box:
             self.unwarn()
@@ -4871,7 +5005,7 @@ class PhaseFlightTactical(PhaseFlight):
         #r_debug = galaxy.ship_debug_draw()
         #pygame.display.update(r_debug)
 
-class PhaseDisconnected(Phase):
+class PhaseDisconnected(PhaseNonFlight):
     def __init__(self, screen):
         Phase.__init__(self)
         self.background("hubble-helix.jpg")
@@ -4886,7 +5020,8 @@ class PhaseDisconnected(Phase):
             y = 350
         self.texts = Texts(self.diagnosis(), 50, y, size, 18)
         self.add_quit_button(self.quit)
-        self.add_list_button(self.list)
+        if opt.server == None:
+            self.add_list_button(self.list)
         pygame.display.flip()
         self.run = True
         self.cycle()
@@ -5132,7 +5267,10 @@ def pg_init():
     short = min(r_us.width, r_us.height)
     galactic_factor = GWIDTH / short
 
-    # sprite groups, prefix t_ for tactical, g_ for galactic, b_ for both
+    # sprite groups,
+    # prefix { t_ for tactical, g_ for galactic, b_ for both, }
+    # sprites for planets, players, torps, plasma, each add themselves
+    # to the groups when they wish to assert visibility.
     t_planets = pygame.sprite.OrderedUpdates(())
     t_players = pygame.sprite.OrderedUpdates(())
     t_torps = pygame.sprite.OrderedUpdates(())
