@@ -2333,17 +2333,17 @@ class Bouncer:
         self.l.draw()
         self.r.draw()
 
-    def position(self, pos, max):
-        x = self.ex * math.sin(pos * math.pi / max)
-        y = self.ey * math.cos(pos * math.pi / max)
-        self.l.move((r_main.centerx) - x, self.cy - y)
-        self.r.move((r_main.centerx) + x, self.cy + y)
+    def position(self, fuse, fuse_max):
+        x = self.ex * math.sin(fuse * math.pi / fuse_max)
+        y = self.ey * math.cos(fuse * math.pi / fuse_max)
+        self.l.move(self.cx - x, self.cy - y)
+        self.r.move(self.cx + x, self.cy + y)
 
-    def update(self, pos, max):
+    def update(self, fuse, fuse_max):
         r = []
         r.append(self.l.clear())
         r.append(self.r.clear())
-        self.position(pos, max)
+        self.position(fuse, fuse_max)
         r.append(self.l.draw())
         r.append(self.r.draw())
         pygame.display.update(r)
@@ -3442,7 +3442,7 @@ class PhaseSplash(Phase):
             pygame.image.save(screen, "netrek-client-pygame-splash.jpeg")
         if not opt.debug: ic.preload_early()
         self.ue_set(100)
-        self.fuse_was = self.fuse = opt.splashtime / self.ue_delay
+        self.fuse_max = self.fuse = opt.splashtime / self.ue_delay
         self.run = True
         self.cycle_wait_display() # returns after self.leave is called
         if not opt.debug: ic.preload_rest()
@@ -3453,7 +3453,7 @@ class PhaseSplash(Phase):
         if self.fuse < 0:
             self.leave()
         else:
-            self.bouncer.update(self.fuse, self.fuse_was)
+            self.bouncer.update(self.fuse, self.fuse_max)
         if not opt.debug: ic.preload_one()
 
     def md(self, event):
@@ -3574,8 +3574,8 @@ class PhaseServers(Phase):
         self.sent = pygame.time.get_ticks()
         self.lag = 0
         self.ue_set(100)
-        self.fuse_was = opt.metaserver_refresh_interval * 1000 / self.ue_delay
-        self.fuse = self.fuse_was / 2
+        self.fuse_max = opt.metaserver_refresh_interval * 1000 / self.ue_delay
+        self.fuse = self.fuse_max / 2
         self.warn('pick a server to connect to', 2500)
         self.cycle_wait() # returns after self.leave is called
         self.ue_clear()
@@ -3668,7 +3668,7 @@ class PhaseServers(Phase):
 
     def ue(self, event):
         self.warn_ue()
-        self.bouncer.update(self.fuse, self.fuse_was)
+        self.bouncer.update(self.fuse, self.fuse_max)
 
         self.fuse -= 1
         if self.fuse < 0:
@@ -3678,7 +3678,7 @@ class PhaseServers(Phase):
             self.sent = pygame.time.get_ticks()
             self.timing = True
             self.mc.query(opt.metaserver)
-            self.fuse = self.fuse_was
+            self.fuse = self.fuse_max
 
     def md(self, event):
         if Phase.md(self, event): return
