@@ -214,11 +214,24 @@ class TextButton(Text, Clickable):
         Clickable.__init__(self, clicked)
 
 
-class IconButton(Icon, Clickable):
+class IconButton(ClickableHot, Icon):
     def __init__(self, clicked, image, rf, rfa):
         Icon.__init__(self, image, 0, 0, rf, rfa)
-        Clickable.__init__(self, clicked)
-
+        gs = self.image
+        gr = gs.get_rect()
+        pad = 4
+        w = pad + gr.width + pad
+        h = pad + gr.height + pad
+        self.image = pygame.Surface((w, h), pygame.SRCALPHA, 32)
+        gr.left = pad
+        gr.top = pad
+        self.image.blit(gs, gr)
+        self.rect = rf(self.image.get_rect, rfa)
+        self.image_cold = self.image
+        self.image_hot = self.image.copy()
+        pygame.draw.rect(self.image_hot, (128, 128, 255),
+                         self.image_hot.get_rect(), 1)
+        ClickableHot.__init__(self, clicked)
 
 class IconTextButton(ClickableHot, Text, Icon):
     def __init__(self, clicked, swap, image, text, size, colour, rf, rfa):

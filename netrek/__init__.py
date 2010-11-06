@@ -135,9 +135,8 @@ from pygame.locals import *
 from cache import ic, fc
 from constants import *
 from sprites import MultipleImageSprite
-from sprites import Icon, RotatingIcon
-from sprites import Text, Texts
-from sprites import IconTextButton, HorizontalAssemblyButton, Field
+from sprites import Icon, Text, Texts
+from sprites import IconButton, IconTextButton, HorizontalAssemblyButton, Field
 from bouncer import Bouncer
 from util import *
 from meta import MetaClient
@@ -3777,7 +3776,10 @@ class PhaseOutfit(PhaseNonFlight):
                 x = x + dx * sx
                 y = y + dy * sy
                 # IMAGERY: ???-??.png
-                sprite = RotatingIcon(teams[team]+'-'+ships[ship]+'.png', x, y, self.angle)
+                def place_xy(rect, arg):
+                    (x, y) = arg
+                    return rect(centerx=x, centery=y)
+                sprite = IconButton(self.pick, teams[team]+'-'+ships[ship]+'.png', place_xy, (x, y))
                 sprite.description = teams_long[team] + ' ' + ships_long[ship] + ', ' + ships_use[ship]
                 sprite.x = x
                 sprite.y = y
@@ -3801,6 +3803,12 @@ class PhaseOutfit(PhaseNonFlight):
         sp_mask.uncatch()
         if self.join_enabled:
             self.del_join_button()
+        for sprite in self.sprites:
+            if sprite.visible:
+                self.visible.remove(sprite)
+                self._del_button(sprite)
+                r.append(sprite.clear())
+                sprite.visible = False
 
     def mask(self, mask):
         r = []
@@ -3808,11 +3816,13 @@ class PhaseOutfit(PhaseNonFlight):
             if mask & sprite.team:
                 if not sprite.visible:
                     self.visible.add(sprite)
+                    self._add_button(sprite)
                     r.append(sprite.blit())
                     sprite.visible = True
             else:
                 if sprite.visible:
                     self.visible.remove(sprite)
+                    self._del_button(sprite)
                     r.append(sprite.clear())
                     sprite.visible = False
         if len(r) > 0:
@@ -3885,14 +3895,11 @@ class PhaseOutfit(PhaseNonFlight):
                 minimum = distance
         return nearest
 
-    def md(self, event):
-        if Phase.md(self, event): return
+    def pick(self, event):
         self.unwarn()
         nearest = self.nearest(event.pos)
         if nearest != None:
             self.team(teams_numeric[nearest.team], nearest.ship)
-        else:
-            self.warn('click on a ship, mate')
         # FIXME: click on team icon sends CP_OUTFIT most recent ship
         # FIXME: click on ship icon requests CP_OUTFIT with team and ship
 
