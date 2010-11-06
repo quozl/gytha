@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-    netrek client pygame
+    netrek client pygame, aka gytha
     Copyright (C) 2007-2010  James Cameron (quozl@us.netrek.org)
 
     This program is free software; you can redistribute it and/or modify
