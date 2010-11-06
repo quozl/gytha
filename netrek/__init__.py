@@ -277,8 +277,9 @@ class Local:
 class Planet(Local):
     """ netrek planets
         each server has a number of planets
-        instances created as packets about the planets are received
-        instances are listed in a dictionary of planets in the galaxy instance
+        instances are created as packets about the planets are received
+        instances are listed in a dictionary of planets in the galaxy
+        instance
     """
     def __init__(self, n):
         Local.__init__(self, n)
@@ -3412,7 +3413,7 @@ class PhaseServers(PhaseNonFlight):
         if not self.instructions:
             self.instructions = Texts(INSTRUCTIONS_SERVERS,
                                       r_main.centerx - 300,
-                                      r_main.height * 0.55, 8, 14)
+                                      r_main.height * 0.54, 8, 14)
             rs = self.instructions.draw()
             for r in rs:
                 redraw.append(r)
