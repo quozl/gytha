@@ -3093,35 +3093,46 @@ class PhaseNonFlight(Phase):
     def _place_bottom_left(self, rect, arg):
         return rect(left=r_main.left+1, bottom=r_main.bottom-1)
 
-    def _add_button(self, b):
-        b.draw()
-        self.eh_add_clickable(b)
-        self.buttons.add(b)
+    def _add_button(self, button):
+        button.draw()
+        self.eh_add_clickable(button)
+        self.buttons.add(button)
+
+    def _del_button(self, button):
+        button.clear()
+        self.eh_del_clickable(button)
+        self.buttons.remove(button)
 
     def add_quit_button(self, clicked, image='activity-stop.png',
                         placement=None):
-        b = IconTextButton(clicked, True, image,
-                           'QUIT', 18, (192, 192, 192),
-                           self._place_bottom_right, None)
-        self._add_button(b)
-        self.b_quit = b
-        return b
+        self.b_quit = IconTextButton(clicked, True, image,
+                                     'QUIT', 18, (192, 192, 192),
+                                     self._place_bottom_right, None)
+        self._add_button(self.b_quit)
 
     def add_list_button(self, clicked, image='system-restart.png'):
-        b = IconTextButton(clicked, False, image,
-                           'Server List', 18, (192, 192, 192),
-                           self._place_bottom_left, None)
-        self._add_button(b)
-        self.b_list = b
-        return b
+        self.b_list = IconTextButton(clicked, False, image,
+                                     'Server List', 18, (192, 192, 192),
+                                     self._place_bottom_left, None)
+        self._add_button(self.b_list)
 
     def add_tips_button(self, clicked):
-        b = IconTextButton(clicked, False, 'help.png',
-                           'Tips for Getting Started', 18, (192, 192, 192),
-                           self.place_above_welcome, 10)
-        self._add_button(b)
-        self.b_tips = b
-        return b
+        self.b_tips = IconTextButton(clicked, False, 'help.png',
+                                     'Tips for Getting Started',
+                                     18, (192, 192, 192),
+                                     self.place_above_welcome, 10)
+        self._add_button(self.b_tips)
+
+    def add_join_button(self, clicked):
+        self.b_join = IconTextButton(clicked, False, 'go-previous.png',
+                                     'Play Again', 18, (192, 192, 192),
+                                     self.place_above_blame, 20)
+        self._add_button(self.b_join)
+        # FIXME: show shortcut space bar
+
+    def del_join_button(self):
+        self._del_button(self.b_join)
+        del self.b_join
 
     def text(self, text, x, y, size=72, colour=(255, 255, 255)):
         font = fc.get('DejaVuSans.ttf', size)
@@ -3717,8 +3728,13 @@ class PhaseOutfit(PhaseNonFlight):
         self.angle = 0
         self.screenshot = False
         self.tips = None
+        self.add_quit_button(self.quit)
+        self.add_list_button(self.list)
 
     def do(self):
+        """ unlike the earlier display phases, this one exists for the
+        duration of the session on a server, so the initialisation is
+        split between first off (above) and per refit (below). """
         self.run = True
         self.background("hubble-spire.jpg")
         x = r_main.centerx
@@ -3726,11 +3742,13 @@ class PhaseOutfit(PhaseNonFlight):
         self.text(opt.chosen, x, 185, 64)
         self.text('ship and race', x, 255, 64)
         self.blame()
-        self.add_quit_button(self.quit)
-        self.add_list_button(self.list)
+        self.b_quit.draw()
+        self.b_list.draw()
         self.join_enabled = (self.last_team != None and not nt.has_quit)
         if self.join_enabled:
-            self.buttons.add(self.add_join_button(self.join))
+            # offer rejoin if a team was previously selected and
+            # player did not quit
+            self.add_join_button(self.join)
         pygame.display.flip()
         box_l = int(r_main.width * 0.212)
         box_t = 300
@@ -3779,6 +3797,8 @@ class PhaseOutfit(PhaseNonFlight):
         sp_mask.catch(self.mask)
         self.cycle() # returns when choice accepted by server, or user cancels
         sp_mask.uncatch()
+        if self.join_enabled:
+            self.del_join_button()
 
     def mask(self, mask):
         r = []
@@ -3804,19 +3824,6 @@ class PhaseOutfit(PhaseNonFlight):
             opt.ship = "cruiser"
             opt.mercenary = False
         self.auto()
-        # offer rejoin if a team was previously selected and player did not quit
-        if self.join_enabled:
-            pygame.display.update(self.b_join.draw())
-
-    def add_join_button(self, clicked):
-        b = IconTextButton(clicked, False, 'go-previous.png',
-                           'Play Again', 18, (192, 192, 192),
-                           self.place_above_blame, 20)
-        b.draw()
-        # FIXME: show shortcut space bar
-        self.eh_add_clickable(b)
-        self.b_join = b
-        return b
 
     def auto(self):
         # attempt auto-refit if command line arguments are supplied
@@ -4767,7 +4774,9 @@ class PhaseDisconnected(PhaseNonFlight):
         except:
             x.append('Try again later.')
         x.append('')
-        x.append('Technical data: received SP_BADVERSION packet, reason code %d' % sp_badversion.why)
+        x.append('Technical data: '
+                 'received SP_BADVERSION packet, '
+                 'reason code %d' % sp_badversion.why)
         return x
 
     def list(self, event):
