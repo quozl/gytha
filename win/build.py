@@ -254,17 +254,17 @@ data_files = [('images',
 setup(
 windows=[
          {
-           "script": "start.py",
+           "script": "gytha.py",
            "icon_resources": [(0, "gytha.ico")]
          }
          ],
 data_files = data_files,
 name='gytha',
-version='0.3.1',
+version='0.6.1',
 description='gytha - a netrek client',
 author='James Cameron',
-author_email='',
-url='www.netrek.org',
+author_email='quozl@us.netrek.org',
+url='http://quozl.us.netrek.org/gytha/',
       py_modules=['netrek\\__init__','netrek\\cache','netrek\\cap','netrek\\client','netrek\\constants','netrek\\mercenary','netrek\\meta','netrek\\rcd','netrek\\repair','netrek\\mis','netrek\\motd','netrek\\options','netrek\\util']
 )
 

@@ -17,9 +17,9 @@
 ; define some more stuff, mainly to just keep it all at the beginning
 #define MyAppName "gytha"
 #define MyAppPublisher "James Cameron"
-#define MyAppURL "http://quozl.linux.org.au/gytha/"
-#define MyAppSupportURL "http://quozl.linux.org.au/gytha/"
-#define MyAppUpdatesURL "http://quozl.linux.org.au/gytha/"
+#define MyAppURL "http://quozl.us.netrek.org/gytha/"
+#define MyAppSupportURL "http://quozl.us.netrek.org/gytha/"
+#define MyAppUpdatesURL "http://quozl.us.netrek.org/gytha/"
 
 #define MyAppExeName "start.exe"
 
