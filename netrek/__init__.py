@@ -163,10 +163,10 @@ INSTRUCTIONS_SERVERS = [
 '',
 'Pick a server to begin playing.',
 '',
-'Each Netrek galaxy is shared to players through a server.  These servers',
-'are listed here, from the Netrek metaserver.  Number of players is shown',
-'to the right.  Click on a server with your middle mouse button to',
-'join as an anonymous mercenary, or with your left button to login.'
+'Each Netrek galaxy is shared to players through a server.  These servers are',
+'listed here, from the Netrek metaserver.  Number of players is shown to the',
+'right.  Click on a server with your middle mouse button to join as an',
+'anonymous mercenary, or with your left button to login.'
 ]
 
 # number of rounds played this session
@@ -3155,7 +3155,7 @@ class PhaseNonFlight(Phase):
                     bottom=self.blame_rect.top-arg)
 
     def welcome(self, colour=(255, 255, 255)):
-        font = fc.get('DejaVuSansMono.ttf', 14)
+        font = fc.get('DejaVuSans.ttf', 15)
         x = r_main.centerx - 300
         y = int(r_main.bottom * 0.79)
         wr = None
@@ -3315,6 +3315,9 @@ class PhaseTips(PhaseNonFlight):
             size = 15
             x = r_main.centerx - 280
             y = 210
+        if r_main.height < 601:
+            size = 10
+            x = r_main.centerx - 180
         font = fc.get('DejaVuSans.ttf', size)
         for line in tips:
             ts = font.render(line, 1, (255, 255, 255))
@@ -3410,10 +3413,11 @@ class PhaseServers(PhaseNonFlight):
         # FIXME: old multicast entries not expired when they leave.
         redraw = []
         # defer instructions until at least one server appears
-        if not self.instructions:
+        if not self.instructions and r_us.height > 600:
             self.instructions = Texts(INSTRUCTIONS_SERVERS,
                                       r_main.centerx - 300,
-                                      r_main.height * 0.54, 8, 14)
+                                      r_main.height * 0.53, 8, 15,
+                                      name='DejaVuSans.ttf')
             rs = self.instructions.draw()
             for r in rs:
                 redraw.append(r)

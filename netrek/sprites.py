@@ -166,8 +166,8 @@ class Text(SpriteBacked):
 
 
 class TextsLine(SpriteBacked):
-    def __init__(self, text, x, y, size=18):
-        font = fc.get('DejaVuSansMono.ttf', size)
+    def __init__(self, text, x, y, size=18, name='DejaVuSansMono.ttf'):
+        font = fc.get(name, size)
         self.image = font.render(text, 1, (255, 255, 255))
         self.rect = self.image.get_rect(left=x, top=y)
         SpriteBacked.__init__(self)
@@ -177,7 +177,8 @@ class Texts:
     """
     a group of sprites for lines of text, one sprite per line
     """
-    def __init__(self, texts, x, y, lines=24, size=18):
+    def __init__(self, texts, x, y, lines=24, size=18,
+                 name='DejaVuSansMono.ttf'):
         self.screen = pygame.display.get_surface()
         self.group = pygame.sprite.OrderedUpdates()
         self.left = x
@@ -185,13 +186,13 @@ class Texts:
         self.lines = lines
         self.size = size
         for row in texts:
-            self._new(row)
+            self._new(row, name)
             self.lines -= 1
             if self.lines < 1: break
         self.draw()
 
-    def _new(self, text):
-        sprite = TextsLine(text, self.left, self.y, self.size)
+    def _new(self, text, name='DejaVuSansMono.ttf'):
+        sprite = TextsLine(text, self.left, self.y, self.size, name)
         self.y = sprite.rect.bottom
         self.group.add(sprite)
         return sprite
