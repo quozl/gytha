@@ -7,11 +7,13 @@ if (preg_match('/gytha/', $_SERVER['REQUEST_URI'])) {
 include('../header.inc'); ?>
 
 gytha, a Netrek client,<br>
-by James Cameron, 2010-11-06<p>
+by James Cameron, 2010-11-07<p>
 
 <h3>Introduction</h3>
 
-Netrek is a multi-player real-time 2D strategy game.<p>
+Netrek is a multi-player real-time 2D strategy game.
+<sup><a href="http://netrek.org">[1]</a>
+<a href="http://en.wikipedia.org/wiki/Netrek">[2]</a></sup><p>
 
 Your team starts with ten planets.  Each player flies a starship.  You
 shoot at enemy ships with torpedos and phasers.  You fly to, scan and
@@ -26,27 +28,23 @@ Your team wins when all the enemy planets are taken.  Your team loses
 if all your planets are taken from you.  Strategies include escorting,
 controlling space, and coordinated attacks.<p>
 
-<h3>Downloads</h3>
+<a name="downloads"><h3>Downloads</h3></a>
 
 <h4>Microsoft Windows - 32-bit</h4>
 
-For players, download the installer <a
-href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win32.exe">gytha-0.6.1-win32.exe</a>
-and run it.<p>
+Download and run the installer <a
+href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win32.exe">gytha-0.6.1-win32.exe</a>.<p>
+
+If you are not sure, try 32-bit first.<p>
 
 <h4>Microsoft Windows - 64-bit</h4>
 
-For players, download the installer <a
-href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win64.exe">gytha-0.6.1-win64.exe</a>
-and run it.<p>
-
-For developers, see also <a href="build-on-windows.phtml">building on
-windows</a> which was copied from <a
-href="http://gytha.oggthebase.org/">Zachary Uram's page</a>.
+Download and run the installer <a
+href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win64.exe">gytha-0.6.1-win64.exe</a>.<p>
 
 <h4>Mac OS X</h4>
 
-Not available.  To contribute a build, please write to me.
+None available yet.  To contribute a build, please write to me.
 
 <h4>Linux</h4>
 
@@ -66,7 +64,7 @@ apt-get install python-pygame ttf-dejavu-core
 Gytha is a client for Netrek.  It is multiplatform, in that it works
 on multiple operating systems.<p>
 
-<h3>Resources</h3>
+<a name="resources"><h3>Resources</h3></a>
 
 <ul>
 
@@ -85,7 +83,7 @@ source repository (darcs),
 <li><a href="http://www.netrek.org/">www.netrek.org</a>
 </ul>
 
-<h3>Screenshots</h3>
+<a name="screenshots"><h3>Screenshots</h3></a>
 
 
 <h4>Splash</h4>
@@ -225,13 +223,16 @@ of planets.<p>
 <img src="0.5-action-0011.jpg" width="800" height="800"><p>
 Another three screenshots of a death are below; you have fired a
 phaser which missed, and the enemy ship number 4 has killed you with a
-torpedo and a phaser at the same time.<p>
+torpedo and a phaser at the same time.  That ship is caught in the
+blast radius and damaged, though not fatally.<p>
 <img src="0.5-action-0021.jpg" width="800" height="800"><p>
 <img src="0.5-action-0022.jpg" width="800" height="800"><p>
 <img src="0.5-action-0023.jpg" width="800" height="800"><p>
 </td></tr></table></center>
 
-<h3>Hacking</h3>
+
+
+<a name="hacking"><h3>Hacking</h3></a>
 
 Get the source:<p>
 
@@ -255,103 +256,14 @@ darcs record
 darcs send
 </pre>
 
-<h3>Prototype History</h3>
+<a name="building"><h3>Building and Packaging</h3></a>
 
-This is a change log from a repository that was used before the
-current respository.  It shows how easy it was to create code to do
-something in Pygame.<p>
+On Linux, no building is required, gytha will run from your copy of
+the source.  Packaging for Linux distributions is welcome, please
+write to me.<p>
 
-<pre>
-Sat Jun 23 23:19:15 EST 2007  quozl@us.netrek.org
-  * add team specific planets
-
-Sat Jun 23 21:20:16 EST 2007  quozl@us.netrek.org
-  * default to tactical, isolate reference data, cloak, outfit rejig
-
-Sat Jun 23 17:32:34 EST 2007  quozl@us.netrek.org
-  * move shields to sprite, identify torps by team
-
-Sat Jun 23 12:56:33 EST 2007  quozl@us.netrek.org
-  * add planet flags, pfiredist ring, font cache
-
-Wed Jun 20 23:09:19 EST 2007  quozl@us.netrek.org
-  * add tractor and ship lock
-
-Wed Jun 20 22:07:50 EST 2007  quozl@us.netrek.org
-  * add --host, time based torpedo explosion timeout, shields
-
-Tue Jun 19 22:41:41 EST 2007  quozl@us.netrek.org
-  * simplify mainline, add orion tactical iconography
-
-Tue Jun 19 19:01:27 EST 2007  quozl@us.netrek.org
-  * add galactic ship iconography for testing
-  	Add 8x8 iconography on galactic for testing, better images expected
-  	later on in development.
-
-Tue Jun 19 18:50:00 EST 2007  quozl@us.netrek.org
-  * add torp explosions, fix ship ghosting, add det
-  	Add torpedo explosions.
-  	Fix ship ghosting caused by ships that change direction not position.
-  	Add det others and det own keys.
-  	Add practice robot call key.
-  	Add orbit key.
-  	Add slot number over ship on tactical.
-  	Split tactical animation into separate sprite groups.
-
-Mon Jun 18 21:48:29 EST 2007  quozl@us.netrek.org
-  * add ship explosions
-
-Mon Jun 18 21:10:34 EST 2007  quozl@us.netrek.org
-  * add phaser animation
-
-Fri Jun 15 19:37:31 EST 2007  quozl@us.netrek.org
-  * add tactical animation of torps
-
-Fri Jun 15 18:59:04 EST 2007  quozl@us.netrek.org
-  * tactical or galactic navigation, right click set course
-
-Fri Jun 15 18:37:35 EST 2007  quozl@us.netrek.org
-  * class inversion, tactical flight capability
-  * split sprite and netrek data into separate classes
-
-Wed Jun 13 22:03:16 EST 2007  quozl@us.netrek.org
-  * add metaserver phase
-
-Tue Jun 12 18:39:11 EST 2007  quozl@us.netrek.org
-  * add remaining packet types
-
-Mon Jun 11 21:18:45 EST 2007  quozl@us.netrek.org
-  * repair, shield, login dialog
-  * display modes
-
-Sun Jun 10 21:56:43 EST 2007  quozl@us.netrek.org
-  * ideas
-
-Sun Jun 10 14:56:44 EST 2007  quozl@us.netrek.org
-  * bomb, beam, cloak
-
-Sat Jun  9 23:18:56 EST 2007  quozl@us.netrek.org
-  * oysters open and closed
-
-Sat Jun  9 17:19:30 EST 2007  quozl@us.netrek.org
-  * add planet lock and automatic join
-  * add license
-  * convert to sprite usage
-
-Wed Jun  6 16:55:36 EST 2007  quozl@us.netrek.org
-  * scout can fly to rom and ghostbust
-
-Wed Jun  6 14:12:21 EST 2007  quozl@us.netrek.org
-  * warp zero flight achieved
-
-Wed Jun  6 12:44:08 EST 2007  quozl@us.netrek.org
-  * progress, to team selection point
-
-Tue Jun  5 23:24:49 EST 2007  quozl@us.netrek.org
-  * test python client, to login phase
-
-Tue Jun  5 23:16:54 EST 2007  quozl@us.netrek.org
-  * test python client
-</pre>
+For Microsoft Windows developers, see <a
+href="build-on-windows.phtml">building on windows</a> which was copied
+from <a href="http://gytha.oggthebase.org/">Zachary Uram's page</a>.<p>
 
 <?php include('../footer.inc'); ?>
