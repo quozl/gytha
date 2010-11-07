@@ -6,9 +6,13 @@ visualisation
 	graph of game history, planets and armies over time,
 	flowchart for tasks like taking,
 	heatmap of enemy concentration,
-	ways to damage, 
+	ways to damage,
 	isosurfaces of distance to targets,
 	halo of distance to targets.
+
+	tactical edge pointers, a short line drawn from centre of
+	tactical to the edge, but only the last few pixels are
+	visible, in the colour of ship represented.
 
 strategic advisor
 	input, operating mode,
