@@ -2,7 +2,12 @@
 are used frequently in different ways, as an "strace -e open" shows
 that a second pygame.image.load for the same file causes the file to
 be opened again. """
-import pygame, os, time
+import sys, pygame, os, time
+
+IMAGE_PATHS = []
+if 'linux' in sys.platform:
+    IMAGE_PATHS.append('/usr/share/gytha/images/')
+IMAGE_PATHS.append('images/')
 
 class IC:
     """ an image cache """
@@ -12,12 +17,11 @@ class IC:
         self.cache_scale2xed = {}
         self.hits = self.miss = 0
         self.hits_rotated = self.miss_rotated = 0
-        self.paths = ['/usr/share/gytha/images/', 'images/']
 
     def read(self, name):
         """ try package location, otherwise try local directory """
         image = None
-        for path in self.paths:
+        for path in IMAGE_PATHS:
             try:
                 image = pygame.image.load(path + name)
             except pygame.error:
@@ -59,7 +63,7 @@ class IC:
 
     def preload_scan(self):
         self.names = []
-        for path in self.paths:
+        for path in IMAGE_PATHS:
             for dirpath, dirnames, filenames in os.walk('images'):
                 for name in filenames:
                     if '.png' not in name and '.jpg' not in name:
