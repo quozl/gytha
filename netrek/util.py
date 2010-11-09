@@ -1,4 +1,5 @@
 from constants import *
+import traceback
 
 def strnul(x):
     """ convert a NUL terminated string to a normal string
