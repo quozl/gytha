@@ -15,7 +15,7 @@ parser.add_option("--name", dest="name", default="",
                   help="character name, default guest")
 parser.add_option("--password", dest="password", default="",
                   help="password for character name")
-parser.add_option("--login", dest="login", default="pynt",
+parser.add_option("--login", dest="login", default="gytha",
                   help="username to show on player list")
 parser.add_option("--team", dest="team",
                   help="team to join")
