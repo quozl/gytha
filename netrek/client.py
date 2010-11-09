@@ -27,7 +27,7 @@ class Client:
         self.mode = None
         self.has_quit = False
         self.x = None
-        self.timeout = 0.04
+        self.timeout = 0.02
         self.fd = []
         self.tcp = self.udp = -1
         self.ct = self.cu = 0
