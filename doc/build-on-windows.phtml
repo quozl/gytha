@@ -1,0 +1,112 @@
+<?php $title = "gytha, building on windows"; include('../header.inc'); ?>
+
+<p>Setting up a python development environment in MS Windows for gytha - a netrek client<br>
+by Zachary Uram.
+</p>
+<p><i>(Copied from revision 1.3 dated 4th November 2010)</i>
+</p>
+<ol>
+  <li>Download and Install Python
+  <ol>
+    <li>Go to <a href="http://www.python.org/ftp/python/2.6.6/">http://www.python.org/ftp/python/2.6.6/</a>
+    </li><li>For 32-bit OSes download <a href="http://www.python.org/ftp/python/2.6.6/python-2.6.6rc2.msi">http://www.python.org/ftp/python/2.6.6/python-2.6.6rc2.msi</a>
+      For 64-bit OSes download <a href="http://www.python.org/ftp/python/2.6.6/python-2.6.6rc2.amd64.msi">http://www.python.org/ftp/python/2.6.6/python-2.6.6rc2.amd64.msi</a>
+      Note: You may have problems with py2exe if you use an earlier version of Python.
+    </li><li>Save the appropriate file to your Desktop
+    </li><li>Double click the file to launch the installer and note the install options (I used the defaults).
+    </li><li>You will probably have to add the Python installation directory to your system PATH. 
+      In Windows 7 I did this by going to Control Panel, searching on the word Environment and then selecting
+<p>          "Edit the system environment variables" and under the System Properties dialog box click on the Advanced tab
+          then select Environmental Variables, and look under the System variables section, scroll down until you see the word Path
+          then select it with your mouse and click Edit. Now you will see a dialog box Edit System Variable, go to the section marked
+          Variable value: and append the Python installation directory PATH to the line you see there, there are no spaces, and 
+          make sure you add a ";" after the PATH you add. 
+</p><p>              So for example my Python installation directory is C:\Python26
+              and the existing Path I see is C:\Perl64\site\bin I would change it to C:\Perl64\site\bin;C:\Python26;
+              When you are finished click OK, OK and OK. 
+          Now you can open a command prompt window, in Windows 7 press your Windows system key to bring up the run dialog area and type "cmd" 
+          then hit ENTER, and invoke the Python interpreter from any directory by typing "python" and hitting ENTER/RETURN.
+        
+  </p></ol>
+  </li><li>Download and Install pygame
+  <ol>
+    <li>Go to <a href="http://pygame.org/">http://pygame.org/</a> and click on "Downloads"
+      Note: this is for 32-bit installers. If you need a 64-bit version go here: <a href="http://www.lfd.uci.edu/~gohlke/pythonlibs/">http://www.lfd.uci.edu/~gohlke/pythonlibs/</a>
+    </li><li>Select the installer that matches your python version and architecture type.
+      So if you have Python 2.6 installed and you are running a 64-bit MS Windows OS you would want to download pygame-1.9.2pre.win-amd64-py2.6.exe
+    </li><li>Save the appropriate file to your Desktop
+    </li><li>Double click the file to launch the installer. Note: It should detect your Python installation directory.
+      If it doesn't you can manually select the directory.
+          
+  </li></ol>
+  </li><li>Download the Netrek pygame client source
+  <ol>
+    <li>Go to <a href="http://pygame.org/project-Netrek-1679-2916.html">http://pygame.org/project-Netrek-1679-2916.html</a>
+    </li><li>Look for the "Source" link and download it, such as:
+      <a href="http://quozl.linux.org.au/gytha/gytha-0.6.1.tar.gz">http://quozl.linux.org.au/gytha/gytha-0.6.1.tar.gz</a>
+    </li><li>Load the gzipped TAR file in a good file archiver such as the excellent open-source program 7-Zip (<a href="http://www.7-zip.org/">http://www.7-zip.org/</a>)
+    </li><li>Extract the archive contents to wherever you plan on working with Python.
+      I put mine in C:\Users\Administrator\Desktop\Python\Sandbox\netrek-client-pygame
+  </li></ol>
+  </li><li>Install a Python editor or a Python IDE (a GUI that lets you compile and edit inside 1 program)
+  <ol>
+    <li>I like to use Notepad++ since it is lightweight and has Python syntax highlighting: <a href="http://notepad-plus-plus.org/">http://notepad-plus-plus.org/</a>
+    </li><li>You can find a list of Python Editors here: <a href="http://wiki.python.org/moin/PythonEditors">http://wiki.python.org/moin/PythonEditors</a>
+    </li><li>You can find a list of Python IDEs here: <a href="http://wiki.python.org/moin/IntegratedDevelopmentEnvironments">http://wiki.python.org/moin/IntegratedDevelopmentEnvironments</a>
+  </li></ol>
+  </li><li>Now load the Netrek pygame source files in your Python Editor or IDE and have fun hacking!
+  <ol>
+    <li>If you have trouble loading a Python program in MS Windows consult the Python wiki, here's a link to get you started:
+      <a href="http://docs.python.org/faq/windows#how-do-i-run-a-python-program-under-windows">http://docs.python.org/faq/windows#how-do-i-run-a-python-program-under-windows</a>
+          
+  </li></ol>
+  </li><li>Download, install and configure Py2exe. It lets you run a Python program in MS Windows without needing Python installed.
+  <ol>
+    <li>Download py2exe from <a href="https://sourceforge.net/projects/py2exe/files/,">https://sourceforge.net/projects/py2exe/files/,</a> make sure you select the correct version and architecture type. 
+      So if you have Python 2.6 installed and you are running a 64-bit MS Windows OS you would want to download py2exe-0.6.9.win64-py2.6.amd64.exe
+    </li><li>Save the appropriate file to your Desktop
+    </li><li>Double click the file to launch the installer. Note: It should detect your Python installation directory.
+      If it doesn't you can manually select the directory.
+    </li><li>Open up a command prompt window: in Windows 7 press your Windows system key to bring up the run dialog area and type "cmd" 
+<p>          then hit ENTER.
+          In your Windows File Explorer go to the directory where you unpacked the netrek-client-pygame source files.
+          Go to the address bar and select "Copy address". Now go to the command prompt window and enter: "CD " then click your right mouse button
+          and select Paste, now hit ENTER. This will paste the address of the netrek-client-pygame directory. 
+    <li>Download the py2exe build script:
+<p>                <a href="http://gytha.oggthebase.org/files/build.py">http://gytha.oggthebase.org/files/build.py</a>
+    <li>Enter this command in the command prompt: copy netrek-client-pygame start.py
+    </li><li>Now go back to the command prompt and enter this command: python build.py py2exe
+      py2exe will process the build file and generate a "dist" subdirectory. This is what contains our executable and library files.
+<p>          It also creates a "build" subdirectory, but you don't have to worry about that.
+    <li>Go to the \dist subdirectory and run start.exe
+    </li><li>You can create an archive of the \dist subdirectory with your favorite file archiver and make it available for download.
+      Now anyone can download and unpack the archive file, go into the dist directory and run start.exe to play even if they don't have python installed!
+    </li><li>Note: if you run start.exe and get an error regarding MSVCR90.DLL then install the Microsoft Visual C Runtime 9.0.
+      This DLL file is included in the Microsoft Visual C++ 2008 Redistributable Package which you may download here:
+<p>          For 32-bit OSes (x64): <a href="http://www.microsoft.com/downloads/en/details.aspx?familyid=bd2a6171-e2d6-4230-b809-9a8d7548c1b6&amp;displaylang=en">http://www.microsoft.com/downloads/en/details.aspx?familyid=bd2a6171-e2d6-4230-b809-9a8d7548c1b6&amp;displaylang=en</a>
+          For 64-bit OSes (x86): <a href="http://www.microsoft.com/downloads/en/details.aspx?FamilyID=9b2da534-3e03-4391-8a4d-074b9f2bc1bf&amp;displaylang=en">http://www.microsoft.com/downloads/en/details.aspx?FamilyID=9b2da534-3e03-4391-8a4d-074b9f2bc1bf&amp;displaylang=en</a>
+</p>
+  </li></ol>
+  <li>Creating an installer for netrek-client-pygame using Inno Setup
+  <ol>
+    <li>Go to <a href="http://www.jrsoftware.org/isdl.php">http://www.jrsoftware.org/isdl.php</a> and download setup-5.4.0.exe
+    </li><li>Save the file to your Desktop
+    </li><li>Double click the file to launch the installer
+    </li><li>Download these files: 
+<p>                <a href="http://gytha.oggthebase.org/files/gytha.iss">http://gytha.oggthebase.org/files/gytha.iss</a>
+                <a href="http://gytha.oggthebase.org/files/gytha.ico">http://gytha.oggthebase.org/files/gytha.ico</a>
+          Save them in your py2exe build directory - such as "C:\Users\Administrator\Desktop\Python\Sandbox\netrek-client-pygame"
+    <li>Copy "gytha.iss" into your \dist directory.
+    </li><li>Start Inno Setup Compiler.
+    </li><li>Go to the "Open file" area of the dialog box and select "Open an existing script file" and select
+      \dist\gytha.iss
+    </li><li>Go to the build menu and select "Compile". The compiler will build the installer file now.
+    </li><li>Look in \dist\Output and you will see the finished installer: setup-gytha_.exe
+    </li><li>You may now distribute this installer file. Enjoy!
+  </li></ol>
+</p></ol>
+</li></ol></li></p></li></p></li></p></li></ol></li></ol></li></ol>
+</body>
+</html>
+
+<?php include('../footer.inc'); ?>
