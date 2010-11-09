@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Gytha
+Comment="Netrek Client"
+Exec=/usr/games/gytha
+Icon=/usr/share/gytha/gytha.png
+StartupNotify=false
+Terminal=false
+Type=Application
+Categories=Game;StrategyGame;

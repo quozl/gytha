@@ -1,37 +1,41 @@
-PACKAGE=netrek-client-pygame
-VERSION=0.6.1
+PACKAGE=gytha
+VERSION=0.7
 
 all:
 	@echo $(PACKAGE)-$(VERSION)
-	echo "To start this Netrek client, run the file netrek-client-pygame"
+	echo "To start this Netrek client, run the file gytha.py"
 
 clean:
-	rm -rf debian/netrek-client-pygame/ build-stamp debian/files
+	rm -rf debian/gytha build-stamp debian/files
 
 distclean:
 
 dist:
 	mkdir $(PACKAGE)-$(VERSION)
 	cp -p ChangeLog Makefile COPYING INSTALL $(PACKAGE)-$(VERSION)/
+	cp -p gytha.png gytha.desktop $(PACKAGE)-$(VERSION)/
 	mkdir $(PACKAGE)-$(VERSION)/images
-	cp -p images/*.png images/*.jpg $(PACKAGE)-$(VERSION)/images/
+	cp -p images/*.png $(PACKAGE)-$(VERSION)/images/
+	cp -p images/*.jpg $(PACKAGE)-$(VERSION)/images/
 	mkdir $(PACKAGE)-$(VERSION)/netrek
 	cp -p netrek/*.py $(PACKAGE)-$(VERSION)/netrek
-	cp -p netrek-client-pygame $(PACKAGE)-$(VERSION)/
+	cp -p gytha.py $(PACKAGE)-$(VERSION)/
 	GZIP=--best tar cfz $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
 	rm -rf $(PACKAGE)-$(VERSION)
 
 install:
 	mkdir -p $(DESTDIR)/usr/bin/
-	cp -p netrek-client-pygame $(DESTDIR)/usr/bin/
-	chmod +x $(DESTDIR)/usr/bin/netrek-client-pygame
-	mkdir -p $(DESTDIR)/usr/share/netrek-client-pygame/images
-	cp -p images/*.png $(DESTDIR)/usr/share/netrek-client-pygame/images/
-	chmod +r $(DESTDIR)/usr/share/netrek-client-pygame/images/*.png
-	cp -p images/*.jpg $(DESTDIR)/usr/share/netrek-client-pygame/images/
-	chmod +r $(DESTDIR)/usr/share/netrek-client-pygame/images/*.jpg
-	mkdir -p $(DESTDIR)/usr/share/doc/netrek-client-pygame
-	cp ChangeLog $(DESTDIR)/usr/share/doc/netrek-client-pygame
+	cp -p gytha.py $(DESTDIR)/usr/games/gytha
+	chmod +x $(DESTDIR)/usr/games/gytha
+	mkdir -p $(DESTDIR)/usr/share/gytha/images
+	cp -p gytha.png $(DESTDIR)/usr/share/gytha/
+	chmod +r $(DESTDIR)/usr/share/gytha/gytha.png
+	cp -p images/*.png $(DESTDIR)/usr/share/gytha/images/
+	chmod +r $(DESTDIR)/usr/share/gytha/images/*.png
+	cp -p images/*.jpg $(DESTDIR)/usr/share/gytha/images/
+	chmod +r $(DESTDIR)/usr/share/gytha/images/*.jpg
+	mkdir -p $(DESTDIR)/usr/share/doc/gytha
+	cp ChangeLog $(DESTDIR)/usr/share/doc/gytha
 
 #
 # Maintainer's Debian packaging section
@@ -45,7 +49,7 @@ package:
 newpackage:
 	python2.6 setup.py bdist_deb
 
-TARGET=~/public_html/external/mine/netrek-client-pygame/
+TARGET=~/public_html/external/mine/gytha/
 upload:
 	cp $(PACKAGE)-$(VERSION).tar.gz $(TARGET)
 	mv ../$(DEBIAN_PACKAGE)_$(DEBIAN_VERSION)*.deb $(TARGET)

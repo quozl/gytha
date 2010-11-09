@@ -12,7 +12,7 @@ class IC:
         self.cache_scale2xed = {}
         self.hits = self.miss = 0
         self.hits_rotated = self.miss_rotated = 0
-        self.paths = ['/usr/share/netrek-client-pygame/images/', 'images/']
+        self.paths = ['/usr/share/gytha/images/', 'images/']
 
     def read(self, name):
         """ try package location, otherwise try local directory """
