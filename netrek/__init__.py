@@ -147,7 +147,7 @@ import mercenary
 import options
 import rcd
 
-VERSION = "0.6.1"
+VERSION = "0.7"
 
 WELCOME = [
 "Netrek Client Pygame %s" % (VERSION),
@@ -391,7 +391,6 @@ class Ship(Local):
         self.y = self.py = -10000
         self.nearby = False
         # sp_flags
-        self.tractor = 0
         self.flags = 0
         # sp_pstatus
         self.status = PFREE
@@ -454,7 +453,7 @@ class Ship(Local):
             self.galactic.hide()
             self.tactical.hide()
 
-    def sp_you(self, hostile, swar, armies, tractor, flags, damage, shield,
+    def sp_you(self, hostile, swar, armies, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
 ##         if me == self:
 ##             if not self.flags & PFSHIELD:
@@ -463,7 +462,6 @@ class Ship(Local):
         self.hostile = hostile
         self.swar = swar
         self.armies = armies
-        self.tractor = tractor # FIXME: add visible tractor beams
         self.flags = flags
         self.damage = damage
         self.shield = shield
@@ -546,11 +544,9 @@ class Ship(Local):
                     galaxy.planets_proximity_check()
                 self.ppcf = 20
 
-    def sp_flags(self, tractor, flags):
-        self.tractor = tractor
+    def sp_flags(self, flags):
         self.flags = flags
         self.op_info_update()
-        # FIXME: display this data, visible tractors on tactical
 
     def sp_pstatus(self, status):
         # was alive now exploding
@@ -748,6 +744,49 @@ class Phaser(Local):
         else:
             if self.status == PHFREE: self.want = False
 
+class Tractor(Local):
+    """ netrek tractors
+        each netrek ship has one tractor or pressor
+        starting point is self
+        ending point is tractored ship
+    """
+    def __init__(self, n, ship):
+        Local.__init__(self, n)
+        self.ship = ship
+        self.flags = self.target = 0
+        self.want = False # is to be drawn on screen
+        self.have = False # has been drawn on screen
+
+    def draw(self):
+        if self.ship.status != PALIVE:
+            self.want = False
+            return
+        self.have = True
+        them = galaxy.ship(self.target & (~0x40))
+        (tx, ty) = n2ts(me, them.x, them.y)
+        (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
+        self.txty = (tx, ty)
+        self.fxfy = (fx, fy)
+        # FIXME: dotted line centre of tractor to periphery of tractee
+        colour = (0, 64, 0)
+        if self.flags & PFPRESS:
+            colour = (64, 0, 0)
+        return pygame.draw.line(screen, colour, (fx, fy), (tx, ty), 10)
+
+    def undraw(self, colour):
+        self.have = False
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty, 10)
+
+    def sp_tractor(self, flags, target):
+        self.want = False
+        # FIXME: third party tractors not shown, perhaps not f_many_self
+        if target & 0x40:
+            if flags & (PFTRACT | PFPRESS):
+                if self.ship.status == PALIVE:
+                    self.want = True
+        self.flags = flags
+        self.target = target
+
 class Tag(Local):
     def __init__(self, xy):
         Local.__init__(self, 0)
@@ -775,6 +814,7 @@ class Galaxy:
         self.te = [] # exploding torps
         self.se = [] # exploding ships
         self.phasers = {}
+        self.tractors = {}
         self.plasmas = {}
         self.caps = {}
         for n in range(NUM_TYPES):
@@ -860,6 +900,23 @@ class Galaxy:
         r = []
         for n, phaser in self.phasers.iteritems():
             if phaser.want: r.append(phaser.draw())
+        return r
+
+    def tractor(self, n, ship):
+        if n not in self.tractors:
+            self.tractors[n] = Tractor(n, ship)
+        return self.tractors[n]
+
+    def tractors_undraw(self, colour):
+        r = []
+        for n, tractor in self.tractors.iteritems():
+            if tractor.have: r.append(tractor.undraw(colour))
+        return r
+
+    def tractors_draw(self):
+        r = []
+        for n, tractor in self.tractors.iteritems():
+            if tractor.want: r.append(tractor.draw())
         return r
 
     def plasma(self, n):
@@ -2515,7 +2572,9 @@ class SP_YOU(SP):
          shield, fuel, etemp, wtemp, whydead, whodead) = struct.unpack(self.format, data)
         if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",team_decode(hostile),"swar=",team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
         ship = galaxy.ship(pnum)
-        ship.sp_you(hostile, swar, armies, tractor, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
+        ship.sp_you(hostile, swar, armies, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
+        trac = galaxy.tractor(pnum, ship)
+        trac.sp_tractor(flags, tractor)
         if nt.mode == COMM_TCP and ship.speed == 0:
             galaxy.pace()
         if opt.name:
@@ -2603,7 +2662,9 @@ class SP_FLAGS(SP):
         (ignored, pnum, tractor, flags) = struct.unpack(self.format, data)
         if opt.sp: print "SP_FLAGS pnum=",pnum,"tractor=",tractor,"flags=",flags
         ship = galaxy.ship(pnum)
-        ship.sp_flags(tractor, flags)
+        ship.sp_flags(flags)
+        trac = galaxy.tractor(pnum, ship)
+        trac.sp_tractor(flags, tractor)
 
 class SP_PLANET_LOC(SP):
     code = 26
@@ -4642,6 +4703,7 @@ class PhaseFlightTactical(PhaseFlight):
         t0 = time.time()
         screen.set_clip(r_us) # restrict drawing
         r = [] # sequence of dirty rectangles for update
+        r += galaxy.tractors_undraw(self.co)
         r += galaxy.phasers_undraw(self.co)
         r += self.borders.undraw(self.co)
         r += self.alerts.undraw(self.co)
@@ -4671,6 +4733,7 @@ class PhaseFlightTactical(PhaseFlight):
         b_info.update()
 
         r += t_planets.draw(screen)
+        r += galaxy.tractors_draw()
         r += t_players.draw(screen)
         r += t_plasma.draw(screen)
         r += t_torps.draw(screen)
