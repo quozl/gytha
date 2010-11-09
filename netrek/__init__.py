@@ -5131,13 +5131,13 @@ def nt_play():
         # return to metaserver list
         mc_choose_again()
 
-def main():
+def main(argv=sys.argv[1:]):
     global opt, screen, mc, nt
 
     for line in WELCOME: print line
     print
 
-    opt, args = options.parser.parse_args()
+    opt, args = options.parser.parse_args(argv)
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()
