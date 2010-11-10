@@ -169,6 +169,10 @@ INSTRUCTIONS_SERVERS = [
 'anonymous mercenary, or with your left button to login.'
 ]
 
+FONT_SANS = 'DejaVuSans.ttf'
+FONT_SANS_MONO = 'DejaVuSansMono.ttf'
+FONT_SANS_CONDENSED = 'DejaVuSansCondensed.ttf'
+
 # number of rounds played this session
 rounds = 0
 
@@ -1045,7 +1049,7 @@ class PlanetGalacticSprite(PlanetSprite):
         colour = (128, 128, 128)
         if self.planet.flags & PLAGRI:
             colour = (255, 255, 255)
-        font = fc.get('DejaVuSans.ttf', 12)
+        font = fc.get(FONT_SANS, 12)
         text = font.render(message, 1, colour)
         rect = text.get_rect(top=0, centerx=15)
         tag.blit(text, rect)
@@ -1058,12 +1062,12 @@ class PlanetGalacticSprite(PlanetSprite):
         tag = pygame.Surface((pos, 30), pygame.SRCALPHA, 32)
         colour = team_colour(self.planet.owner)
         if self.planet.flags & PLFUEL:
-            font = fc.get('DejaVuSans.ttf', 12)
+            font = fc.get(FONT_SANS, 12)
             text = font.render('F', 1, colour)
             rect = text.get_rect(left=0, centery=15)
             tag.blit(text, rect)
         if self.planet.flags & PLREPAIR:
-            font = fc.get('DejaVuSans.ttf', 12)
+            font = fc.get(FONT_SANS, 12)
             text = font.render('R', 1, colour)
             rect = text.get_rect(right=pos, centery=15)
             tag.blit(text, rect)
@@ -1078,7 +1082,7 @@ class PlanetGalacticSprite(PlanetSprite):
         if self.planet.name == '':
             return
         tag = pygame.Surface((92, 74), pygame.SRCALPHA, 32)
-        font = fc.get('DejaVuSans.ttf', 12)
+        font = fc.get(FONT_SANS, 12)
         message = "%s" % (self.planet.name)
         colour = team_colour(self.planet.owner)
         if self.planet.armies > 4:
@@ -1146,7 +1150,7 @@ class PlanetTacticalSprite(PlanetSprite):
 
         # planet name
         image = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
-        font = fc.get('DejaVuSans.ttf', 17)
+        font = fc.get(FONT_SANS, 17)
         message = "%s" % (self.planet.name)
         text = font.render(message, 1, team_colour(self.planet.owner))
         rect = text.get_rect(centerx=60, bottom=120)
@@ -1213,7 +1217,7 @@ class ShipGalacticSprite(ShipSprite):
         pygame.draw.ellipse(ring, rgba, pygame.Rect((0, 6), (pos, 24)), 2)
         pygame.draw.ellipse(ring, rgba, pygame.Rect((6, 0), (24, pos)), 2)
         self.mi_add_image(ring)
-        font = fc.get('DejaVuSans.ttf', size)
+        font = fc.get(FONT_SANS, size)
         self.image = font.render(message, 1, colour)
         self.rect = self.image.get_rect()
         self.mi_add_image(self.image)
@@ -1270,7 +1274,7 @@ class ShipTacticalSprite(ShipSprite):
             self.old_tag = new
             pos = 76
             self.tag = pygame.Surface((pos, pos), pygame.SRCALPHA, 32)
-            font = fc.get('DejaVuSans.ttf', 20)
+            font = fc.get(FONT_SANS, 20)
             message = slot_decode(self.ship.n)
             colour = team_colour(self.ship.team)
             if self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT):
@@ -1657,7 +1661,7 @@ class DebugSprite(pygame.sprite.Sprite):
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.font = fc.get('DejaVuSansMono.ttf', 20)
+        self.font = fc.get(FONT_SANS_MONO, 20)
         self.maxrps = 0
         self.minrps = 1000
         self.rps = []
@@ -1715,7 +1719,7 @@ class ReportSprite(pygame.sprite.Sprite):
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.font = fc.get('DejaVuSansMono.ttf', 20)
+        self.font = fc.get(FONT_SANS_MONO, 20)
         self.fuel = self.damage = self.shield = self.armies = 0
         self.image = self.font.render('--', 1, (255, 255, 255))
         self.rect = self.image.get_rect(centerx=(r_us.centerx),
@@ -1807,7 +1811,7 @@ class WarningSprite(pygame.sprite.Sprite):
     """
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.font = fc.get('DejaVuSans.ttf', 24)
+        self.font = fc.get(FONT_SANS, 24)
         self.last = ''
         self.time = 0
         self.pick('')
@@ -1849,7 +1853,7 @@ class InfoSprite(pygame.sprite.Sprite):
     """
     def __init__(self, lines, track=None, expires=7):
         pygame.sprite.Sprite.__init__(self)
-        self.font = fc.get('DejaVuSansCondensed.ttf', 18)
+        self.font = fc.get(FONT_SANS_CONDENSED, 18)
         #self.icon = ic.get(icon)
         #self.close_icon = ic.get('close.png')
         self.lines = lines
@@ -1948,7 +1952,7 @@ class MessageSprite(pygame.sprite.Sprite):
         if r_main.width < 801:
             size = 14
             self.width = 750
-        self.font = fc.get('DejaVuSansMono.ttf', size)
+        self.font = fc.get(FONT_SANS_MONO, size)
         self.maximum = 10
         self.dirty = True
         self.lines = []
@@ -3196,7 +3200,7 @@ class PhaseNonFlight(Phase):
         del self.b_join
 
     def text(self, text, x, y, size=72, colour=(255, 255, 255)):
-        font = fc.get('DejaVuSans.ttf', size)
+        font = fc.get(FONT_SANS, size)
         ts = font.render(text, 1, colour)
         tr = ts.get_rect(center=(x, y))
         screen.blit(ts, tr)
@@ -3216,7 +3220,7 @@ class PhaseNonFlight(Phase):
                     bottom=self.blame_rect.top-arg)
 
     def welcome(self, colour=(255, 255, 255)):
-        font = fc.get('DejaVuSans.ttf', 15)
+        font = fc.get(FONT_SANS, 15)
         x = r_main.centerx - 300
         y = int(r_main.bottom * 0.79)
         wr = None
@@ -3236,7 +3240,7 @@ class PhaseNonFlight(Phase):
                     bottom=self.welcome_rect.top-arg)
 
     def warn(self, message, ms=0):
-        font = fc.get('DejaVuSans.ttf', 32)
+        font = fc.get(FONT_SANS, 32)
         text = font.render(message, 1, (255, 127, 127))
         self.warn_br = text.get_rect(centerx=r_main.centerx,
                                      bottom=r_main.bottom)
@@ -3379,7 +3383,7 @@ class PhaseTips(PhaseNonFlight):
         if r_main.height < 601:
             size = 10
             x = r_main.centerx - 180
-        font = fc.get('DejaVuSans.ttf', size)
+        font = fc.get(FONT_SANS, size)
         for line in tips:
             ts = font.render(line, 1, (255, 255, 255))
             tr = ts.get_rect(left=x, top=y)
@@ -3441,12 +3445,12 @@ class PhaseServers(PhaseNonFlight):
         if age < 300: colour = 192
         if age < 180: colour = 255
         colour = (colour, colour, colour)
-        font = fc.get('DejaVuSans.ttf', 22)
+        font = fc.get(FONT_SANS, 22)
         text = server['name'] + ' ' + server['comment']
         return [font.render(text, 1, colour), 40]
 
     def server_queue(self, server):
-        font = fc.get('DejaVuSans.ttf', 22)
+        font = fc.get(FONT_SANS, 22)
         text = 'Queue of ' + str(server['queue'])
         return [font.render(text, 1, (255, 64, 64)), r_main.centerx - 120]
 
@@ -3478,7 +3482,7 @@ class PhaseServers(PhaseNonFlight):
             self.instructions = Texts(INSTRUCTIONS_SERVERS,
                                       r_main.centerx - 300,
                                       r_main.height * 0.53, 8, 15,
-                                      name='DejaVuSans.ttf')
+                                      name=FONT_SANS)
             rs = self.instructions.draw()
             for r in rs:
                 redraw.append(r)
@@ -4569,7 +4573,7 @@ class PhaseFlightGalactic(PhaseFlight):
                 r += [tr]
 
         size = 24
-        font = fc.get('DejaVuSans.ttf', size)
+        font = fc.get(FONT_SANS, size)
 
         ts = font.render('Romulan', 1, (255, 64, 64))
         tr = ts.get_rect(left=x1+2, top=y1+2)
