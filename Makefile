@@ -20,6 +20,7 @@ dist:
 	mkdir $(PACKAGE)-$(VERSION)/netrek
 	cp -p netrek/*.py $(PACKAGE)-$(VERSION)/netrek
 	cp -p gytha.py $(PACKAGE)-$(VERSION)/
+	chmod +x $(PACKAGE)-$(VERSION)/gytha.py
 	GZIP=--best tar cfz $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
 	rm -rf $(PACKAGE)-$(VERSION)
 
