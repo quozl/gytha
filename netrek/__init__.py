@@ -746,9 +746,10 @@ class Phaser(Local):
 
 class Tractor(Local):
     """ netrek tractors
-        each netrek ship has one tractor or pressor
-        starting point is self
-        ending point is tractored ship
+        each netrek ship has one tractor
+
+        Note: other player tractors are not shown unless server has
+        SHOW_ALL_TRACTORS set in etc/features
     """
     def __init__(self, n, ship):
         Local.__init__(self, n)
@@ -763,15 +764,14 @@ class Tractor(Local):
             return
         self.have = True
         them = galaxy.ship(self.target & (~0x40))
-        (tx, ty) = n2ts(me, them.x, them.y)
-        (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
-        self.txty = (tx, ty)
-        self.fxfy = (fx, fy)
-        # FIXME: dotted line centre of tractor to periphery of tractee
+        self.txty = n2ts(me, them.x, them.y)
+        self.fxfy = n2ts(me, self.ship.x, self.ship.y)
+        # FIXME: use dotted line centre of tractor to periphery of
+        # tractee, as per original design of netrek clients
         colour = (0, 64, 0)
         if self.flags & PFPRESS:
             colour = (64, 0, 0)
-        return pygame.draw.line(screen, colour, (fx, fy), (tx, ty), 10)
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty, 10)
 
     def undraw(self, colour):
         self.have = False
@@ -779,7 +779,6 @@ class Tractor(Local):
 
     def sp_tractor(self, flags, target):
         self.want = False
-        # FIXME: third party tractors not shown, perhaps not f_many_self
         if target & 0x40:
             if flags & (PFTRACT | PFPRESS):
                 if self.ship.status == PALIVE:
@@ -2872,6 +2871,7 @@ class SP_FEATURE(SP):
             nt.send(cp_feature.data('S', 0, 0, 1, 'SHIP_CAP'))
             nt.send(cp_feature.data('S', 2, 0, 1, 'SP_GENERIC_32'))
             nt.send(cp_feature.data('S', 0, 0, 1, 'TIPS'))
+            nt.send(cp_feature.data('S', 0, 0, 1, 'SHOW_ALL_TRACTORS'))
 
         if name == 'UPS':
             galaxy.ups = value
