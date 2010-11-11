@@ -2737,7 +2737,7 @@ class SP_PICKOK(SP):
     def version(self):
         if self.versioned: return
         self.versioned = True
-        nt.send(cp_message.data(MINDIV | MCONFIG, me.n, "@netrek-client-pygame %s" % VERSION))
+        nt.send(cp_message.data(MINDIV | MCONFIG, me.n, "@gytha %s" % VERSION))
 
     def handler(self, data):
         (ignored, state) = struct.unpack(self.format, data)
@@ -3105,8 +3105,9 @@ class Phase:
             self.exit(0)
 
     def snap(self, event):
-        pygame.image.save(screen, "netrek-client-pygame-%04d.jpeg" % self.screenshot)
-        print "snapshot taken"
+        name = "gytha-%04d.jpeg" % self.screenshot
+        pygame.image.save(screen, name)
+        print "snapshot taken,", name
         self.screenshot += 1
 
     def cycle(self):
@@ -3294,7 +3295,7 @@ class PhaseSplash(PhaseNonFlight):
         if not opt.debug: ic.preload_scan()
         pygame.display.flip()
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-splash.jpeg")
+            pygame.image.save(screen, "gytha-splash.jpeg")
         if not opt.debug: ic.preload_early()
         self.ue_set(100)
         self.fuse_max = self.fuse = opt.splashtime / self.ue_delay
@@ -3336,7 +3337,7 @@ class PhaseTips(PhaseNonFlight):
         self.add_list_button(self.list)
         pygame.display.flip()
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-tips.jpeg")
+            pygame.image.save(screen, "gytha-tips.jpeg")
         self.run = True
         self.cycle_wait_display() # returns after self.leave is called
 
@@ -3578,7 +3579,7 @@ class PhaseServers(PhaseNonFlight):
             self.warn('click on a server, mate', 1000)
             return
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-servers.jpeg")
+            pygame.image.save(screen, "gytha-servers.jpeg")
         pygame.display.update(self.b_quit.clear())
         self.warn('connecting, standby')
         opt.chosen = chosen
@@ -3624,7 +3625,7 @@ class PhaseQueue(PhaseNonFlight):
         pygame.display.flip()
         self.run = True
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-queue.jpeg")
+            pygame.image.save(screen, "gytha-queue.jpeg")
         while self.run:
             packets = self.network_sink()
             if packets > 0: self.data()
@@ -3680,7 +3681,7 @@ class PhaseLogin(PhaseNonFlight):
         self.password = None
         self.run = True
         if opt.screenshots:
-            pygame.image.save(screen, "netrek-client-pygame-login.jpeg")
+            pygame.image.save(screen, "gytha-login.jpeg")
         self.cancelled = False
         self.cycle() # returns when login is complete, or cancelled
 
@@ -3907,7 +3908,7 @@ class PhaseOutfit(PhaseNonFlight):
             pygame.display.update(r)
             if opt.screenshots:
                 if not self.screenshot:
-                    pygame.image.save(screen, "netrek-client-pygame-outfit.jpeg")
+                    pygame.image.save(screen, "gytha-outfit.jpeg")
                     self.screenshot = True
         if mask != 0 and opt.mercenary:
             opt.team = teams[mercenary.pick(mask, galaxy)]
