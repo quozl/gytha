@@ -1136,7 +1136,7 @@ class PlanetTacticalSprite(PlanetSprite):
 
         if self.planet.flags & PLAGRI:
             image = ic.get("planet-" + teams[self.planet.owner] + "-agri.png")
-        else
+        else:
             image = ic.get("planet-" + teams[self.planet.owner] + ".png")
         self.mi_add_image(image)
 
