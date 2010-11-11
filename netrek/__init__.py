@@ -1075,6 +1075,7 @@ class PlanetGalacticSprite(PlanetSprite):
 
     def add_icon(self):
         # IMAGERY: planet-???-30x30.png
+        # TODO: add agri planet 30x30 png files
         self.icon = ic.get("planet-" + teams[self.planet.owner] + "-30x30.png")
         self.mi_add_image(self.icon)
 
@@ -1132,7 +1133,11 @@ class PlanetTacticalSprite(PlanetSprite):
         self.mi_begin()
 
         # IMAGERY: planet-???.png
-        image = ic.get("planet-" + teams[self.planet.owner] + ".png")
+
+        if self.planet.flags & PLAGRI:
+            image = ic.get("planet-" + teams[self.planet.owner] + "-agri.png")
+        else
+            image = ic.get("planet-" + teams[self.planet.owner] + ".png")
         self.mi_add_image(image)
 
         # IMAGERY: planet-overlay-*.png
