@@ -260,12 +260,12 @@ windows=[
          ],
 data_files = data_files,
 name='gytha',
-version='0.6.1',
+version='0.7',
 description='gytha - a netrek client',
 author='James Cameron',
 author_email='quozl@us.netrek.org',
 url='http://quozl.us.netrek.org/gytha/',
-      py_modules=['netrek\\__init__','netrek\\cache','netrek\\cap','netrek\\client','netrek\\constants','netrek\\mercenary','netrek\\meta','netrek\\rcd','netrek\\repair','netrek\\mis','netrek\\motd','netrek\\options','netrek\\util']
+      py_modules=['netrek\\__init__','netrek\\bouncer','netrek\\cache','netrek\\cap','netrek\\client','netrek\\constants','netrek\\mercenary','netrek\\meta','netrek\\motd','netrek\\options','netrek\\rcd','netrek\\sprites','netrek\\util']
 )
 
 import zipfile

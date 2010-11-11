@@ -4,10 +4,10 @@
 ; then did a few changes to make maintenance, move to other folder easier
 ;
 ; define the path to your work folder
-#define BaseFolder "C:\Users\Administrator\Desktop\python\sandbox\netrek-client-pygame-0.6\dist"
+#define BaseFolder "C:\Users\Administrator\Desktop\python\gytha-0.7\dist"
 
 ; get version information from the exe
-#define ExeName BaseFolder+"\dist\start.exe"
+#define ExeName BaseFolder+"\dist\gytha.exe"
 #define AppVersionNo GetFileVersion(ExeName)
 #define AppMajorVersionIdx Pos(".", AppVersionNo)
 #define AppMinorVersionTemp Copy(AppVersionNo, AppMajorVersionIdx +1)
@@ -21,7 +21,7 @@
 #define MyAppSupportURL "http://quozl.us.netrek.org/gytha/"
 #define MyAppUpdatesURL "http://quozl.us.netrek.org/gytha/"
 
-#define MyAppExeName "start.exe"
+#define MyAppExeName "gytha.exe"
 
 #define OutputFileName "setup-gytha"
 
@@ -106,7 +106,7 @@ Source: ..\dist\SDL_mixer.dll; DestDir: {app}; Flags: ignoreversion
 Source: ..\dist\SDL_ttf.dll; DestDir: {app}; Flags: ignoreversion
 Source: ..\dist\select.pyd; DestDir: {app}; Flags: ignoreversion
 Source: ..\dist\smpeg.dll; DestDir: {app}; Flags: ignoreversion
-Source: ..\dist\start.exe; DestDir: {app}; Flags: ignoreversion
+Source: ..\dist\gytha.exe; DestDir: {app}; Flags: ignoreversion
 Source: ..\dist\unicodedata.pyd; DestDir: {app}; Flags: ignoreversion
 Source: ..\dist\_ctypes.pyd; DestDir: {app}; Flags: ignoreversion
 Source: ..\dist\_hashlib.pyd; DestDir: {app}; Flags: ignoreversion
