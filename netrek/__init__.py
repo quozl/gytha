@@ -268,6 +268,10 @@ class Local:
         self.tactical = None # pygame sprite on tactical
         self.galactic = None # pygame sprite on galactic
 
+    def __repr__(self):
+        return 'Local(n=%r,\ntactical=%r,\ngalactic=%r)\n' % \
+            (self.n, self.tactical, self.galactic)
+
     def op_info_update(self):
         for sprite in b_info:
             if sprite.track != self:
@@ -277,6 +281,7 @@ class Local:
             sprite.lines = self.op_info()
             sprite.pick()
             sprite.update()
+
 
 class Planet(Local):
     """ netrek planets
@@ -293,6 +298,9 @@ class Planet(Local):
         self.tactical = PlanetTacticalSprite(self) # forward reference
         self.galactic = PlanetGalacticSprite(self) # forward reference
         self.nearby = False
+
+    def __repr__(self):
+        return Local.__repr__(self) + ('.Planet(name=%s)\n' % self.name)
 
     def sp_planet_loc(self, x, y, name):
         old = (self.x, self.y, self.name)
@@ -363,6 +371,7 @@ class Planet(Local):
                 self.nearby = False
                 self.tactical.hide()
 
+
 class Ship(Local):
     """ netrek ships
         each server has a number of netrek ships, normally 32 (MAXPLAYER)
@@ -409,6 +418,9 @@ class Ship(Local):
         self.galactic = ShipGalacticSprite(self) # forward reference
         self.ppcf = 1 # planet proximity check fuse
         self.fuse = None
+
+    def __repr__(self):
+        return Local.__repr__(self) + ('.Ship(n=%r)\n' % (self.n))
 
     def op_info(self):
         lines = ['%s %s (a ship)' % (self.mapchars, self.name), '']
@@ -586,9 +598,6 @@ class Ship(Local):
         if self.status == PEXPLODE:
             self.fuse -= 1
 
-    def __repr__(self):
-        return 'Ship(x=%r, y=%r, team=%r)' % (self.x, self.y, self.team)
-
 
 class Torp(Local):
     """ netrek torps
@@ -596,14 +605,19 @@ class Torp(Local):
         instances created as packets about the torps are received
         instances are listed in a dictionary of torps in the galaxy instance
     """
-    def __init__(self, n):
+    def __init__(self, n, galaxy):
         Local.__init__(self, n)
-        self.ship = galaxy.ship(n / MAXTORP) # forward reference to enclosing class
+        self.n = n
+        self.galaxy = galaxy
+        self.ship = self.galaxy.ship(self.n / MAXTORP)
         self.fuse = 0
         self.status = TFREE
         self.sp_torp_info(0, self.status)
         self.sp_torp(0, 0, 0)
         self.tactical = TorpTacticalSprite(self) # forward reference
+
+    def __repr__(self):
+        return Local.__repr__(self) + ('.Torp(n=%r, ship.n=%r, fuse=%r, status=%r)\n' % (self.n, self.ship.n, self.fuse, self.status))
 
     def sp_torp_info(self, war, status):
         was = self.status
@@ -611,6 +625,8 @@ class Torp(Local):
         self.status = status
         if was == TFREE:
             if status != TFREE:
+                if self not in self.galaxy.torps:
+                    self.galaxy.torps[self.n] = self
                 try: self.tactical.show()
                 except: pass
         else:
@@ -619,8 +635,9 @@ class Torp(Local):
                 except: pass
                 self.x = -10000
                 self.y = -10000
+                del self.galaxy.torps[self.n]
             elif status == TEXPLODE:
-                galaxy.te.append(self) # forward reference to enclosing class
+                self.galaxy.te.append(self)
                 NUMDETFRAMES = 10
                 self.fuse = NUMDETFRAMES * galaxy.ups / 10;
                 # FIXME: animate torp explosions over local time?
@@ -636,11 +653,14 @@ class Torp(Local):
         if self.status == TEXPLODE:
             self.fuse -= 1
             if self.fuse <= 0:
-                galaxy.te.remove(self) # forward reference to enclosing class
+                self.galaxy.te.remove(self)
                 self.tactical.hide()
                 self.x = -10000
                 self.y = -10000
                 self.status = TFREE
+                del self.galaxy.torps[self.n]
+        else:
+            self.galaxy.te.remove(self)
 
     def debug_draw(self):
         fx = 0
@@ -651,6 +671,7 @@ class Torp(Local):
         q = pygame.draw.line(screen, (0, 0, 0), (tx, ty), (tx + 200, ty))
         return pygame.Rect.union(p, q)
 
+
 class Plasma(Local):
     """ netrek plasma torps
         each netrek ship has one netrek plasma torp
@@ -660,6 +681,7 @@ class Plasma(Local):
     def __init__(self, n):
         Local.__init__(self, n)
         self.ship = galaxy.ship(n) # forward reference to enclosing class
+        self.fuse = 0
         self.status = PTFREE
         self.sp_plasma_info(0, self.status)
         self.sp_plasma(0, 0)
@@ -679,13 +701,26 @@ class Plasma(Local):
                 if status == PTFREE:
                     self.tactical.hide()
                 elif status == PTEXPLODE:
-                    pass
+                    self.galaxy.pe.append(self)
+                    self.fuse = NUMDETFRAMES * galaxy.ups / 10;
         except:
             pass
 
     def sp_plasma(self, x, y):
         self.x = x
         self.y = y
+
+    def aging(self):
+        """ if torp is exploding, decrement the explosion sequence fuse """
+        if self.status == PTEXPLODE:
+            self.fuse -= 1
+            if self.fuse <= 0:
+                self.galaxy.pe.remove(self)
+                self.tactical.hide()
+                self.x = -10000
+                self.y = -10000
+                self.status = PTFREE
+
 
 class Phaser(Local):
     """ netrek phasers
@@ -748,6 +783,7 @@ class Phaser(Local):
         else:
             if self.status == PHFREE: self.want = False
 
+
 class Tractor(Local):
     """ netrek tractors
         each netrek ship has one tractor
@@ -790,10 +826,12 @@ class Tractor(Local):
         self.flags = flags
         self.target = target
 
+
 class Tag(Local):
     def __init__(self, xy):
         Local.__init__(self, 0)
         self.x, self.y = xy
+
 
 class NegativeEnergyBarrier(Tag):
     def __init__(self, xy):
@@ -808,6 +846,7 @@ class NegativeEnergyBarrier(Tag):
                 'Torpedos explode damaging ships nearby.',
                 'Phasers do nothing.']
 
+
 class Galaxy:
     """ structure to contain all netrek game objects """
     def __init__(self):
@@ -816,6 +855,7 @@ class Galaxy:
         self.torps = {}
         self.te = [] # exploding torps
         self.se = [] # exploding ships
+        self.pe = [] # exploding plasma
         self.phasers = {}
         self.tractors = {}
         self.plasmas = {}
@@ -842,16 +882,19 @@ class Galaxy:
         # sp_sequence
         self.paced = False
 
+    def __repr__(self):
+        return 'Galaxy(\nships=%r, \ntorps=%r)\n' % (self.ships, self.torps)
+
     def pace(self):
         """ called when server packets indicate an update burst is starting """
         self.paced = True
+        self.plasma_aging()
         self.torp_aging()
         self.ship_aging()
 
     def planet(self, n):
         if n not in self.planets:
-            planet = Planet(n)
-            self.planets[n] = planet
+            self.planets[n] = Planet(n)
         return self.planets[n]
 
     def planets_proximity_check(self):
@@ -874,9 +917,9 @@ class Galaxy:
         return r
 
     def torp(self, n):
-        if n not in self.torps:
-            self.torps[n] = Torp(n)
-        return self.torps[n]
+        if n in self.torps:
+            return self.torps[n]
+        return Torp(n, self)
 
     def torp_aging(self):
         for t in self.te:
@@ -887,6 +930,10 @@ class Galaxy:
         for n, torp in self.torps.iteritems():
             r.append(torp.debug_draw())
         return r
+
+    def plasma_aging(self):
+        for p in self.pe:
+            p.aging()
 
     def phaser(self, n):
         if n not in self.phasers:
@@ -4220,6 +4267,7 @@ class PhaseFlight(Phase):
             K_h: (self.op_help_keyboard, None),
             K_r: (self.op_repair, None, 'repair (on/off)'),
             K_t: (self.op_tractor_toggle, None, 'tractor (on/off)'),
+            K_z: (self.op_debug_dump, None),
             }
 
     def op_null(self, event, arg):
@@ -4531,6 +4579,10 @@ class PhaseFlight(Phase):
             if b_info:
                 b_info.empty()
             self.op_info_prior_target = None
+
+    def op_debug_dump(self, event, arg):
+        print galaxy
+
 
 class PhaseFlightGalactic(PhaseFlight):
     def __init__(self):
