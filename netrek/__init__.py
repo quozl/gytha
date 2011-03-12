@@ -208,6 +208,12 @@ r_us = Rect((50, 50), (1000, 1000))
 # types.
 #
 
+def n2ss(x, y):
+    """ netrek to subgalactic screen coordinate conversion
+    """
+    return (x / subgalactic_factor + r_sg.left,
+            y / subgalactic_factor + r_sg.top)
+
 def n2gs(x, y):
     """ netrek to galactic screen coordinate conversion
     """
@@ -1706,6 +1712,41 @@ class GalacticAlerts(Alerts):
         r, b = n2gs(GWIDTH-1, GWIDTH-1)
         self.draw_lines(l, t, r, b)
         # FIXME: bottom line not visible if main height = 600, why?
+        return self.rect
+
+class Subgalactic(Alerts):
+    def __init__(self):
+        Alerts.__init__(self)
+
+    def draw(self):
+        self.reset()
+        def draw_box(x, y, s):
+            self.draw_lines(x-s, y+s, x+s, y+s)
+            self.draw_lines(x+s, y+s, x+s, y-s)
+            self.draw_lines(x+s, y-s, x-s, y-s)
+            self.draw_lines(x-s, y-s, x-s, y+s)
+        # tactical border
+        self.colour = (64, 64, 64)
+        x, y = n2ss(me.x, me.y)
+        draw_box(x, y, 20)
+        # galactic border
+        self.colour = (92, 92, 92)
+        self.draw_lines(r_sg.left, r_sg.top, r_sg.right-1, r_sg.bottom-1)
+        # planets
+        for n, planet in galaxy.planets.iteritems():
+            x, y = n2ss(planet.x, planet.y)
+            self.colour = team_colour(planet.owner)
+            draw_box(x, y, 3)
+        # ships
+        for n, ship in galaxy.ships.iteritems():
+            if ship.status != PALIVE: continue
+            if not ship.x or not ship.y:
+                continue
+            x, y = n2ss(ship.x, ship.y)
+            self.colour = (255, 255, 255)
+            if ship != me:
+                self.colour = brighten(team_colour(ship.team))
+            draw_box(x, y, 1)
         return self.rect
 
 class DebugSprite(pygame.sprite.Sprite):
@@ -4705,6 +4746,7 @@ class PhaseFlightTactical(PhaseFlight):
         PhaseFlight.__init__(self, 'tactical')
         self.borders = Borders()
         self.alerts = TacticalAlerts()
+        self.subgalactic = Subgalactic()
         self.halos = Halos()
 
         self.co = (0, 0, 0)
@@ -4769,6 +4811,7 @@ class PhaseFlightTactical(PhaseFlight):
         r += galaxy.phasers_undraw(self.co)
         r += self.borders.undraw(self.co)
         r += self.alerts.undraw(self.co)
+        r += self.subgalactic.undraw(self.co)
 
         # design note, the sprite clear method does not return a dirty
         # rectangle, because it is merged with the dirty rectangle
@@ -4794,6 +4837,7 @@ class PhaseFlightTactical(PhaseFlight):
         b_message.update()
         b_info.update()
 
+        r += self.subgalactic.draw()
         r += t_planets.draw(screen)
         r += galaxy.tractors_draw()
         r += t_players.draw(screen)
@@ -5027,7 +5071,7 @@ def pg_fd():
 
 def pg_init():
     """ pygame initialisation """
-    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info, background, galactic_factor, r_main, r_us
+    global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info, background, galactic_factor, subgalactic_factor, r_main, r_us, r_sg
 
 ##     pygame.mixer.pre_init(44100, -16, 2, 1024)
     pygame.init()
@@ -5134,6 +5178,11 @@ def pg_init():
 
     short = min(r_us.width, r_us.height)
     galactic_factor = GWIDTH / short
+
+    gap = 50  # gap between tactical edge and subgalactic edge
+    dia = 200  # size of subgalactic
+    r_sg = Rect((r_us.left+gap, r_us.bottom-gap-dia), (dia, dia))
+    subgalactic_factor = GWIDTH / dia
 
     # sprite groups,
     # prefix { t_ for tactical, g_ for galactic, b_ for both, }
