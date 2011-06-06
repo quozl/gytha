@@ -9,7 +9,7 @@ if sys.version_info < (2, 4):
 
 setup(
     name="gytha",
-    version="0.7",
+    version="0.8",
     description= "Netrek, a multi-player real-time 2D strategy game.",
     author="James Cameron",
     author_email="quozl@us.netrek.org",
