@@ -7,9 +7,22 @@ if (preg_match('/gytha/', $_SERVER['REQUEST_URI'])) {
 include('../header.inc'); ?>
 
 gytha, a Netrek client,<br>
-by James Cameron, 2010-11-10<p>
+by James Cameron, 2011-06-06<p>
 
-<h3>Introduction</h3>
+<div align=right>
+| <a href="#introduction">introduction</a>
+| <a href="#news">what's new</a>
+| <a href="#downloads">downloads</a>
+| <a href="#resources">resources</a>
+| <a href="#building">building</a>
+| <a href="#screenshots">screenshots</a>
+| <a href="#hacking">hacking</a>
+|
+</div>
+
+<table>
+<tr valign="top">
+<td valign="top" width="45%"><a name="introduction"><h3>Introduction</h3></a>
 
 Netrek is a multi-player real-time 2D strategy game.
 <sup><a href="http://netrek.org">[1]</a>
@@ -28,19 +41,47 @@ Your team wins when all the enemy planets are taken.  Your team loses
 if all your planets are taken from you.  Strategies include escorting,
 controlling space, and coordinated attacks.<p>
 
-<a name="downloads"><h3>Downloads</h3></a>
+Gytha is a client for Netrek.  It is multiplatform, in that it works
+on multiple operating systems.<p>
+
+<a name="news"><h3>What is new?</h3></a>
+
+Changes in 0.8 were:<p>
+<ul>
+<li>a galactic view over the tactical screen, at the bottom left,
+<li>agricultural planets are shown with a different picture,
+<li>less phantom torpedos left on screen.
+</ul>
+
+Changes in 0.7 were:<p>
+
+<ul>
+<li>add first-time user instructions to server list page.
+<li>mouseover highlight of buttons in the user interface,
+<li>add visible tractors for self,
+<li>add visible tractors for others if server permits, (pickled does not),
+<li>suppress list button when server set by command line options,
+<li>decrease input lag on Microsoft Windows, by checking for keyboard or mouse events more quickly while waiting for a network packet from the server,
+<li>decrease startup time on Microsoft Windows, by skipping the search of Linux image paths,
+<li>change start script name,
+<li>add profiling support,
+</ul>
+
+</td>
+<td valign="top" width="10%">
+&nbsp;
+</td>
+<td valign="top" width="45%"><a name="downloads"><h3>Downloads</h3></a>
 
 <h4>Microsoft Windows - 32-bit</h4>
 
 Download and run the installer <a
-href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win32.exe">gytha-0.6.1-win32.exe</a>.<p>
-
-If you are not sure, try 32-bit first.<p>
+href="http://netrek.org/files/netrek-client-pygame/gytha-0.7-win32.exe">gytha-0.7-win32.exe</a>.  If you are not sure, try 32-bit first.<p>
 
 <h4>Microsoft Windows - 64-bit</h4>
 
 Download and run the installer <a
-href="http://netrek.org/files/netrek-client-pygame/gytha-0.6.1-win64.exe">gytha-0.6.1-win64.exe</a>.<p>
+href="http://netrek.org/files/netrek-client-pygame/gytha-0.7-win64.exe">gytha-0.7-win64.exe</a>.<p>
 
 <h4>Mac OS X</h4>
 
@@ -49,39 +90,43 @@ None available yet.  To contribute a build, please write to me.
 <h4>Linux</h4>
 
 <ul>
-<li>install dependencies
-<pre>
-apt-get install python-pygame ttf-dejavu-core
-</pre>
-<p>
-<li>download the source release (see below)
-<li>unpack it
-<li>run the file <i>netrek-client-pygame</i>
+<li>install dependencies, <i>python-pygame</i> and <i>ttf-dejavu-core</i>,
+<li>download the source release (see below),
+<li>unpack it,
+<li>run the file <i>gytha.py</i>.
 </ul>
-
-<h3>What is it?</h3>
-
-Gytha is a client for Netrek.  It is multiplatform, in that it works
-on multiple operating systems.<p>
 
 <a name="resources"><h3>Resources</h3></a>
 
 <ul>
 
 <li><a
-href="<?php echo $title;?>-0.7.tar.gz"><?php echo $title;?>-0.7.tar.gz</a>
+href="<?php echo $title;?>-0.8.tar.gz"><?php echo $title;?>-0.8.tar.gz</a>
 source release,
 
 <li><a href="https://launchpad.net/netrek-client-pygame">launchpad netrek-client-pygame</a>,
 
 <li><a
-href="http://james.tooraweenah.com/darcs/netrek-client-pygame/">http://james.tooraweenah.com/darcs/netrek-client-pygame/</a>
-source repository (darcs),
+href="http://james.tooraweenah.com/darcs/netrek-client-pygame/">source repository</a> (use darcs),
 
 <li><a href="http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=summary">source repository changes</a> <a href="http://james.tooraweenah.com/cgi-bin/darcsweb.cgi?r=netrek-client-pygame;a=rss"><img src="rss.gif"></a>,
 
 <li><a href="http://www.netrek.org/">www.netrek.org</a>
 </ul>
+
+<a name="building"><h3>Building and Packaging</h3></a>
+
+On Linux, no building is required, gytha will run from your copy of
+the source.  Packaging for Linux distributions is welcome, please
+write to me.<p>
+
+For Microsoft Windows developers, see <a
+href="build-on-windows.phtml">building on windows</a> which was copied
+from <a href="http://gytha.oggthebase.org/">Zachary Uram's page</a>.<p>
+
+</td>
+</tr>
+</table>
 
 <a name="screenshots"><h3>Screenshots</h3></a>
 
@@ -255,15 +300,5 @@ Record and send what you have changed:<p>
 darcs record
 darcs send
 </pre>
-
-<a name="building"><h3>Building and Packaging</h3></a>
-
-On Linux, no building is required, gytha will run from your copy of
-the source.  Packaging for Linux distributions is welcome, please
-write to me.<p>
-
-For Microsoft Windows developers, see <a
-href="build-on-windows.phtml">building on windows</a> which was copied
-from <a href="http://gytha.oggthebase.org/">Zachary Uram's page</a>.<p>
 
 <?php include('../footer.inc'); ?>
