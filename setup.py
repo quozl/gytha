@@ -17,7 +17,7 @@ setup(
     long_description="Your team starts with ten planets.  Each player flies a starship.  You shoot at enemy ships with torpedos and phasers.  You fly to, scan and bomb enemy planets to deny their use by the enemy team.  You protect your own planets by preventing the enemy from reaching them.  Once you make a kill, and don't die, you beam up armies from the planets you protected, and drop them on the enemy planets that have been bombed.  Your team wins when all the enemy planets are taken.  Your team loses if all your planets are taken from you.  Strategies include escorting, controlling space, and coordinated attacks.",
     keywords = "netrek client pygame",
     url = "http://quozl.us.netrek.org/gytha/",
-    download_url = "http://james.tooraweenah.com/darcs/netrek-client-pygame/",
+    download_url = "http://james.tooraweenah.com/darcs/gytha/",
     entry_points = {},
     py_modules=[],
     scripts=["gytha.py"],

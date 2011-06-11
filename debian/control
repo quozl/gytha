@@ -1,11 +1,11 @@
-Source: netrek-client-pygame
+Source: gytha
 Maintainer: James Cameron <quozl@us.netrek.org>
 Section: unknown
 Priority: optional
 Standards-Version: 3.1.1
-Build-Depends: 
+Build-Depends:
 
-Package: netrek-client-pygame
+Package: gytha
 Architecture: any
 Depends: python-pygame, ttf-dejavu-core
 Description: Netrek Game Client
@@ -33,7 +33,7 @@ Description: Netrek Game Client
  although there are several people working on commercial netrek
  variants or derivatives.
  .
- To start the client program, run /usr/bin/netrek-client-pygame, and a
+ To start the client program, run /usr/bin/gytha, and a
  list of servers should be displayed.
  .
  Homepage: http://www.netrek.org/

@@ -1,6 +1,9 @@
 PACKAGE=gytha
 VERSION=0.8
 
+DESTDIR=
+DATADIR=$(DESTDIR)/usr/share/games/gytha
+
 all:
 	@echo $(PACKAGE)-$(VERSION)
 	echo "To start this Netrek client, run the file gytha.py"
@@ -25,9 +28,16 @@ dist:
 	rm -rf $(PACKAGE)-$(VERSION)
 
 install:
-	mkdir -p $(DESTDIR)/usr/bin/
-	cp -p gytha.py $(DESTDIR)/usr/games/gytha
+	mkdir -p $(DATADIR)/gytha
+	cp -pr gytha $(DATADIR)/
+	cp -p gytha.py $(DATADIR)/
+	chmod +x $(DATADIR)/gytha.py
+	mkdir -p $(DESTDIR)/usr/games
+	cp -p gytha.sh $(DESTDIR)/usr/games/gytha
 	chmod +x $(DESTDIR)/usr/games/gytha
+	mkdir -p $(DESTDIR)/usr/share/applications
+	cp -p gytha.desktop $(DESTDIR)/usr/share/applications
+	chmod +r $(DESTDIR)/usr/share/applications
 	mkdir -p $(DESTDIR)/usr/share/gytha/images
 	cp -p gytha.png $(DESTDIR)/usr/share/gytha/
 	chmod +r $(DESTDIR)/usr/share/gytha/gytha.png

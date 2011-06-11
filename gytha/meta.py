@@ -35,7 +35,7 @@ class MetaClient:
                     if ip == '65.193.17.240':
                         continue
                     try:
-                        self.socket.sendto('?version=netrek-client-pygame',
+                        self.socket.sendto('?version=gytha',
                                            sockaddr)
                         print "queried", hostname, "aka", ip
                     except socket.error:
