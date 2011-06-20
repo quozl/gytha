@@ -1292,8 +1292,8 @@ class ShipTacticalSprite(ShipSprite):
     """
     def __init__(self, ship):
         ShipSprite.__init__(self, ship)
-        self.tag = None
-        self.old_tag = None
+        self.tag = self.old_tag = None
+        self.name = self.old_name = None
         self.pick()
         self.explosions = [ 'exp-10.png', 'exp-09.png', 'exp-08.png',
             'exp-07.png', 'exp-06.png', 'exp-05.png', 'exp-04.png',
@@ -1342,6 +1342,22 @@ class ShipTacticalSprite(ShipSprite):
             self.tag.blit(text, rect)
         self.mi_add_image(self.tag)
 
+    def add_name(self):
+        new = self.ship.team, self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT)
+        if new != self.old_name:
+            self.old_old_name = new
+            pos = 80
+            self.name = pygame.Surface((pos, pos), pygame.SRCALPHA, 32)
+            font = fc.get(FONT_SANS, 16)
+            message = self.ship.name.lower()
+            colour = team_colour(self.ship.team)
+            if self.ship.flags & (PFPRACTR | PFROBOT | PFBPROBOT):
+                colour = (255, 0, 255)
+            text = font.render(message, 1, colour)
+            rect = text.get_rect(bottom=pos, centerx=pos/2)
+            self.name.blit(text, rect)
+        self.mi_add_image(self.name)
+
     def pick(self):
         self.mi_begin()
         status = self.ship.status
@@ -1352,6 +1368,8 @@ class ShipTacticalSprite(ShipSprite):
             self.add_ship()
             if not flags & PFCLOAK:
                 self.add_tag()
+                if opt.ubertweak:
+                    self.add_name()
 
         if status == PALIVE:
             if flags & PFCLOAK:
@@ -5312,6 +5330,10 @@ def main(argv=sys.argv[1:]):
     print
 
     opt, args = options.parser.parse_args(argv)
+    if opt.ubertweak:
+        import getpass
+        opt.name = opt.password = opt.login = getpass.getuser()
+
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()

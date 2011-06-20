@@ -63,3 +63,6 @@ parser.add_option("--halos",
 parser.add_option("--debug",
                   action="store_true", dest="debug", default=False,
                   help="display debugging data")
+parser.add_option("--ubertweak",
+                  action="store_true", dest="ubertweak", default=False,
+                  help="enable ubertweak modifications")
