@@ -6,7 +6,7 @@ Standards-Version: 3.1.1
 Build-Depends:
 
 Package: gytha
-Architecture: any
+Architecture: all
 Depends: python-pygame, ttf-dejavu-core
 Description: Netrek Game Client
  This is a client for the multi-player game of Netrek, implemented in
