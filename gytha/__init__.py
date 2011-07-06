@@ -1853,13 +1853,14 @@ class ReportSprite(pygame.sprite.Sprite):
         r = ''
         f = me.flags
         if f & PFPRESS: f ^= PFTRACT
+        f ^= PFSEEN
         x = ['SHIELDS',      'REPAIRING',     'BOMBING',       'ORBITING',
              'CLOAKED',      'WEAPONS-HOT',   'ENGINES-HOT',   'ROBOT',
              'BEAM-UP',      'BEAM-DOWN',     'SELF-DESTRUCT', None,
              'YELLOW-ALERT', 'RED-ALERT',     'SHIP-LOCK',     'PLANET-LOCK',
              'COPILOT',      'DECLARING-WAR', 'PRACTICE',      'DOCKED',
              'REFIT',        'REFITTING',     'TRACTOR',       'PRESSOR',
-             'DOCKING-OK',   'SEEN',          'CYBORG',        'OBSERVING',
+             'DOCKING-OK',   'UNSEEN',        'CYBORG',        'OBSERVING',
              None,           'OBSERVE',       'TRANSWARP',     'BPROBOT']
         for n in range(32):
             if f & (1 << n):
