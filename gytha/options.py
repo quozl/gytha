@@ -66,3 +66,5 @@ parser.add_option("--debug",
 parser.add_option("--ubertweak",
                   action="store_true", dest="ubertweak", default=False,
                   help="enable ubertweak modifications")
+parser.add_option("--sounds", dest="sounds", default="sounds",
+                  help="path to sound effects")

@@ -127,7 +127,7 @@ in a few days.
 markiel@callisto.pas.rochester.edu
 
 """
-import sys, time, socket, errno, select, struct, pygame, math, ctypes
+import os, sys, time, socket, errno, select, struct, pygame, math, ctypes
 
 from pygame.locals import *
 
@@ -477,10 +477,11 @@ class Ship(Local):
 
     def sp_you(self, hostile, swar, armies, flags, damage, shield,
                fuel, etemp, wtemp, whydead, whodead):
-##         if me == self:
-##             if not self.flags & PFSHIELD:
-##                 if flags & PFSHIELD:
-##                     sound_off.play()
+        global me
+        if me == self:
+            if not self.flags & PFORBIT:
+                if flags & PFORBIT:
+                    ac_done('Orbit')
         self.hostile = hostile
         self.swar = swar
         self.armies = armies
@@ -494,7 +495,6 @@ class Ship(Local):
         self.whodead = whodead # FIXME: display this data, on death
         self.sp_you_shown = False
         self.nearby = True
-        global me
         if not me:
             me = self
         else:
@@ -758,10 +758,14 @@ class Phaser(Local):
             target = galaxy.plasma(self.target)
             (tx, ty) = n2ts(me, target.x, target.y)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
+            if self.ship == me:
+                ac_done('Phaser Hit a Plasma')
         elif self.status == PHHIT: # phaser hit a target ship
             target = galaxy.ship(self.target) # forward reference to enclosing class
             (tx, ty) = n2ts(me, target.x, target.y)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
+            if self.ship == me:
+                ac_done('Phaser Hit')
         self.txty = (tx, ty)
         self.fxfy = (fx, fy)
         if self.ship == me:
@@ -1872,7 +1876,9 @@ class ReportSprite(pygame.sprite.Sprite):
         # turn off chaos if practice is on, as it is superfluous
         if f & GU_PRACTICE: f ^= GU_CHAOS
         # turn off pause if parade is on, as it is superfluous
-        if f & GU_CONQUER: f ^= GU_PAUSED
+        if f & GU_CONQUER:
+            f ^= GU_PAUSED
+            ac_done('A conquer parade!')
         x = ['safe-idle', # ^GU_UNSAFE
              'practice', # GU_PRACTICE
              # also set by INL robot during a pause, in pre-game, or post-game
@@ -1962,8 +1968,10 @@ class InfoSprite(pygame.sprite.Sprite):
     """ info window,
         user requested information on screen objects
         including help
+        including achievements
     """
-    def __init__(self, lines, track=None, expires=7):
+    def __init__(self, lines, track=None, expires=7,
+                 fillcolour=(48, 24, 48, 128), bordercolour=(255, 128, 255)):
         pygame.sprite.Sprite.__init__(self)
         self.font = fc.get(FONT_SANS_CONDENSED, 18)
         #self.icon = ic.get(icon)
@@ -1974,6 +1982,8 @@ class InfoSprite(pygame.sprite.Sprite):
         self.track = track
         self.expires = nt.time + expires
         self.expired = False
+        self.fillcolour = fillcolour
+        self.bordercolour = bordercolour
         self.pick()
         self.update()
         self.add(b_info)
@@ -2014,7 +2024,7 @@ class InfoSprite(pygame.sprite.Sprite):
 
         # create image, with a 50% alpha background
         self.image = pygame.Surface((x, y), pygame.SRCALPHA, 32)
-        self.image.fill((48, 24, 48, 128))
+        self.image.fill(self.fillcolour)
 
         # draw into the image
         x = self.border + self.pad
@@ -2046,7 +2056,7 @@ class InfoSprite(pygame.sprite.Sprite):
 
         # surround the written image area with a purple border
         rect = pygame.Rect(0, 0, x - self.border, y - self.border)
-        pygame.draw.rect(self.image, (255, 128, 255), rect, self.border)
+        pygame.draw.rect(self.image, self.bordercolour, rect, self.border)
 
         self.rect = self.image.get_rect(centerx=r_us.centerx,
                                         centery=r_us.centery)
@@ -2964,6 +2974,9 @@ class SP_WARNING(SP):
         (ignored, message) = struct.unpack(self.format, data)
         if opt.sp: print "SP_WARNING message=", strnul(message)
         self.text = strnul(message)
+        if 'Ineffective, ' in self.text:
+            ac_done('Bombing')
+
         self.seen = False
 
     def synthetic(self, text):
@@ -3138,6 +3151,7 @@ class Phase:
             self.kb(event)
         elif event.type == pygame.QUIT:
             nt.send(cp_bye.data())
+            ac_save()
             # FIXME: exit main instead of calling sys.exit
             sys.exit(0)
         elif event.type == pygame.MOUSEMOTION:
@@ -4149,6 +4163,9 @@ class PhaseFlight(Phase):
         self.event_triggers_update = False
         self.eh_md.append(self.md_us)
         self.op_info_prior_target = None
+        self.op_dismiss_achievement = None
+        self.op_warp_count = 0
+        self.op_turn_count = 0
         self.hinted = False
 
     def cycle(self):
@@ -4195,6 +4212,9 @@ class PhaseFlight(Phase):
         (x, y) = event.pos
         if event.button == 3:
             nt.send(cp_direction.data(s2d(me, x, y)))
+            self.op_turn_count += 1
+            if self.op_turn_count == 15:
+                ac_done('Turning')
         elif event.button == 2:
             nt.send(cp_phaser.data(s2d(me, x, y)))
         elif event.button == 1:
@@ -4335,9 +4355,11 @@ class PhaseFlight(Phase):
 
     def op_beam_down(self, event, arg):
         nt.send(cp_beam.data(2))
+        ac_done('Drop')
 
     def op_beam_up(self, event, arg):
         nt.send(cp_beam.data(1))
+        ac_done('Pick')
 
     def op_bomb(self, event, arg):
         nt.send(cp_bomb.data())
@@ -4348,6 +4370,8 @@ class PhaseFlight(Phase):
             nt.send(cp_cloak.data(0))
         else:
             nt.send(cp_cloak.data(1))
+            ac_done('Cloaked')
+            # FIXME: defer some achievements until green alert?
 
     def op_course(self, event, arg):
         (x, y) = pygame.mouse.get_pos()
@@ -4355,6 +4379,8 @@ class PhaseFlight(Phase):
 
     def op_det(self, event, arg):
         nt.send(cp_det_torps.data())
+        ac_done('Detonate')
+        # FIXME: defer some achievements until green alert?
 
     def op_det_me(self, event, arg):
         if not me: return
@@ -4367,7 +4393,12 @@ class PhaseFlight(Phase):
     def op_distress(self, event, arg):
         if not me: return
         mesg = rcd.pack(arg, cursor(me), me, galaxy)
-        if mesg: nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
+        if mesg:
+            nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
+            if arg == rcd.dist_type_take:
+                ac_done('Calling a Take')
+            if arg == rcd.dist_type_escorting:
+                ac_done('Calling Escort')
 
     def op_docking_toggle(self, event, arg):
         if not me: return
@@ -4392,6 +4423,7 @@ class PhaseFlight(Phase):
 
         InfoSprite(thing.op_info(), track=thing)
         self.op_info_prior_target = thing
+        self.op_dismiss_achievement = 'Using Information' # ac_done
 
     def op_help(self, event, arg):
 
@@ -4440,6 +4472,7 @@ class PhaseFlight(Phase):
 
         InfoSprite(tips, expires=10+len(tips)*2)
         self.op_info_prior_target = self.op_help
+        self.op_dismiss_achievement = 'Using Help' # ac_done
 
     def op_help_keyboard(self, event, arg):
 
@@ -4477,11 +4510,15 @@ class PhaseFlight(Phase):
 
         InfoSprite(tips, expires=20+len(tips))
         self.op_info_prior_target = self.op_help_keyboard
+        self.op_dismiss_achievement = 'Using Keyboard Help' # ac_done
 
     def op_dismiss(self, event, arg):
         if b_info:
             b_info.empty()
         self.op_info_prior_target = None
+        if self.op_dismiss_achievement:
+            ac_done(self.op_dismiss_achievement)
+            self.op_dismiss_achievement = None
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
@@ -4495,6 +4532,7 @@ class PhaseFlight(Phase):
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
             me.planet = nearest
+            ac_done('Planet Lock')
 
     def op_plasma(self, event, arg):
         (x, y) = pygame.mouse.get_pos()
@@ -4524,6 +4562,7 @@ class PhaseFlight(Phase):
     def op_shield_toggle(self, event, arg):
         if not me: return
         if me.flags & PFSHIELD:
+            ac_done('Shields Lowered')
             nt.send(cp_shield.data(0))
         else:
             nt.send(cp_shield.data(1))
@@ -4546,6 +4585,9 @@ class PhaseFlight(Phase):
     def op_warp(self, event, arg):
         nt.send(cp_speed.data(arg))
         self.hint_dismiss()
+        self.op_warp_count += 1
+        if self.op_warp_count == 6:
+            ac_done('Moving')
 
     def op_warp_half(self, event, arg):
         if me: self.op_warp(event, me.cap.s_maxspeed / 2)
@@ -4726,6 +4768,7 @@ class PhaseFlightGalactic(PhaseFlight):
         if (event.key == K_RETURN or event.key == K_TAB) and self.modal_handler is None:
             ph_flight = ph_tactical
             self.run = False
+            ac_done('Using the Galactic Map')
         else:
             return PhaseFlight.kb(self, event)
 
@@ -4914,8 +4957,10 @@ class PhaseDisconnected(PhaseNonFlight):
                     'You may have been ejected by vote.',
                     'You may have been freed by the captain in a clue game.',
                     'You may have been disconnected by the server owner.',
+                    'The server may be broken.',
                     '',
                     'Technical data: read(2) returned zero on',
+                    # FIXME: ECONNRESET is not properly reported here.
                     nt.diagnostics()]
 
         x = []
@@ -5088,25 +5133,152 @@ def pg_fd():
     nt.set_pg_fd(n)
     if mc: mc.set_pg_fd(n)
 
+# audio
+def au_init():
+
+    global sounds
+    sounds = {}
+
+    def au_load(key, name):
+        try:
+            sounds[key] = pygame.mixer.Sound(os.path.join(opt.sounds, name))
+        except:
+            print 'sound not found, key', key, 'name', name
+
+    au_load('tada1', '60443__jobro__tada1.wav')
+    au_load('tada2', '60444__jobro__tada2.wav')
+    au_load('tada3', '60445__jobro__tada3.wav')
+
+def au_play(key):
+    if key in sounds:
+        sounds[key].play()
+
+# achievements
+import json
+
+AC_FILE = '.gytha.achievements'
+
+# what just happened
+# what would you do next
+guidance = {}
+guidance['Using Help'] = ['You can come back to read the help later.']
+guidance['Using Keyboard Help'] = \
+    ['- gives you an idea what else you can do.',
+     '- use it as a checklist.']
+guidance['Using Information'] = \
+    ['- shows you how many armies are on a planet.',
+     '- shows you what services a planet provides.',
+     '- shows you if an enemy has kills.']
+guidance['Shields Lowered'] = \
+    ['- lower your shields to conserve fuel.',
+     '- raise your shields to preserve yourself.',
+     '',
+     '- flash your shields to draw attention.',
+     '- lower your shields at the right moment to trigger a chain explosion.']
+guidance['Using the Galactic Map'] = \
+    ['- shows you the whole playing area.',
+     '- you can do most of your green alert flying there.']
+guidance['Moving'] = \
+    ['- you are a sitting duck unless you move.',
+     '- that is still you in the middle.']
+guidance['Turning'] = \
+    ['- use a turn to dodge enemy fire.',
+     '- you will turn slower when you are moving faster.']
+guidance['Planet Lock'] = \
+    ['- you have locked onto a planet.',
+     '- your ship will steer to the planet, unless you turn.',
+     '- watch for other ships making a direct line to the planet.']
+guidance['Orbit'] = \
+    ['- you are in orbit around a planet.',
+     '- if it is an enemy planet, you should bomb, press b once.',
+     '- if it is a friendly planet, it will repair or refuel your ship.']
+guidance['Bombing'] = \
+    ['- you have finished bombing a planet.',
+     '- the planet is now ready to be taken, if you have armies.',
+     '- the planet cannot provide armies to the enemy.',
+     '- the armies will slowly breed up, so keep watch.']
+guidance['Phaser Hit'] = \
+    ['- you hit an enemy with your phaser.',
+     '- do it just enough to cripple them so they cannot move.',
+     '- finish them off if they are carrying armies.',
+     '- if they die, they get a fresh new ship.']
+guidance['Phaser Hit a Plasma'] = \
+    ['- you have hit an enemy plasma torpedo with your phaser!',
+     '- it explodes violently, damaging everybody nearby.']
+guidance['Detonate'] = \
+    ['- you detonated all the enemy torpedos nearby ... if any.',
+     '- the explosions hurt you, and the enemy ... but not your friends!']
+# FIXME: only award if in red or yellow?
+guidance['Cloak'] = \
+    ['- you are hard to see now.',
+     '- watch your fuel, it will go quickly.']
+guidance['Pick'] = \
+    ['- you have picked up armies?',
+     '- now take them to an enemy planet and beam them down!',
+     '- put the mouse on that planet and press control/t to tell your team.',
+     '- keep yourself safe, the armies are lost if you die.']
+# FIXME: review tense if these awards are delayed
+# FIXME: only award if armies come on board
+guidance['Drop'] = \
+    ['- you have beamed down armies!']
+# FIXME: only award if armies leave the ship to an enemy planet
+guidance['Calling a Take'] = \
+    ['- your team has been told you plan to take a planet.',
+     '- hopefully they will use control/e to say they will escort.']
+guidance['Calling Escort'] = \
+    ['- your taker has been told you plan to help them.',
+     '- now you should keep yourself between your taker and the enemy.']
+guidance['A conquer parade!'] = \
+    ['- this is where the game has been won.',
+     '- wait for it to finish.']
+
+def ac_load():
+    global achievements
+    try:
+        text = file(AC_FILE, 'r').read()
+        achievements = json.loads(text)
+    except:
+        achievements = {}
+        print 'achievements unknown'
+
+def ac_save():
+    text = json.dumps(achievements, sort_keys=True, ensure_ascii=False,
+                      indent=0)
+    file(AC_FILE, 'w').write(text)
+
+def ac_done(key):
+    global achievements
+    if key in achievements:
+        return
+    au_play('tada1')
+    # FIXME: random sounds or per achievement sound
+    achievements[key] = time.time()
+
+    tips = ["Achievement Unlocked: %s" % key]
+    if key in guidance:
+        tips.append('')
+        for line in guidance[key]:
+            tips.append('    ' + line)
+    tips.append('')
+    if len(achievements) > 2:
+        tips.append('You have unlocked %d achievements!' % (len(achievements)))
+        tips.append('')
+    tips.append('Press backspace to clear this message.')
+    InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 128), bordercolour=(128, 255, 128))
+    # FIXME: overlay of help or info window and achievement window
+    # FIXME: overlay of achievements, use a queue
+
 def pg_init():
     """ pygame initialisation """
     global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info, background, galactic_factor, subgalactic_factor, r_main, r_us, r_sg
 
-##     pygame.mixer.pre_init(44100, -16, 2, 1024)
+    pygame.mixer.pre_init(44100, -16, 2, 1024)
     pygame.init()
     pygame.key.set_repeat(250, 100)
     size = width, height = 1000, 1000
-
-##     def load_sound(name):
-##         try:
-##             sound = pygame.mixer.Sound(name)
-##         except:
-##             sound = pygame.mixer.Sound(os.path.join(opt.assets, name))
-##         return sound
-
-##     global sound_off
-##     sound_off = load_sound('/tmp/off.ogg')
-##     sound_off.play()
+    au_init()
+    ac_load()
+    ac_save()
 
     videoinfo = pygame.display.Info()
     print "current display resolution is %d x %d pixels" % (videoinfo.current_w, videoinfo.current_h)
@@ -5238,6 +5410,7 @@ def pg_quit():
     """ pygame termination """
     pygame.display.quit()
     pygame.quit()
+    ac_save()
 
 def mc_choose():
     ph_servers = PhaseServers(screen, mc)
