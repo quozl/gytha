@@ -25,6 +25,8 @@ class Client:
         self.time = time.time()
         self.mode_requested = COMM_UDP
         self.mode = None
+        self.udp_rx_path_proven = False
+        self.udp_tx_path_proven = False
         self.has_quit = False
         self.x = None
         self.timeout = 0.02
@@ -132,6 +134,8 @@ class Client:
             self.udp_failure()
             return
 
+        self.udp_rx_path_proven = True
+
         # break UDP packet into game packets using type codes and handle
         offset = 0
         while offset < length:
@@ -155,8 +159,14 @@ class Client:
         initial login data burst because of the MOTD and torp arrays. """
 
         # find out how much is available right now
-        pbytes = self.tcp.recv_into(self.buffer, self.bufsiz,
-                                    MSG_PEEK + MSG_DONTWAIT)
+        try:
+            pbytes = self.tcp.recv_into(self.buffer, self.bufsiz,
+                                        MSG_PEEK + MSG_DONTWAIT)
+        except socket.error, (reason, explanation):
+            print "tcp recv", reason, explanation
+            self.shutdown()
+            raise ServerDisconnectedError
+
         if pbytes > 1024:
             return self.tcp_readable_stream()
 
@@ -251,6 +261,10 @@ class Client:
             return
         if self.mode != COMM_UDP:
             self.tcp.send(self.cp_udp_req.data(COMM_UDP, CONNMODE_PORT, self.udp_sockport))
+            self.udp_rx_path_proven = False
+            self.udp_tx_path_proven = False
+            # FIXME: detect failure of either rx or tx path
+            # FIXME: tx path requires netrek protocol level interpretation
 
     def sp_udp_reply(self, reply, port):
         """ server acknowledged CP_UDP_REQ switch to udp mode """
@@ -270,7 +284,10 @@ class Client:
         print 'network statistics: tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu)
 
     def shutdown(self):
-        self.tcp.shutdown(socket.SHUT_RDWR)
+        try:
+            self.tcp.shutdown(socket.SHUT_RDWR)
+        except:
+            pass
         self.fd.remove(self.tcp)
         self.tcp.close()
         self.fd.remove(self.udp)
