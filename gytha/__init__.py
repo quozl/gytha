@@ -148,11 +148,11 @@ import options
 import rcd
 import sound
 
-VERSION = "0.8"
+VERSION = "0.9"
 
 WELCOME = [
 "Gytha %s" % (VERSION),
-"Copyright (C) 2007-2011 James Cameron <quozl@us.netrek.org>",
+"Copyright (C) 2007-2012 James Cameron <quozl@us.netrek.org>",
 "",
 "This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
 "This is free software, and you are welcome to redistribute it under certain",
@@ -302,6 +302,7 @@ class Planet(Local):
         self.x = self.y = -10001
         self.name = ''
         self.owner = self.info = self.flags = self.armies = 0
+        self.virgin = True
         self.tactical = PlanetTacticalSprite(self) # forward reference
         self.galactic = PlanetGalacticSprite(self) # forward reference
         self.nearby = False
@@ -321,12 +322,23 @@ class Planet(Local):
 
     def sp_planet(self, owner, info, flags, armies):
         old = (self.owner, self.info, self.flags, self.armies)
+        if not self.virgin:
+            if self.owner != owner:
+                if self.owner == me.team:
+                    if galaxy.planets_same_owner(me.team) == 1:
+                        sound.play_if('lps')
+                    else:
+                        sound.play_if('loss')
+                if owner == me.team:
+                    sound.play_if('gain')
+                # FIXME: these sounds occur after a conquer parade too
         self.owner = owner
         self.info = info
         self.flags = flags
         self.armies = armies
         if old != (self.owner, self.info, self.flags, self.armies):
             self.op_info_update()
+        self.virgin = False
 
     def op_info(self):
         lines = ['%s (a planet)' % self.name, '']
@@ -431,7 +443,6 @@ class Ship(Local):
 
     def op_info(self):
         lines = ['%s %s (a ship)' % (self.mapchars, self.name), '']
-        # FIXME: tell more about self
         lines.append(teams_long[self.team].title())
         lines.append(ships_long[self.shiptype].title() +
                      ' (' + ships_use[self.shiptype].title() + ')')
@@ -583,6 +594,8 @@ class Ship(Local):
     def sp_pstatus(self, status):
         # was alive now exploding
         if self.status == PALIVE and status == PEXPLODE:
+            if self == me:
+                sound.play('death')
             galaxy.se.append(self)
             self.fuse = 10 * galaxy.ups / 10
         # was exploding now not
@@ -658,6 +671,12 @@ class Torp(Local):
                 self.fuse = NUMDETFRAMES * galaxy.ups / 10;
                 # FIXME: animate torp explosions over local time?
                 # They vary according to update rate.
+                if not opt.ubertweak:
+                    offset_x = abs(self.x - me.x)
+                    offset_y = abs(self.y - me.y)
+                    if offset_x < 10000 and offset_x < 10000:
+                        distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+                        sound.texplode(distance)
 
     def sp_torp(self, dir, x, y):
         self.dir = dir
@@ -768,14 +787,10 @@ class Phaser(Local):
             target = galaxy.plasma(self.target)
             (tx, ty) = n2ts(me, target.x, target.y)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
-            if self.ship == me:
-                ac_done('Phaser Hit a Plasma')
         elif self.status == PHHIT: # phaser hit a target ship
             target = galaxy.ship(self.target) # forward reference to enclosing class
             (tx, ty) = n2ts(me, target.x, target.y)
             (fx, fy) = n2ts(me, self.ship.x, self.ship.y)
-            if self.ship == me:
-                ac_done('Phaser Hit')
         self.txty = (tx, ty)
         self.fxfy = (fx, fy)
         if self.ship == me:
@@ -799,7 +814,20 @@ class Phaser(Local):
         self.target = target
 
         if old == PHFREE:
-            if self.status != PHFREE: self.want = True
+            if self.status != PHFREE:
+                self.want = True
+                if not opt.ubertweak:
+                    if self.ship == me:
+                        sound.play('phaser')
+                    elif self.status == PHHIT and galaxy.ship(target) == me:
+                        sound.play('inbound')
+                if status == PHHIT2 and self.ship == me:
+                    ac_done('Phaser Hit a Plasma')
+                if status == PHHIT and self.ship == me:
+                    if galaxy.ship(target).flags & PFCLOAK:
+                        ac_done('Phaser Hit a Cloaked Enemy')
+                    else:
+                        ac_done('Phaser Hit')
         else:
             if self.status == PHFREE: self.want = False
 
@@ -920,6 +948,13 @@ class Galaxy:
     def planets_proximity_check(self):
         for n, planet in self.planets.iteritems():
             planet.proximity(me.x, me.y)
+
+    def planets_same_owner(self, owner):
+        number = 0
+        for n, planet in self.planets.iteritems():
+            if planet.owner == owner:
+                number += 1
+        return number
 
     def ship(self, n):
         if n not in self.ships:
@@ -1889,6 +1924,7 @@ class ReportSprite(pygame.sprite.Sprite):
         if f & GU_CONQUER:
             f ^= GU_PAUSED
             ac_done('A conquer parade!')
+            sound.conquer()
         x = ['safe-idle', # ^GU_UNSAFE
              'practice', # GU_PRACTICE
              # also set by INL robot during a pause, in pre-game, or post-game
@@ -4858,7 +4894,6 @@ class PhaseFlightTactical(PhaseFlight):
         else:
             return PhaseFlight.kb(self, event)
 
-    # FIXME: subgalactic in a corner, alpha blended
     # FIXME: console in a corner
     # FIXME: action menu items around edge
     # FIXME: menu item "?" or mouse-over, to do modal information
@@ -5193,8 +5228,8 @@ guidance['Orbit'] = \
      '- if it is an enemy planet, you should bomb, press b once.',
      '- if it is a friendly planet, it will repair or refuel your ship.']
 guidance['Bombing'] = \
-    ['- you have finished bombing a planet.',
-     '- the planet is now ready to be taken, if you have armies.',
+    ['- you had finished bombing a planet.',
+     '- the planet was thenready to be taken, if you have armies.',
      '- the planet cannot provide armies to the enemy.',
      '- the armies will slowly breed up, so keep watch.']
 guidance['Shields Lowered'] = \
@@ -5208,6 +5243,9 @@ guidance['Phaser Hit'] = \
      '- do it just enough to cripple them so they cannot move.',
      '- finish them off if they are carrying armies.',
      '- if they die, they get a fresh new ship.']
+guidance['Phaser Hit a Cloaked Enemy'] = \
+    ['- you hit an cloaked enemy with your phaser.',
+     '- the phaser tracks their true position.']
 guidance['Detonate'] = \
     ['- you detonated all the enemy torpedos nearby ... if any.',
      '- the explosions hurt you, and the enemy ... but not your friends!']
@@ -5261,6 +5299,7 @@ sequence = [
     'Calling a Take',
     'Calling Escort',
     'A conquer parade!',
+    'Phaser Hit a Cloaked Enemy',
     'Phaser Hit a Plasma',
     'Ten Kills',
     'Twenty Kills',
@@ -5292,8 +5331,7 @@ def ac_done_now(key):
     if not opt.ubertweak:
         return
 
-    # FIXME: random sounds or per achievement sound
-    sound.play('tada1')
+    sound.achievement()
     tips = ["Achievement Unlocked: %s" % key]
     if key in guidance:
         tips.append('')
@@ -5310,10 +5348,8 @@ def ac_done_now(key):
                 tips.append('')
                 break
     tips.append('Press backspace to clear this message.')
-    InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 128), bordercolour=(128, 255, 128))
+    InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 64), bordercolour=(128, 255, 128))
     # FIXME: overlay of help or info window and achievement window
-    # FIXME: overlay of achievements, use a queue
-    # FIXME: list achievements yet to be unlocked
 
 def ac_done(key):
     global achievements, promises
