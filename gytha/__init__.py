@@ -146,6 +146,7 @@ from cap import Cap
 import mercenary
 import options
 import rcd
+import sound
 
 VERSION = "0.8"
 
@@ -482,6 +483,10 @@ class Ship(Local):
             if not self.flags & PFORBIT:
                 if flags & PFORBIT:
                     ac_done('Orbit')
+            if self.armies == 0:
+                if armies > 0:
+                    ac_done('Pick')
+
         self.hostile = hostile
         self.swar = swar
         self.armies = armies
@@ -527,6 +532,11 @@ class Ship(Local):
         if me == self:
             if self.kills != kills:
                 self.sp_kills_me_shown = False
+                if kills > 1000:
+                    ac_done('Ten Kills')
+                if kills > 2000:
+                    ac_done('Twenty Kills')
+
         self.kills = kills
         self.op_info_update()
         # FIXME: display this data, on player list
@@ -4212,9 +4222,13 @@ class PhaseFlight(Phase):
         (x, y) = event.pos
         if event.button == 3:
             nt.send(cp_direction.data(s2d(me, x, y)))
-            self.op_turn_count += 1
-            if self.op_turn_count == 15:
-                ac_done('Turning')
+            if ph_flight == ph_tactical:
+                self.op_turn_count += 1
+                if self.op_turn_count == 15:
+                    ac_done('Turning')
+                else:
+                    # first turning after green alert shows pending achievements
+                    ac_deliver()
         elif event.button == 2:
             nt.send(cp_phaser.data(s2d(me, x, y)))
         elif event.button == 1:
@@ -4341,6 +4355,7 @@ class PhaseFlight(Phase):
             K_8: (self.op_practice, None),
             K_9: (self.op_warp, 10),
             K_c: (self.op_snap, None),
+            K_a: (self.op_achievements, None, 'show achievements'),
             K_d: (self.op_det_me, None, 'cancel my torps'),
             K_e: (self.op_distress, rcd.dist_type_generic, 'emergency'),
             K_f: (self.op_distress, rcd.dist_type_carrying, 'carrying'),
@@ -4359,7 +4374,6 @@ class PhaseFlight(Phase):
 
     def op_beam_up(self, event, arg):
         nt.send(cp_beam.data(1))
-        ac_done('Pick')
 
     def op_bomb(self, event, arg):
         nt.send(cp_bomb.data())
@@ -4368,10 +4382,10 @@ class PhaseFlight(Phase):
         if not me: return
         if me.flags & PFCLOAK:
             nt.send(cp_cloak.data(0))
+            if me.speed > 0:
+                ac_done('Cloaked Flight')
         else:
             nt.send(cp_cloak.data(1))
-            ac_done('Cloaked')
-            # FIXME: defer some achievements until green alert?
 
     def op_course(self, event, arg):
         (x, y) = pygame.mouse.get_pos()
@@ -4379,8 +4393,9 @@ class PhaseFlight(Phase):
 
     def op_det(self, event, arg):
         nt.send(cp_det_torps.data())
-        ac_done('Detonate')
-        # FIXME: defer some achievements until green alert?
+        if me.flags & PFRED:
+            if (me.speed > 1) and (me.speed < 6):
+                ac_done('Detonate')
 
     def op_det_me(self, event, arg):
         if not me: return
@@ -4396,9 +4411,11 @@ class PhaseFlight(Phase):
         if mesg:
             nt.send(cp_message.data(MDISTR | MTEAM, me.team, mesg))
             if arg == rcd.dist_type_take:
-                ac_done('Calling a Take')
+                if me.armies > 0:
+                    ac_done('Calling a Take')
             if arg == rcd.dist_type_escorting:
-                ac_done('Calling Escort')
+                if me.armies == 0:
+                    ac_done('Calling Escort')
 
     def op_docking_toggle(self, event, arg):
         if not me: return
@@ -4406,6 +4423,9 @@ class PhaseFlight(Phase):
             nt.send(cp_dockperm.data(0))
         else:
             nt.send(cp_dockperm.data(1))
+
+    def op_achievements(self, event, arg):
+        ac_progress()
 
     def op_info(self, event, arg):
         # first time, show info about thing
@@ -4417,6 +4437,7 @@ class PhaseFlight(Phase):
             self.op_info_prior_target = None
             if b_info:
                 b_info.empty()
+                ac_done('Using Information')
                 return
         else:
             if b_info: b_info.empty()
@@ -4519,6 +4540,7 @@ class PhaseFlight(Phase):
         if self.op_dismiss_achievement:
             ac_done(self.op_dismiss_achievement)
             self.op_dismiss_achievement = None
+        ac_deliver()
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
@@ -4532,7 +4554,8 @@ class PhaseFlight(Phase):
         if nearest != me:
             nt.send(cp_planlock.data(nearest.n))
             me.planet = nearest
-            ac_done('Planet Lock')
+            if me.speed > 3:
+                ac_done('Planet Lock')
 
     def op_plasma(self, event, arg):
         (x, y) = pygame.mouse.get_pos()
@@ -4657,6 +4680,7 @@ class PhaseFlight(Phase):
     def tips(self):
         tips = galaxy.motd.tips()
         if not tips:
+            ac_deliver()
             return
 
         if b_info:
@@ -5133,26 +5157,6 @@ def pg_fd():
     nt.set_pg_fd(n)
     if mc: mc.set_pg_fd(n)
 
-# audio
-def au_init():
-
-    global sounds
-    sounds = {}
-
-    def au_load(key, name):
-        try:
-            sounds[key] = pygame.mixer.Sound(os.path.join(opt.sounds, name))
-        except:
-            print 'sound not found, key', key, 'name', name
-
-    au_load('tada1', '60443__jobro__tada1.wav')
-    au_load('tada2', '60444__jobro__tada2.wav')
-    au_load('tada3', '60445__jobro__tada3.wav')
-
-def au_play(key):
-    if key in sounds:
-        sounds[key].play()
-
 # achievements
 import json
 
@@ -5169,21 +5173,17 @@ guidance['Using Information'] = \
     ['- shows you how many armies are on a planet.',
      '- shows you what services a planet provides.',
      '- shows you if an enemy has kills.']
-guidance['Shields Lowered'] = \
-    ['- lower your shields to conserve fuel.',
-     '- raise your shields to preserve yourself.',
-     '',
-     '- flash your shields to draw attention.',
-     '- lower your shields at the right moment to trigger a chain explosion.']
 guidance['Using the Galactic Map'] = \
     ['- shows you the whole playing area.',
      '- you can do most of your green alert flying there.']
 guidance['Moving'] = \
     ['- you are a sitting duck unless you move.',
-     '- that is still you in the middle.']
+     '- on the tactical, that is still you in the middle.']
+# FIXME: add moving on galactic
 guidance['Turning'] = \
     ['- use a turn to dodge enemy fire.',
      '- you will turn slower when you are moving faster.']
+# FIXME: add turning on galactic
 guidance['Planet Lock'] = \
     ['- you have locked onto a planet.',
      '- your ship will steer to the planet, unless you turn.',
@@ -5197,28 +5197,28 @@ guidance['Bombing'] = \
      '- the planet is now ready to be taken, if you have armies.',
      '- the planet cannot provide armies to the enemy.',
      '- the armies will slowly breed up, so keep watch.']
+guidance['Shields Lowered'] = \
+    ['- lower your shields to conserve fuel.',
+     '- raise your shields to preserve yourself.',
+     '',
+     '- flash your shields to draw attention.',
+     '- lower your shields at the right moment to trigger a chain explosion.']
 guidance['Phaser Hit'] = \
     ['- you hit an enemy with your phaser.',
      '- do it just enough to cripple them so they cannot move.',
      '- finish them off if they are carrying armies.',
      '- if they die, they get a fresh new ship.']
-guidance['Phaser Hit a Plasma'] = \
-    ['- you have hit an enemy plasma torpedo with your phaser!',
-     '- it explodes violently, damaging everybody nearby.']
 guidance['Detonate'] = \
     ['- you detonated all the enemy torpedos nearby ... if any.',
      '- the explosions hurt you, and the enemy ... but not your friends!']
-# FIXME: only award if in red or yellow?
-guidance['Cloak'] = \
-    ['- you are hard to see now.',
+guidance['Cloaked Flight'] = \
+    ['- you are hard to see when cloaked.',
      '- watch your fuel, it will go quickly.']
 guidance['Pick'] = \
-    ['- you have picked up armies?',
-     '- now take them to an enemy planet and beam them down!',
+    ['- you picked up armies.',
+     '- take them to an enemy planet and beam them down!',
      '- put the mouse on that planet and press control/t to tell your team.',
      '- keep yourself safe, the armies are lost if you die.']
-# FIXME: review tense if these awards are delayed
-# FIXME: only award if armies come on board
 guidance['Drop'] = \
     ['- you have beamed down armies!']
 # FIXME: only award if armies leave the ship to an enemy planet
@@ -5231,6 +5231,42 @@ guidance['Calling Escort'] = \
 guidance['A conquer parade!'] = \
     ['- this is where the game has been won.',
      '- wait for it to finish.']
+guidance['Phaser Hit a Plasma'] = \
+    ['- you have hit an enemy plasma torpedo with your phaser!',
+     '- it explodes violently, damaging everybody nearby.']
+guidance['Ten Kills'] = \
+    ['- accumulating kills is considered inefficient,',
+     '- try to cripple the enemy rather than kill them!']
+guidance['Twenty Kills'] = \
+    ['- you are not using your death explosion much,',
+     '- try to die in the right place!']
+
+# the learning sequence
+sequence = [
+    'Using Help',
+    'Using Keyboard Help',
+    'Using Information',
+    'Using the Galactic Map',
+    'Moving',
+    'Turning',
+    'Planet Lock',
+    'Orbit',
+    'Bombing',
+    'Shields Lowered',
+    'Phaser Hit',
+    'Detonate',
+    'Cloaked Flight',
+    'Pick',
+    'Drop',
+    'Calling a Take',
+    'Calling Escort',
+    'A conquer parade!',
+    'Phaser Hit a Plasma',
+    'Ten Kills',
+    'Twenty Kills',
+    ]
+
+promises = []
 
 def ac_load():
     global achievements
@@ -5238,22 +5274,26 @@ def ac_load():
         text = file(AC_FILE, 'r').read()
         achievements = json.loads(text)
     except:
-        achievements = {}
-        print 'achievements unknown'
+        achievements = {'Started': time.time()}
 
 def ac_save():
+    for key in promises:
+        achievements[key] = time.time()
     text = json.dumps(achievements, sort_keys=True, ensure_ascii=False,
                       indent=0)
     file(AC_FILE, 'w').write(text)
 
-def ac_done(key):
+def ac_done_now(key):
     global achievements
     if key in achievements:
         return
-    au_play('tada1')
-    # FIXME: random sounds or per achievement sound
     achievements[key] = time.time()
 
+    if not opt.ubertweak:
+        return
+
+    # FIXME: random sounds or per achievement sound
+    sound.play('tada1')
     tips = ["Achievement Unlocked: %s" % key]
     if key in guidance:
         tips.append('')
@@ -5261,12 +5301,80 @@ def ac_done(key):
             tips.append('    ' + line)
     tips.append('')
     if len(achievements) > 2:
-        tips.append('You have unlocked %d achievements!' % (len(achievements)))
+        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(guidance)))
         tips.append('')
+    if len(achievements) > 6:
+        for key in sequence:
+            if key not in achievements:
+                tips.append('Next: %s' % key)
+                tips.append('')
+                break
     tips.append('Press backspace to clear this message.')
     InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 128), bordercolour=(128, 255, 128))
     # FIXME: overlay of help or info window and achievement window
     # FIXME: overlay of achievements, use a queue
+    # FIXME: list achievements yet to be unlocked
+
+def ac_done(key):
+    global achievements, promises
+
+    if key in achievements:
+        return
+
+    if not opt.ubertweak:
+        achievements[key] = time.time()
+        return
+
+    if (me.flags & PFGREEN) and not b_info:
+        ac_done_now(key)
+        return
+
+    if key not in promises:
+        promises.append(key)
+
+def ac_deliver():
+    global promises
+
+    if len(promises) == 0:
+        return  # there are no achievements yet to be delivered to player
+
+    if b_info:
+        return  # there's already something on screen
+
+    if me.flags & PFGREEN:
+        key = promises[0]
+        ac_done_now(key)
+        promises.remove(key)
+
+def ac_progress():
+    global achievements
+
+    if len(promises) > 0:
+        ac_deliver()
+        return
+
+    b_info.empty()
+
+    tips = ["Achievements"]
+    tips.append('')
+    if len(achievements) > 2:
+        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(guidance)))
+        tips.append('')
+
+    tips.append('You have unlocked:')
+    for key in achievements:
+        tips.append('    ' + key)
+    tips.append('')
+
+    tips.append('You have not yet unlocked:')
+    for key in sequence:
+        if key not in achievements:
+            tips.append('    ' + key)
+    tips.append('')
+
+    tips.append('Press backspace to clear this message.')
+    InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 192), bordercolour=(128, 255, 128))
+
 
 def pg_init():
     """ pygame initialisation """
@@ -5276,7 +5384,7 @@ def pg_init():
     pygame.init()
     pygame.key.set_repeat(250, 100)
     size = width, height = 1000, 1000
-    au_init()
+    sound.prepare(opt.sounds)
     ac_load()
     ac_save()
 
