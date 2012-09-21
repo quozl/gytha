@@ -31,6 +31,8 @@ def play(key):
 
 def play_if(key):
     if key in sounds:
+        # this check proves to be unreliable, false positive if sound
+        # recently played
         if sounds[key].get_num_channels():
             return
         sounds[key].play()
@@ -40,7 +42,8 @@ def texplode(distance):
         play('click') # taps on hull
 
 def conquer():
-    play_if('conquer')  # must be longer than the parade?
+    # sample needs to be longer than the parade so that it does not repeat
+    play_if('conquer')
 
 n = 0
 def achievement():

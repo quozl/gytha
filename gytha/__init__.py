@@ -326,11 +326,11 @@ class Planet(Local):
             if self.owner != owner:
                 if self.owner == me.team:
                     if galaxy.planets_same_owner(me.team) == 1:
-                        sound.play_if('lps')
+                        sound.play('lps')
                     else:
-                        sound.play_if('loss')
+                        sound.play('loss')
                 if owner == me.team:
-                    sound.play_if('gain')
+                    sound.play('gain')
                 # FIXME: these sounds occur after a conquer parade too
         self.owner = owner
         self.info = info
@@ -4406,7 +4406,17 @@ class PhaseFlight(Phase):
 
     def op_beam_down(self, event, arg):
         nt.send(cp_beam.data(2))
-        ac_done('Drop')
+        if me.flags & PFORBIT:
+            if me.pl_orbit == -1:
+                ac_done('Drop')
+            else:
+                planet = galaxy.planet(me.pl_orbit)
+                if planet.owner != me.team:
+                    ac_done('Drop')
+                    if planet.flags & PLAGRI:
+                        ac_done('Drop on Agricultural')
+                    if planet.flags & PLHOME:
+                        ac_done('Drop on Enemy Homeworld')
 
     def op_beam_up(self, event, arg):
         nt.send(cp_beam.data(1))
@@ -5195,10 +5205,14 @@ def pg_fd():
 # achievements
 import json
 
-AC_FILE = '.gytha.achievements'
+home = os.getenv('HOME')
+if not home:
+    home = ''
+AC_FILE = os.path.join(home, '.gytha.achievements')
 
-# what just happened
-# what would you do next
+# list of achievement descriptions
+# - what did you do to achieve this?
+# - what would you do next?
 guidance = {}
 guidance['Using Help'] = ['You can come back to read the help later.']
 guidance['Using Keyboard Help'] = \
@@ -5243,9 +5257,6 @@ guidance['Phaser Hit'] = \
      '- do it just enough to cripple them so they cannot move.',
      '- finish them off if they are carrying armies.',
      '- if they die, they get a fresh new ship.']
-guidance['Phaser Hit a Cloaked Enemy'] = \
-    ['- you hit an cloaked enemy with your phaser.',
-     '- the phaser tracks their true position.']
 guidance['Detonate'] = \
     ['- you detonated all the enemy torpedos nearby ... if any.',
      '- the explosions hurt you, and the enemy ... but not your friends!']
@@ -5259,7 +5270,6 @@ guidance['Pick'] = \
      '- keep yourself safe, the armies are lost if you die.']
 guidance['Drop'] = \
     ['- you have beamed down armies!']
-# FIXME: only award if armies leave the ship to an enemy planet
 guidance['Calling a Take'] = \
     ['- your team has been told you plan to take a planet.',
      '- hopefully they will use control/e to say they will escort.']
@@ -5269,9 +5279,18 @@ guidance['Calling Escort'] = \
 guidance['A conquer parade!'] = \
     ['- this is where the game has been won.',
      '- wait for it to finish.']
+guidance['Phaser Hit a Cloaked Enemy'] = \
+    ['- you hit an cloaked enemy with your phaser.',
+     '- the phaser tracks their true position.']
 guidance['Phaser Hit a Plasma'] = \
     ['- you have hit an enemy plasma torpedo with your phaser!',
      '- it explodes violently, damaging everybody nearby.']
+guidance['Drop on Agricultural'] = \
+    ['- you have dropped armies on an agricultural planet,',
+     '- this can be difficult because it may breed, or pop, at the same time.']
+guidance['Drop on Enemy Homeworld'] = \
+    ['- you have dropped armies on the enemy homeworld, quite audacious,',
+     '- because an enemy may respawn right next to you.']
 guidance['Ten Kills'] = \
     ['- accumulating kills is considered inefficient,',
      '- try to cripple the enemy rather than kill them!']
@@ -5281,6 +5300,7 @@ guidance['Twenty Kills'] = \
 
 # the learning sequence
 sequence = [
+    'Started',
     'Using Help',
     'Using Keyboard Help',
     'Using Information',
@@ -5301,6 +5321,8 @@ sequence = [
     'A conquer parade!',
     'Phaser Hit a Cloaked Enemy',
     'Phaser Hit a Plasma',
+    'Drop on Agricultural',
+    'Drop on Enemy Homeworld',
     'Ten Kills',
     'Twenty Kills',
     ]
@@ -5339,7 +5361,7 @@ def ac_done_now(key):
             tips.append('    ' + line)
     tips.append('')
     if len(achievements) > 2:
-        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(guidance)))
+        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(sequence)))
         tips.append('')
     if len(achievements) > 6:
         for key in sequence:
@@ -5394,7 +5416,7 @@ def ac_progress():
     tips = ["Achievements"]
     tips.append('')
     if len(achievements) > 2:
-        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(guidance)))
+        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(sequence)))
         tips.append('')
 
     tips.append('You have unlocked:')
@@ -5682,9 +5704,6 @@ def main(argv=sys.argv[1:]):
 # server, to contain tutorial, ship classes, and rank information.
 
 # FIXME: mouse-over hint for word "clue", explain terms (says Petria)
-
-# FIXME: list buttons do not show server list if --server used, avoid
-# rendering them.
 
 # FIXME: new version notification
 
