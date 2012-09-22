@@ -267,6 +267,18 @@ def s2d(me, x, y):
         (mx, my) = n2ts(me, me.x, me.y)
     return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
 
+def n_o((x1, y1), (x2, y2)):
+    """ netrek coordinates to offset """
+    return (abs(x1 - x2), abs(y1 - y2))
+
+def o_d(offset_x, offset_y):
+    """ offset to distance """
+    return int((offset_x ** 2 + offset_y ** 2) ** 0.5)
+
+def n_d((x1, y1), (x2, y2)):
+    """ netrek coordinates to distance """
+    (offset_x, offset_y) = n_o((x1, y1), (x2, y2))
+    return o_d(offset_x, offset_y)
 
 class Local:
     """ netrek game objects, corresponding to objects in the game """
@@ -419,8 +431,8 @@ class Ship(Local):
         self.dir = 0
         self.speed = 0
         self.sp_player_me_speed_shown = False
-        self.x = self.px = -10000
-        self.y = self.py = -10000
+        self.x = self.px = -(TWIDTH/2)
+        self.y = self.py = -(TWIDTH/2)
         self.nearby = False
         # sp_flags
         self.flags = 0
@@ -545,8 +557,6 @@ class Ship(Local):
                 self.sp_kills_me_shown = False
                 if kills > 1000:
                     ac_done('Ten Kills')
-                if kills > 2000:
-                    ac_done('Twenty Kills')
 
         self.kills = kills
         self.op_info_update()
@@ -662,8 +672,8 @@ class Torp(Local):
             if status == TFREE:
                 try: self.tactical.hide()
                 except: pass
-                self.x = -10000
-                self.y = -10000
+                self.x = -(TWIDTH/2)
+                self.y = -(TWIDTH/2)
                 del self.galaxy.torps[self.n]
             elif status == TEXPLODE:
                 self.galaxy.te.append(self)
@@ -672,10 +682,9 @@ class Torp(Local):
                 # FIXME: animate torp explosions over local time?
                 # They vary according to update rate.
                 if not opt.ubertweak:
-                    offset_x = abs(self.x - me.x)
-                    offset_y = abs(self.y - me.y)
-                    if offset_x < 10000 and offset_x < 10000:
-                        distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+                    (offset_x, offset_y) = n_o((self.x, self.y), (me.x, me.y))
+                    if offset_x < TWIDTH/2 and offset_x < TWIDTH/2:
+                        distance = o_d(offset_x, offset_y)
                         sound.texplode(distance)
 
     def sp_torp(self, dir, x, y):
@@ -690,8 +699,8 @@ class Torp(Local):
             if self.fuse <= 0:
                 self.galaxy.te.remove(self)
                 self.tactical.hide()
-                self.x = -10000
-                self.y = -10000
+                self.x = -(TWIDTH/2)
+                self.y = -(TWIDTH/2)
                 self.status = TFREE
                 del self.galaxy.torps[self.n]
         else:
@@ -752,8 +761,8 @@ class Plasma(Local):
             if self.fuse <= 0:
                 self.galaxy.pe.remove(self)
                 self.tactical.hide()
-                self.x = -10000
-                self.y = -10000
+                self.x = -(TWIDTH/2)
+                self.y = -(TWIDTH/2)
                 self.status = PTFREE
 
 
@@ -1050,7 +1059,7 @@ class Galaxy:
         """
         x, y = xy
         closest = me
-        minimum = GWIDTH**2
+        minimum = GWIDTH
         for n, thing in things.iteritems():
             if thing == me: continue
             disinterest = False
@@ -1059,7 +1068,7 @@ class Galaxy:
                     disinterest = True
                     break
             if disinterest: continue
-            distance = (thing.x - x)**2 + (thing.y - y)**2
+            distance = n_d((thing.x, thing.y), (x, y))
             if distance < minimum:
                 closest = thing
                 minimum = distance
@@ -1550,11 +1559,10 @@ class Halos:
             if planet.x < 0: continue
             if planet.y < 0: continue
             # do not draw if on tactical
-            offset_x = abs(planet.x - me.x)
-            offset_y = abs(planet.y - me.y)
-            if offset_x < 10000 and offset_x < 10000: continue
+            (offset_x, offset_y) = n_o((planet.x, planet.y), (me.x, me.y))
+            if offset_x < TWIDTH/2 and offset_x < TWIDTH/2: continue
             # calculate distance to object
-            distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+            distance = o_d(offset_x, offset_y)
             # radius is to be distance less tactical edge
             radius = distance - threshold
             if radius < 100: continue
@@ -1581,11 +1589,10 @@ class Halos:
             if ship.x < 0: continue
             if ship.y < 0: continue
             # do not draw if on tactical
-            offset_x = abs(ship.x - me.x)
-            offset_y = abs(ship.y - me.y)
-            if offset_x < 10000 and offset_x < 10000: continue
+            (offset_x, offset_y) = n_o((ship.x, ship.y), (me.x, me.y))
+            if offset_x < TWIDTH/2 and offset_x < TWIDTH/2: continue
             # calculate distance to object
-            distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+            distance = o_d(offset_x, offset_y)
             # radius is to be distance less tactical edge
             radius = distance - threshold
             if radius < 100: continue
@@ -1604,9 +1611,7 @@ class Halos:
             return
         planet = me.planet
         colour = (0, 0, 64)
-        offset_x = abs(planet.x - me.x)
-        offset_y = abs(planet.y - me.y)
-        distance = int ( ( offset_x ** 2 + offset_y ** 2 ) ** 0.5 )
+        distance = n_d((planet.x, planet.y), (me.x, me.y))
         # radius is to be distance less tactical edge
         radius = distance - threshold
         if radius < 100: return
@@ -4590,6 +4595,13 @@ class PhaseFlight(Phase):
 
     def op_orbit(self, event, arg):
         nt.send(cp_orbit.data(1))
+        if (me.flags & PFRED) and (me.speed == 2) and \
+               (me.flags & PFCLOAK) and not (me.flags & PFPLLOCK):
+            nearest = galaxy.closest_planet((me.x, me.y))
+            distance = n_d((me.x, me.y), (nearest.x, nearest.y))
+            if distance < 900:
+                ac_done('Planet Hook')
+                # ignores possibility of tractor or pressor
 
     def op_phaser(self, event, arg):
         (x, y) = pygame.mouse.get_pos()
@@ -5293,10 +5305,11 @@ guidance['Drop on Enemy Homeworld'] = \
      '- because an enemy may respawn right next to you.']
 guidance['Ten Kills'] = \
     ['- accumulating kills is considered inefficient,',
-     '- try to cripple the enemy rather than kill them!']
-guidance['Twenty Kills'] = \
-    ['- you are not using your death explosion much,',
+     '- try to cripple the enemy rather than kill them,',
+     '- you are not using your death explosion much,',
      '- try to die in the right place!']
+guidance['Planet Hook'] = \
+    ['- you manually made orbit while cloaked with enemies nearby']
 
 # the learning sequence
 sequence = [
@@ -5324,7 +5337,7 @@ sequence = [
     'Drop on Agricultural',
     'Drop on Enemy Homeworld',
     'Ten Kills',
-    'Twenty Kills',
+    'Planet Hook',
     ]
 
 promises = []
@@ -5628,6 +5641,11 @@ def nt_play_a_slot():
             pygame.display.flip()
             ph_flight.do()
             if me.status == POUTFIT: break # ship has died
+
+        try:
+            ac_save()
+        except:
+            print 'achievements were not saved due to an exception'
 
 def nt_play():
     """ keep playing, until user chooses a quit option """
