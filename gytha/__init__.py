@@ -438,6 +438,10 @@ class Ship(Local):
         self.flags = 0
         # sp_pstatus
         self.status = PFREE
+        # sp_stats
+        self.sp_stats_seen = False
+        self.armies = 0
+        self.planets = 0
         # sp_generic_32
         self.repair_time = 0
         self.pl_orbit = -1
@@ -617,6 +621,18 @@ class Ship(Local):
         # ship sprite visibility is brutally controlled by status
         # FIXME: do not show cloaked ships
         self.visibility()
+
+    def sp_stats(self, armies, planets):
+        if self == me:
+            if self.sp_stats_seen:
+                if self.armies != armies:
+                    ac_done('Bombing')
+                if self.planets != planets:
+                    ac_done('Taking')
+            else:
+                self.sp_stats_seen = True
+        self.armies = armies
+        self.planets = planets
 
     def sp_generic_32(self, repair_time, pl_orbit):
         self.repair_time = repair_time
@@ -1745,18 +1761,22 @@ class Alerts:
         self.lines.append((sx, sy, ex, ey))
         self.rect.append(pygame.draw.line(screen, self.colour, (sx, sy), (ex, ey)))
 
-    def draw_lines(self, l, t, r, b):
+    def draw_box(self, l, t, r, b):
         self.line(l, t, r, t)
         self.line(r, t, r, b)
         self.line(r, b, l, b)
         self.line(l, b, l, t)
 
+    def draw_box_thick(self, l, t, r, b):
+        self.draw_box(l, t, r, b)
+        self.draw_box(l+1, t+1, r-1, b-1)
+
     def pick_colour(self):
-        self.colour = (0, 255, 0)
+        self.colour = (0, 64, 0)
         if me.flags & PFYELLOW:
-            self.colour = (255, 255, 0)
+            self.colour = (128, 128, 0)
         elif me.flags & PFRED:
-            self.colour = (255, 0, 0)
+            self.colour = (255, 64, 64)
 
     def undraw(self, colour):
         for (sx, sy, ex, ey) in self.lines:
@@ -1770,7 +1790,7 @@ class TacticalAlerts(Alerts):
     def draw(self):
         self.reset()
         self.pick_colour()
-        self.draw_lines(r_us.left, r_us.top, r_us.right-1, r_us.bottom-1)
+        self.draw_box_thick(r_us.left, r_us.top, r_us.right-1, r_us.bottom-1)
         return self.rect
 
 class GalacticAlerts(Alerts):
@@ -1782,7 +1802,7 @@ class GalacticAlerts(Alerts):
         self.pick_colour()
         l, t = n2gs(0, 0)
         r, b = n2gs(GWIDTH-1, GWIDTH-1)
-        self.draw_lines(l, t, r, b)
+        self.draw_box_thick(l, t, r, b)
         # FIXME: bottom line not visible if main height = 600, why?
         return self.rect
 
@@ -1793,22 +1813,24 @@ class Subgalactic(Alerts):
     def draw(self):
         self.reset()
         def draw_box(x, y, s):
-            self.draw_lines(x-s, y+s, x+s, y+s)
-            self.draw_lines(x+s, y+s, x+s, y-s)
-            self.draw_lines(x+s, y-s, x-s, y-s)
-            self.draw_lines(x-s, y-s, x-s, y+s)
+            self.draw_box(x-s, y-s, x+s, y+s)
+        def draw_diamond(x, y, s):
+            self.line(x, y-s, x+s, y)
+            self.line(x, y+s, x+s, y)
+            self.line(x, y+s, x-s, y)
+            self.line(x, y-s, x-s, y)
         # tactical border
         self.colour = (64, 64, 64)
         x, y = n2ss(me.x, me.y)
         draw_box(x, y, 20)
         # galactic border
         self.colour = (92, 92, 92)
-        self.draw_lines(r_sg.left, r_sg.top, r_sg.right-1, r_sg.bottom-1)
+        self.draw_box_thick(r_sg.left, r_sg.top, r_sg.right-1, r_sg.bottom-1)
         # planets
         for n, planet in galaxy.planets.iteritems():
             x, y = n2ss(planet.x, planet.y)
             self.colour = team_colour(planet.owner)
-            draw_box(x, y, 3)
+            draw_diamond(x, y, 4)
         # ships
         for n, ship in galaxy.ships.iteritems():
             if ship.status != PALIVE: continue
@@ -1911,7 +1933,7 @@ class ReportSprite(pygame.sprite.Sprite):
         x = ['SHIELDS',      'REPAIRING',     'BOMBING',       'ORBITING',
              'CLOAKED',      'WEAPONS-HOT',   'ENGINES-HOT',   'ROBOT',
              'BEAM-UP',      'BEAM-DOWN',     'SELF-DESTRUCT', None,
-             'YELLOW-ALERT', 'RED-ALERT',     'SHIP-LOCK',     'PLANET-LOCK',
+             None,           None,            'SHIP-LOCK',     'PLANET-LOCK',
              'COPILOT',      'DECLARING-WAR', 'PRACTICE',      'DOCKED',
              'REFIT',        'REFITTING',     'TRACTOR',       'PRESSOR',
              'DOCKING-OK',   'UNSEEN',        'CYBORG',        'OBSERVING',
@@ -3014,6 +3036,8 @@ class SP_STATS(SP):
     def handler(self, data):
         (ignored, pnum, tkills, tlosses, kills, losses, tticks, tplanets, tarmies, sbkills, sblosses, armies, planets, maxkills, sbmaxkills) = struct.unpack(self.format, data)
         if opt.sp: print "SP_STATS pnum=",pnum,"tkills=",tkills,"tlosses=",tlosses,"kills=",kills,"losses=",losses,"tticks=",tticks,"tplanets=",tplanets,"tarmies=",tarmies,"sbkills=",sbkills,"sblosses=",sblosses,"armies=",armies,"planets=",planets,"maxkills=",maxkills,"sbmaxkills=",sbmaxkills
+        ship = galaxy.ship(pnum)
+        ship.sp_stats(armies+tarmies, planets+tplanets)
 
 class SP_WARNING(SP):
     code = 10
@@ -3025,9 +3049,6 @@ class SP_WARNING(SP):
         (ignored, message) = struct.unpack(self.format, data)
         if opt.sp: print "SP_WARNING message=", strnul(message)
         self.text = strnul(message)
-        if 'Ineffective, ' in self.text:
-            ac_done('Bombing')
-
         self.seen = False
 
     def synthetic(self, text):
@@ -4213,8 +4234,6 @@ class PhaseFlight(Phase):
         self.modal_handler = None
         self.event_triggers_update = False
         self.eh_md.append(self.md_us)
-        self.op_info_prior_target = None
-        self.op_dismiss_achievement = None
         self.op_warp_count = 0
         self.op_turn_count = 0
         self.hinted = False
@@ -4479,37 +4498,14 @@ class PhaseFlight(Phase):
         ac_progress()
 
     def op_info(self, event, arg):
-        # first time, show info about thing
-        # second time, dismiss info if key was pressed over same thing
-        # and info is still visible,
-        # otherwise, show info about thing.
-        thing = galaxy.closest_thing(cursor(me))
-        if self.op_info_prior_target == thing:
-            self.op_info_prior_target = None
-            if b_info:
-                b_info.empty()
-                ac_done('Using Information')
-                return
-        else:
-            if b_info: b_info.empty()
+        b_info.empty()
 
+        thing = galaxy.closest_thing(cursor(me))
         InfoSprite(thing.op_info(), track=thing)
-        self.op_info_prior_target = thing
-        self.op_dismiss_achievement = 'Using Information' # ac_done
+        ac_done_later('Using Information')
 
     def op_help(self, event, arg):
-
-        # if help was previously requested and is still visible, dismiss it
-        if self.op_info_prior_target == self.op_help:
-            if b_info:
-                b_info.empty()
-                self.op_info_prior_target = None
-                return
-
-        # if info was previously requested and is still visible, destroy it
-        if self.op_info_prior_target != None:
-            if b_info:
-                b_info.empty()
+        b_info.empty()
 
         tips = [
             "Netrek Help",
@@ -4543,22 +4539,10 @@ class PhaseFlight(Phase):
             "Press shift H for keyboard help, or backspace to clear"]
 
         InfoSprite(tips, expires=10+len(tips)*2)
-        self.op_info_prior_target = self.op_help
-        self.op_dismiss_achievement = 'Using Help' # ac_done
+        ac_done_later('Using Help')
 
     def op_help_keyboard(self, event, arg):
-
-        # if help was previously requested and is still visible, dismiss it
-        if self.op_info_prior_target == self.op_help_keyboard:
-            if b_info:
-                b_info.empty()
-                self.op_info_prior_target = None
-                return
-
-        # if info was previously requested and is still visible, destroy it
-        if self.op_info_prior_target != None:
-            if b_info:
-                b_info.empty()
+        b_info.empty()
 
         tips = ['Netrek Keyboard Help', '']
         gap = '  '
@@ -4581,16 +4565,10 @@ class PhaseFlight(Phase):
         tips.append('Press backspace to clear keyboard help.')
 
         InfoSprite(tips, expires=20+len(tips))
-        self.op_info_prior_target = self.op_help_keyboard
-        self.op_dismiss_achievement = 'Using Keyboard Help' # ac_done
+        ac_done_later('Using Keyboard Help')
 
     def op_dismiss(self, event, arg):
-        if b_info:
-            b_info.empty()
-        self.op_info_prior_target = None
-        if self.op_dismiss_achievement:
-            ac_done(self.op_dismiss_achievement)
-            self.op_dismiss_achievement = None
+        b_info.empty()
         ac_deliver()
 
     def op_orbit(self, event, arg):
@@ -4741,9 +4719,7 @@ class PhaseFlight(Phase):
             ac_deliver()
             return
 
-        if b_info:
-            b_info.empty()
-        self.op_info_prior_target = self.tips
+        b_info.empty()
         tips.append('')
         tips.append('Press backspace to clear tips.')
         InfoSprite(tips, expires=10+len(tips))
@@ -4754,15 +4730,11 @@ class PhaseFlight(Phase):
 
         tips = ['Press h for help']
         InfoSprite(tips, expires=300, track=Tag((me.x, me.y + 3000)))
-        self.op_info_prior_target = self.hint
         self.hinted = True
         return True
 
     def hint_dismiss(self):
-        if self.op_info_prior_target == self.hint:
-            if b_info:
-                b_info.empty()
-            self.op_info_prior_target = None
+        b_info.empty()
 
     def op_debug_dump(self, event, arg):
         print galaxy
@@ -5258,6 +5230,7 @@ guidance['Bombing'] = \
      '- the planet was thenready to be taken, if you have armies.',
      '- the planet cannot provide armies to the enemy.',
      '- the armies will slowly breed up, so keep watch.']
+# FIXME: scan unknown planet
 guidance['Shields Lowered'] = \
     ['- lower your shields to conserve fuel.',
      '- raise your shields to preserve yourself.',
@@ -5310,6 +5283,7 @@ guidance['Ten Kills'] = \
      '- try to die in the right place!']
 guidance['Planet Hook'] = \
     ['- you manually made orbit while cloaked with enemies nearby']
+# FIXME: add achievements for the ship class policy this client implements for new players
 
 # the learning sequence
 sequence = [
@@ -5403,6 +5377,19 @@ def ac_done(key):
     if key not in promises:
         promises.append(key)
 
+def ac_done_later(key):
+    global achievements, promises
+
+    if key in achievements:
+        return
+
+    if not opt.ubertweak:
+        achievements[key] = time.time()
+        return
+
+    if key not in promises:
+        promises.append(key)
+
 def ac_deliver():
     global promises
 
@@ -5420,16 +5407,13 @@ def ac_deliver():
 def ac_progress():
     global achievements
 
-    if len(promises) > 0:
-        ac_deliver()
-        return
-
     b_info.empty()
 
     tips = ["Achievements"]
     tips.append('')
     if len(achievements) > 2:
-        tips.append('You have unlocked %d achievements out of %d!' % (len(achievements), len(sequence)))
+        tips.append('You have unlocked %d achievements out of %d!' %
+                    (len(achievements), len(sequence)))
         tips.append('')
 
     tips.append('You have unlocked:')
