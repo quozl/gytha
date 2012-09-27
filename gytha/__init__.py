@@ -2,7 +2,7 @@
 
 """
     netrek client pygame, aka gytha
-    Copyright (C) 2007-2011  James Cameron (quozl@us.netrek.org)
+    Copyright (C) 2007-2012  James Cameron (quozl@us.netrek.org)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -279,6 +279,7 @@ def n_d((x1, y1), (x2, y2)):
     """ netrek coordinates to distance """
     (offset_x, offset_y) = n_o((x1, y1), (x2, y2))
     return o_d(offset_x, offset_y)
+
 
 class Local:
     """ netrek game objects, corresponding to objects in the game """
@@ -819,15 +820,16 @@ class Phaser(Local):
         self.txty = (tx, ty)
         self.fxfy = (fx, fy)
         if self.ship == me:
-            colour = (255, 255, 255)
+            colour = (192, 192, 192)
         else:
             colour = brighten(team_colour(self.ship.team))
 	    # FIXME: incorrect colours have been sighted
-        return pygame.draw.line(screen, colour, (fx, fy), (tx, ty))
+        # FIXME: an enemy phaser makes our phaser invisible if the enemy has a higher ship number
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty, 4).inflate(8, 8)
 
     def undraw(self, colour):
         self.have = False
-        return pygame.draw.line(screen, colour, self.fxfy, self.txty)
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty, 4).inflate(8, 8)
 
     def sp_phaser(self, status, direction, x, y, target):
         old = self.status
@@ -870,6 +872,7 @@ class Tractor(Local):
         self.flags = self.target = 0
         self.want = False # is to be drawn on screen
         self.have = False # has been drawn on screen
+        self.width = 11
 
     def draw(self):
         if self.ship.status != PALIVE:
@@ -881,14 +884,14 @@ class Tractor(Local):
         self.fxfy = n2ts(me, self.ship.x, self.ship.y)
         # FIXME: use dotted line centre of tractor to periphery of
         # tractee, as per original design of netrek clients
-        colour = (0, 64, 0)
+        colour = (32, 64, 32)
         if self.flags & PFPRESS:
-            colour = (64, 0, 0)
-        return pygame.draw.line(screen, colour, self.fxfy, self.txty, 10)
+            colour = (64, 32, 32)
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty, self.width).inflate(self.width * 2, self.width * 2)
 
     def undraw(self, colour):
         self.have = False
-        return pygame.draw.line(screen, colour, self.fxfy, self.txty, 10)
+        return pygame.draw.line(screen, colour, self.fxfy, self.txty, self.width).inflate(self.width * 2, self.width * 2)
 
     def sp_tractor(self, flags, target):
         self.want = False
@@ -4922,10 +4925,18 @@ class PhaseFlightTactical(PhaseFlight):
         t0 = time.time()
         screen.set_clip(r_us) # restrict drawing
         r = [] # sequence of dirty rectangles for update
-        r += galaxy.tractors_undraw(self.co)
-        r += galaxy.phasers_undraw(self.co)
-        r += self.borders.undraw(self.co)
+        b_info.clear(screen, self.bg)
+        b_message.clear(screen, self.bg)
+        b_warning.clear(screen, self.bg)
+        b_reports.clear(screen, self.bg)
         r += self.alerts.undraw(self.co)
+        r += self.borders.undraw(self.co)
+        r += galaxy.phasers_undraw(self.co)
+        t_torps.clear(screen, self.bg)
+        t_plasma.clear(screen, self.bg)
+        t_players.clear(screen, self.bg)
+        r += galaxy.tractors_undraw(self.co)
+        t_planets.clear(screen, self.bg)
         r += self.subgalactic.undraw(self.co)
 
         # design note, the sprite clear method does not return a dirty
@@ -4933,14 +4944,6 @@ class PhaseFlightTactical(PhaseFlight):
         # returned by the sprite draw method, per group class
         # RenderUpdates, which is a subclass of the group class
         # OrderedUpdates that we use here.
-        b_info.clear(screen, self.bg)
-        b_message.clear(screen, self.bg)
-        b_reports.clear(screen, self.bg)
-        b_warning.clear(screen, self.bg)
-        t_torps.clear(screen, self.bg)
-        t_plasma.clear(screen, self.bg)
-        t_players.clear(screen, self.bg)
-        t_planets.clear(screen, self.bg)
 
         r += self.extra()
         t_planets.update()
@@ -5181,7 +5184,7 @@ def pg_fd():
 
     if n > 255:
         print "the fd was too large, abondoning that line of reasoning, just guessing"
-        n = 4
+        n = 5
 
     nt.set_pg_fd(n)
     if mc: mc.set_pg_fd(n)
@@ -5226,10 +5229,7 @@ guidance['Orbit'] = \
      '- if it is an enemy planet, you should bomb, press b once.',
      '- if it is a friendly planet, it will repair or refuel your ship.']
 guidance['Bombing'] = \
-    ['- you had finished bombing a planet.',
-     '- the planet was thenready to be taken, if you have armies.',
-     '- the planet cannot provide armies to the enemy.',
-     '- the armies will slowly breed up, so keep watch.']
+    ['- you bombed armies from a planet, or killed armies in an enemy ship.']
 # FIXME: scan unknown planet
 guidance['Shields Lowered'] = \
     ['- lower your shields to conserve fuel.',
@@ -5358,7 +5358,6 @@ def ac_done_now(key):
                 break
     tips.append('Press backspace to clear this message.')
     InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 64), bordercolour=(128, 255, 128))
-    # FIXME: overlay of help or info window and achievement window
 
 def ac_done(key):
     global achievements, promises
