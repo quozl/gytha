@@ -2749,7 +2749,6 @@ class SP:
     def handler(self, data):
         raise NotImplemented
 
-sp = SP()
 
 class SP_MOTD(SP):
     code = 11
