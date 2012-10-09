@@ -3302,9 +3302,12 @@ class Phase:
 
     def snap(self, event):
         name = "gytha-%04d.jpeg" % self.screenshot
-        pygame.image.save(screen, name)
-        print "snapshot taken,", name
-        self.screenshot += 1
+        try:
+            pygame.image.save(screen, name)
+            print "snapshot taken,", name
+            self.screenshot += 1
+        except:
+            pass
 
     def cycle(self):
         """ free wheeling cycle, use when it is acceptable to block on
