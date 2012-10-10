@@ -2338,13 +2338,13 @@ class MessageSprite(pygame.sprite.Sprite):
             line = '          ' + ' ' * len(self.text) + '^ type'
             return (line, (128, 255, 128))
         if len(self.text) > 0:
-            line = '          ' + ' ' * len(self.text) + '^ type, press enter to send, or escape to abort'
+            line = '          ' + ' ' * len(self.text) + '^ type, press enter to send, or ESC to abort'
             return (line, (128, 255, 128))
         if self.tail != '':
             line = '          ' + ' ' * len(self.text) + '^ type, or backspace'
             return (line, (128, 255, 128))
         if self.head != '':
-            line = '     ^ t for team, A for all, F, R, K, O, a ship number, or backspace to abort'
+            line = '     ^ t for team, A for all, F, R, K, O, a ship number, or ESC to abort'
             return (line, (128, 128, 255))
         return ('bogus', (255, 255, 255))
 
@@ -3279,9 +3279,9 @@ class Phase:
         return False
 
     def kb(self, event):
-        if event.key == K_q:
+        if event.key == K_q or event.key == K_ESCAPE:
             self.quit(event)
-        elif event.key == K_ESCAPE:
+        elif event.key == K_PRINT:
             self.snap(event)
 
     def exit(self, status):
@@ -4379,6 +4379,7 @@ class PhaseFlight(Phase):
             K_y: (self.op_pressor_toggle, None, 'pressor'),
             K_z: (self.op_beam_up, None, 'beam up'),
             K_BACKSPACE: (self.op_dismiss, None),
+            K_ESCAPE: (self.op_dismiss, None),
             }
         self.keys_control = {
             K_HASH: (self.op_distress, rcd.dist_type_other2),
@@ -4406,6 +4407,7 @@ class PhaseFlight(Phase):
             K_p: (self.op_distress, rcd.dist_type_ogging),
             K_t: (self.op_distress, rcd.dist_type_take,
                   'signal team you are taker'),
+            K_LEFTBRACKET: (self.op_dismiss, None),
             }
         self.keys_shift = {
             K_COMMA: (self.op_warp_down, None),
@@ -4542,7 +4544,7 @@ class PhaseFlight(Phase):
             "If someone kills you, they can begin to capture your planets,",
             "so come straight back in and defend!",
             "",
-            "Press shift H for keyboard help, or backspace to clear"]
+            "Press shift H for keyboard help, or ESC to clear"]
 
         InfoSprite(tips, expires=10+len(tips)*2)
         ac_done_later('Using Help')
@@ -4568,7 +4570,7 @@ class PhaseFlight(Phase):
         # rather than the default order in the table
         tips.append('enter' + gap + 'switch view')
         tips.append('')
-        tips.append('Press backspace to clear keyboard help.')
+        tips.append('Press ESC to clear keyboard help.')
 
         InfoSprite(tips, expires=20+len(tips))
         ac_done_later('Using Keyboard Help')
@@ -4727,7 +4729,7 @@ class PhaseFlight(Phase):
 
         b_info.empty()
         tips.append('')
-        tips.append('Press backspace to clear tips.')
+        tips.append('Press ESC to clear tips.')
         InfoSprite(tips, expires=10+len(tips))
 
     def hint(self):
@@ -5359,7 +5361,7 @@ def ac_done_now(key):
                 tips.append('Next: %s' % key)
                 tips.append('')
                 break
-    tips.append('Press backspace to clear this message.')
+    tips.append('Press ESC to clear this message.')
     InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 64), bordercolour=(128, 255, 128))
 
 def ac_done(key):
@@ -5429,7 +5431,7 @@ def ac_progress():
             tips.append('    ' + key)
     tips.append('')
 
-    tips.append('Press backspace to clear this message.')
+    tips.append('Press ESC to clear this message.')
     InfoSprite(tips, expires=10+len(tips)*2, fillcolour=(24, 48, 24, 192), bordercolour=(128, 255, 128))
 
 
