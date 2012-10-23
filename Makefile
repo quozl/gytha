@@ -22,8 +22,8 @@ dist:
 	cp -p images/*.jpg $(PACKAGE)-$(VERSION)/images/
 	mkdir $(PACKAGE)-$(VERSION)/sounds
 	cp -p sounds/*.ogg $(PACKAGE)-$(VERSION)/sounds/
-	mkdir $(PACKAGE)-$(VERSION)/netrek
-	cp -p netrek/*.py $(PACKAGE)-$(VERSION)/netrek
+	mkdir $(PACKAGE)-$(VERSION)/gytha
+	cp -p gytha/*.py $(PACKAGE)-$(VERSION)/gytha
 	cp -p gytha.py $(PACKAGE)-$(VERSION)/
 	chmod +x $(PACKAGE)-$(VERSION)/gytha.py
 	GZIP=--best tar cfz $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
