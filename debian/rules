@@ -4,14 +4,14 @@ export DH_COMPAT=5
 
 build: build-stamp
 build-stamp:
-	dh_testdir
+#	dh_testdir
 
 	$(MAKE)
 
 	touch build-stamp
 
 clean:
-	dh_testdir
+#	dh_testdir
 	dh_testroot
 	rm -f build-stamp
 
@@ -20,7 +20,7 @@ clean:
 	dh_clean
 
 install: build
-	dh_testdir
+#	dh_testdir
 	dh_testroot
 	dh_clean -k
 	dh_installdirs

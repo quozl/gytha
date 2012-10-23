@@ -1,5 +1,5 @@
 PACKAGE=gytha
-VERSION=0.8
+VERSION=0.9
 
 DESTDIR=
 DATADIR=$(DESTDIR)/usr/share/games/gytha
@@ -20,6 +20,8 @@ dist:
 	mkdir $(PACKAGE)-$(VERSION)/images
 	cp -p images/*.png $(PACKAGE)-$(VERSION)/images/
 	cp -p images/*.jpg $(PACKAGE)-$(VERSION)/images/
+	mkdir $(PACKAGE)-$(VERSION)/sounds
+	cp -p sounds/*.ogg $(PACKAGE)-$(VERSION)/sounds/
 	mkdir $(PACKAGE)-$(VERSION)/netrek
 	cp -p netrek/*.py $(PACKAGE)-$(VERSION)/netrek
 	cp -p gytha.py $(PACKAGE)-$(VERSION)/
@@ -45,6 +47,9 @@ install:
 	chmod +r $(DESTDIR)/usr/share/gytha/images/*.png
 	cp -p images/*.jpg $(DESTDIR)/usr/share/gytha/images/
 	chmod +r $(DESTDIR)/usr/share/gytha/images/*.jpg
+	mkdir -p $(DESTDIR)/usr/share/gytha/sounds
+	cp -p sounds/*.ogg $(DESTDIR)/usr/share/gytha/sounds/
+	chmod +r $(DESTDIR)/usr/share/gytha/sounds/*.ogg
 	mkdir -p $(DESTDIR)/usr/share/doc/gytha
 	cp ChangeLog $(DESTDIR)/usr/share/doc/gytha
 
