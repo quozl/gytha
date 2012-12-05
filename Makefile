@@ -25,6 +25,7 @@ dist:
 	mkdir $(PACKAGE)-$(VERSION)/gytha
 	cp -p gytha/*.py $(PACKAGE)-$(VERSION)/gytha
 	cp -p gytha.py $(PACKAGE)-$(VERSION)/
+	cp -p gytha.sh $(PACKAGE)-$(VERSION)/
 	chmod +x $(PACKAGE)-$(VERSION)/gytha.py
 	GZIP=--best tar cfz $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
 	rm -rf $(PACKAGE)-$(VERSION)
