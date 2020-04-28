@@ -127,7 +127,7 @@ in a few days.
 markiel@callisto.pas.rochester.edu
 
 """
-import os, sys, time, socket, errno, select, struct, pygame, math, ctypes
+import os, sys, time, socket, errno, select, struct, pygame, math, glob
 
 from pygame.locals import *
 
@@ -5440,6 +5440,22 @@ def pg_init():
     global t_planets, t_players, t_torps, t_plasma, g_planets, g_players, g_locator, b_warning_sprite, b_warning, b_reports, b_message, b_info, background, galactic_factor, subgalactic_factor, r_main, r_us, r_sg
 
     pygame.mixer.pre_init(44100, -16, 2, 1024)
+
+    fds = glob.glob('/proc/self/fd/*')
+    fds.sort()
+
+    pygame.display.init()
+
+    fds_orig = fds
+    fds = glob.glob('/proc/self/fd/*')
+    fds.sort()
+    for fd in fds:
+        if fd not in fds_orig:
+            n = int(fd.split('/')[4])
+            print 'file descriptor opened by pygame.display.init was', n
+            nt.set_pg_fd(n)
+            if mc: mc.set_pg_fd(n)
+
     pygame.init()
     pygame.key.set_repeat(250, 100)
     size = width, height = 1000, 1000
@@ -5690,7 +5706,6 @@ def main(argv=sys.argv[1:]):
             # server was requested on command line, but not available
             return 1
     screen = pg_init()
-    pg_fd()
 
     nt_play()
     if opt.debug:
