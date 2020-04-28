@@ -16,7 +16,6 @@ class MetaClient:
         self.last_s = None
 
     def set_pg_fd(self, n):
-        self.x = n
         self.fd.append(n)
         self.timeout = 0
 

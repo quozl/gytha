@@ -28,14 +28,12 @@ class Client:
         self.udp_rx_path_proven = False
         self.udp_tx_path_proven = False
         self.has_quit = False
-        self.x = None
         self.timeout = 0.02
         self.fd = []
         self.tcp = self.udp = -1
         self.ct = self.cu = 0
 
     def set_pg_fd(self, n):
-        self.x = n
         self.fd.append(n)
         self.timeout = None
 
