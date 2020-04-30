@@ -2,7 +2,7 @@
 
 """
     netrek client pygame, aka gytha
-    Copyright (C) 2007-2012  James Cameron (quozl@us.netrek.org)
+    Copyright (C) 2007-2020  James Cameron (quozl@us.netrek.org)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ VERSION = "0.9"
 
 WELCOME = [
 "Gytha %s" % (VERSION),
-"Copyright (C) 2007-2012 James Cameron <quozl@us.netrek.org>",
+"Copyright (C) 2007-2020 James Cameron <quozl@us.netrek.org>",
 "",
 "This program comes with ABSOLUTELY NO WARRANTY; for details see source.",
 "This is free software, and you are welcome to redistribute it under certain",
