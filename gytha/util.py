@@ -1,10 +1,11 @@
-from constants import *
+from .constants import *
 import traceback
 
 def strnul(x):
-    """ convert a NUL terminated string to a normal string
-    """
-    return x.split('\000')[0]
+    """ convert a NUL-terminated bytes or str to a plain str """
+    if isinstance(x, (bytes, bytearray)):
+        return x.partition(b'\x00')[0].decode('ascii', errors='replace')
+    return x.partition('\x00')[0]
 
 def team_decode(mask):
     """ convert a team mask to a list
@@ -31,8 +32,8 @@ def slot_decode(n):
     try:
         return slot[n]
     except IndexError:
-        print "slot_decode: input value from server %d out of range" % n
-        print traceback.print_stack()
+        print("slot_decode: input value from server %d out of range" % n)
+        print(traceback.print_stack())
 
 def slot_encode(n):
     return slot.find(n)

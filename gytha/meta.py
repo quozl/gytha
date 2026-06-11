@@ -11,13 +11,9 @@ class MetaClient:
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.spout = None
         self.servers = {}
-        self.fd = [self.socket]
-        self.timeout = 0.1
-        self.last_s = None
-
-    def set_pg_fd(self, n):
-        self.fd.append(n)
+        # non-blocking poll; called at ~100 Hz from the USEREVENT handler
         self.timeout = 0
+        self.last_s = None
 
     def uncork(self, spout):
         self.spout = spout
@@ -34,29 +30,34 @@ class MetaClient:
                     if ip == '65.193.17.240':
                         continue
                     try:
-                        self.socket.sendto('?version=gytha',
-                                           sockaddr)
-                        print "queried", hostname, "aka", ip
+                        self.socket.sendto(b'?version=gytha', sockaddr)
+                        print("queried", hostname, "aka", ip)
                     except socket.error:
-                        print "unable to query %s, proceeding" % str(sockaddr)
+                        print("unable to query %s, proceeding" % str(sockaddr))
             except socket.gaierror:
-                print "unable to resolve %s, proceeding" % hostname
+                print("unable to resolve %s, proceeding" % hostname)
 
     def recv(self):
-        r, w, e = select.select(self.fd, [], [], self.timeout)
+        r, w, e = select.select([self.socket], [], [], self.timeout)
         if self.socket in r:
             if not self.spout:
-                print "suboptimal, mc recv spout unready"
+                print("suboptimal, mc recv spout unready")
                 return
             try:
                 # netrek-metaserver/disp_udp.c display_udp() specifies
                 # no maximum size of the response
-                (text, address) = self.socket.recvfrom(8192)
-            except:
-                pass
-            else:
-                if text[0] == 's': self.version_s(text, address)
-                elif text[0] == 'r': self.version_r(text)
+                (data, address) = self.socket.recvfrom(8192)
+            except Exception:
+                return
+            # decode bytes to str for parsing
+            try:
+                text = data.decode('ascii', errors='replace')
+            except Exception:
+                return
+            if text[0] == 's':
+                self.version_s(text, address)
+            elif text[0] == 'r':
+                self.version_r(text)
 
     def version_s(self, text, address):
         """ single server reply from a server via multicast """
@@ -85,7 +86,8 @@ class MetaClient:
         (version, n) = lines[0].split(',')
         for x in range(int(n)):
             server = {}
-            (server['name'], port, server['status'], age, players, queue, server['type']) = lines[x+1].split(',')
+            (server['name'], port, server['status'], age, players, queue,
+             server['type']) = lines[x+1].split(',')
             server['port'] = int(port)
             server['age'] = int(age)
             server['players'] = int(players)
@@ -96,26 +98,21 @@ class MetaClient:
 
     def update(self, server):
         # FIXME: client currently lacks necessary hockey support
-        # meanwhile do not list unsupported servers
         if server['type'] == 'H':
             return
-
         # FIXME: client currently lacks necessary sturgeon support
-        # meanwhile do not list unsupported servers
         if server['type'] == 'S':
             return
-
         # FIXME: client currently lacks necessary paradise support
-        # meanwhile do not list unsupported servers
         if server['type'] == 'P':
             return
 
         name = server['name']
-        if not name in self.servers:
+        if name not in self.servers:
             self.servers[name] = server
         else:
             self.servers[name]['players'] = server['players']
             self.servers[name]['queue'] = server['queue']
-            
+
         if self.spout:
             self.spout(name)

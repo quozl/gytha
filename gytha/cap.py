@@ -1,4 +1,4 @@
-from constants import *
+from .constants import *
 
 class Cap:
     """ ship capabilities, indexed by ship type """
@@ -21,22 +21,22 @@ class Cap:
         x[n]()
 
     def show(self):
-        print "s_type = %d" % self.s_type
-        print "s_torpspeed = %d" % self.s_torpspeed
-        print "s_phaserrange = %d" % self.s_phaserrange
-        print "s_maxspeed = %d" % self.s_maxspeed
-        print "s_maxfuel = %d" % self.s_maxfuel
-        print "s_maxshield = %d" % self.s_maxshield
-        print "s_maxdamage = %d" % self.s_maxdamage
-        print "s_maxwpntemp = %d" % self.s_maxwpntemp
-        print "s_maxegntemp = %d" % self.s_maxegntemp
-        print "s_width = %d" % self.s_width
-        print "s_height = %d" % self.s_height
-        print "s_maxarmies = %d" % self.s_maxarmies
-        print "s_letter = %s" % self.s_letter
-        print "s_name = %s" % self.s_name
-        print "s_desig = %s" % self.s_desig
-        print "s_bitmap = %d" % self.s_bitmap
+        print("s_type = %d" % self.s_type)
+        print("s_torpspeed = %d" % self.s_torpspeed)
+        print("s_phaserrange = %d" % self.s_phaserrange)
+        print("s_maxspeed = %d" % self.s_maxspeed)
+        print("s_maxfuel = %d" % self.s_maxfuel)
+        print("s_maxshield = %d" % self.s_maxshield)
+        print("s_maxdamage = %d" % self.s_maxdamage)
+        print("s_maxwpntemp = %d" % self.s_maxwpntemp)
+        print("s_maxegntemp = %d" % self.s_maxegntemp)
+        print("s_width = %d" % self.s_width)
+        print("s_height = %d" % self.s_height)
+        print("s_maxarmies = %d" % self.s_maxarmies)
+        print("s_letter = %s" % self.s_letter)
+        print("s_name = %s" % self.s_name)
+        print("s_desig = %s" % self.s_desig)
+        print("s_bitmap = %d" % self.s_bitmap)
 
     def type_sc(self):
         self.s_torpspeed = 16

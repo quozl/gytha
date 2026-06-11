@@ -11,7 +11,7 @@ def prepare(opt_sounds):
         try:
             sounds[key] = pygame.mixer.Sound(os.path.join(opt_sounds, name))
         except:
-            print 'sound not found, key', key, 'name', name
+            print('sound not found, key', key, 'name', name)
 
     load('tada1', '60443__jobro__tada1.ogg')
     load('tada2', '60444__jobro__tada2.ogg')

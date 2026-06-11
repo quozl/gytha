@@ -1,5 +1,5 @@
 import pygame
-from cache import ic, fc
+from .cache import ic, fc
 
 class MultipleImageSprite(pygame.sprite.Sprite):
     """ a sprite class consisting of multiple images overlaid

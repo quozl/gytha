@@ -1,5 +1,5 @@
 import pygame, math
-from sprites import Icon
+from .sprites import Icon
 
 
 class Bouncer:

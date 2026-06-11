@@ -22,7 +22,7 @@ netrek-client-vanilla, input.c,
 """
 
 import struct
-import constants
+from . import constants
 
 # The binary messages will only be delivered to us if we send a
 # CP_FEATURE packet of RC_DISTRESS.  We may send binary messages
@@ -144,23 +144,23 @@ class msg:
             return '%s->%s Sync with --]> %s <[-- OGG ogg OGG base!!' % \
                    (orig, targ, galaxy.ship(self.tclose_fr).mapchars[1:])
 
-        print "RCD dist_type=", self.dist_type, \
-              "target_type=", self.target_type, \
-              "fuelp=", self.fuelp, \
-              "dam=", self.dam, \
-              "shld=", self.shld, \
-              "etmp=", self.etmp, \
-              "wtmp=", self.wtmp, \
-              "arms=", self.arms, \
-              "sts=", self.sts, \
-              "close_pl=", self.close_pl, \
-              "close_en=", self.close_en, \
-              "tclose_pl=", self.tclose_pl, \
-              "tclose_en=", self.tclose_en, \
-              "tclose_j=", self.tclose_j, \
-              "close_j=", self.close_j, \
-              "tclose_fr=", self.tclose_fr, \
-              "close_fr=", self.close_fr
+        print("RCD dist_type=", self.dist_type,
+              "target_type=", self.target_type,
+              "fuelp=", self.fuelp,
+              "dam=", self.dam,
+              "shld=", self.shld,
+              "etmp=", self.etmp,
+              "wtmp=", self.wtmp,
+              "arms=", self.arms,
+              "sts=", self.sts,
+              "close_pl=", self.close_pl,
+              "close_en=", self.close_en,
+              "tclose_pl=", self.tclose_pl,
+              "tclose_en=", self.tclose_en,
+              "tclose_j=", self.tclose_j,
+              "close_j=", self.close_j,
+              "tclose_fr=", self.tclose_fr,
+              "close_fr=", self.close_fr)
 
         return None
 

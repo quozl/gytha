@@ -24,10 +24,11 @@ class IC:
         for path in IMAGE_PATHS:
             try:
                 image = pygame.image.load(path + name)
-            except pygame.error:
+                break
+            except (pygame.error, FileNotFoundError, OSError):
                 pass
-        if not image:
-            raise pygame.error, "no such file %s" % name
+        if image is None:
+            raise pygame.error("no such file %s" % name)
         return pygame.Surface.convert_alpha(image)
 
     def get(self, name):
@@ -56,21 +57,19 @@ class IC:
             unscaled = self.get(name)
             try:
                 scaled = pygame.transform.smoothscale(unscaled, (2000, 2000))
-            except:
+            except Exception:
                 scaled = pygame.transform.scale2x(unscaled)
             self.cache_scale2xed[(name)] = scaled
         return self.cache_scale2xed[(name)]
 
     def preload_scan(self):
         self.names = []
-        for path in IMAGE_PATHS:
-            for dirpath, dirnames, filenames in os.walk('images'):
-                for name in filenames:
-                    if '.png' not in name and '.jpg' not in name:
-                        continue
-                    if name not in self.names:
-                        self.names.append(name)
-        import random
+        for dirpath, dirnames, filenames in os.walk('images'):
+            for name in filenames:
+                if '.png' not in name and '.jpg' not in name:
+                    continue
+                if name not in self.names:
+                    self.names.append(name)
         self.names.sort()
 
     def preload_early(self):
@@ -100,7 +99,7 @@ class IC:
             t1 = time.time()
             el = t1 - t0
             if el > 0.01:
-                print "image was slow to load, %.3f sec file %s" % (el, name)
+                print("image was slow to load, %.3f sec file %s" % (el, name))
             return
 
     def preload_rest(self):
@@ -112,19 +111,19 @@ class IC:
     def statistics(self):
         """ calculate and print cache statistics """
         if self.miss > 0:
-            rate = self.hits * 100 / (self.hits + self.miss)
+            rate = self.hits * 100 // (self.hits + self.miss)
         else:
             rate = 0
         if self.miss_rotated > 0:
-            rate_rotated = self.hits_rotated * 100 / \
-                (self.hits_rotated + self.miss_rotated)
+            rate_rotated = self.hits_rotated * 100 // (
+                self.hits_rotated + self.miss_rotated)
         else:
             rate_rotated = 0
-        print "IC: normal hits=%d miss=%d rate=%d%% n=%d" % \
-              (self.hits, self.miss, rate, len(self.cache))
-        print "IC: rotate hits=%d miss=%d rate=%d%% n=%d" % \
-              (self.hits_rotated, self.miss_rotated, rate_rotated, \
-               len(self.cache_rotated))
+        print("IC: normal hits=%d miss=%d rate=%d%% n=%d" %
+              (self.hits, self.miss, rate, len(self.cache)))
+        print("IC: rotate hits=%d miss=%d rate=%d%% n=%d" %
+              (self.hits_rotated, self.miss_rotated, rate_rotated,
+               len(self.cache_rotated)))
         names = []
         for key in self.cache:
             if key not in names:
@@ -134,22 +133,18 @@ class IC:
             if name not in names:
                 names.append(name)
         for key in self.cache_scale2xed:
-            (name) = key
+            name = key
             if name not in names:
                 names.append(name)
         names.sort()
-        unused = []
         for name in names:
-            print "used image", name
+            print("used image", name)
         for dirpath, dirnames, filenames in os.walk('images'):
             for name in filenames:
                 if '.png' not in name and '.jpg' not in name:
                     continue
                 if name not in names:
-                    unused.append(name)
-        unused.sort()
-        for name in unused:
-            print "unused image", name
+                    print("unused image", name)
 
 class FC:
     """ a font cache """
@@ -158,7 +153,7 @@ class FC:
 
     def read(self, name, size):
         """ try system font location, otherwise use default font """
-        if name == None:
+        if name is None:
             return pygame.font.Font(None, size)
         path = '/usr/share/fonts/truetype/ttf-dejavu/'
         try:

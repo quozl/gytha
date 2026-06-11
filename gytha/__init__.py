@@ -131,22 +131,29 @@ import os, sys, time, socket, errno, select, struct, pygame, math, glob
 
 from pygame.locals import *
 
+# Custom pygame event type: posted by the network thread when data arrives.
+# pygame.event.custom_type() is Pygame 2.0.1+; fall back for older builds.
+try:
+    NETWORK_DATA_READY = pygame.event.custom_type()
+except AttributeError:
+    NETWORK_DATA_READY = pygame.USEREVENT + 10
+
 # a global namespace until complexity grows too far
-from cache import ic, fc
-from constants import *
-from sprites import MultipleImageSprite
-from sprites import Icon, Text, Texts
-from sprites import IconButton, IconTextButton, HorizontalAssemblyButton, Field
-from bouncer import Bouncer
-from util import *
-from meta import MetaClient
-from client import Client, ServerDisconnectedError
-from motd import MOTD
-from cap import Cap
-import mercenary
-import options
-import rcd
-import sound
+from .cache import ic, fc
+from .constants import *
+from .sprites import MultipleImageSprite
+from .sprites import Icon, Text, Texts
+from .sprites import IconButton, IconTextButton, HorizontalAssemblyButton, Field
+from .bouncer import Bouncer
+from .util import *
+from .meta import MetaClient
+from .client import Client, ServerDisconnectedError
+from .motd import MOTD
+from .cap import Cap
+from . import mercenary
+from . import options
+from . import rcd
+from . import sound
 
 VERSION = "0.9"
 
@@ -224,8 +231,8 @@ def n2gs(x, y):
 def n2ts(me, x, y):
     """ netrek to tactical screen coordinate conversion
     """
-    return ((x - me.x) / 20 + r_us.centerx,
-            (y - me.y) / 20 + r_us.centery)
+    return ((x - me.x) // 20 + r_us.centerx,
+            (y - me.y) // 20 + r_us.centery)
 
 def gs2n(x, y):
     """ galactic screen to netrek coordinate conversion
@@ -267,17 +274,18 @@ def s2d(me, x, y):
         (mx, my) = n2ts(me, me.x, me.y)
     return int((math.atan2(x - mx, my - y) / math.pi * 128.0 + 0.5))
 
-def n_o((x1, y1), (x2, y2)):
+def n_o(p1, p2):
     """ netrek coordinates to offset """
+    (x1, y1) = p1; (x2, y2) = p2
     return (abs(x1 - x2), abs(y1 - y2))
 
 def o_d(offset_x, offset_y):
     """ offset to distance """
     return int((offset_x ** 2 + offset_y ** 2) ** 0.5)
 
-def n_d((x1, y1), (x2, y2)):
+def n_d(p1, p2):
     """ netrek coordinates to distance """
-    (offset_x, offset_y) = n_o((x1, y1), (x2, y2))
+    (offset_x, offset_y) = n_o(p1, p2)
     return o_d(offset_x, offset_y)
 
 
@@ -578,7 +586,7 @@ class Ship(Local):
             if self.speed != speed:
                 self.sp_player_me_speed_shown = False
         elif me:
-            limit = TWIDTH / 2 + TWIDTH / 4
+            limit = TWIDTH // 2 + TWIDTH // 4
             nearby = (abs(me.x - x) < limit) or (abs(me.x - x) < limit)
             if nearby != self.nearby:
                 self.nearby = nearby
@@ -974,12 +982,12 @@ class Galaxy:
         return self.planets[n]
 
     def planets_proximity_check(self):
-        for n, planet in self.planets.iteritems():
+        for n, planet in self.planets.items():
             planet.proximity(me.x, me.y)
 
     def planets_same_owner(self, owner):
         number = 0
-        for n, planet in self.planets.iteritems():
+        for n, planet in self.planets.items():
             if planet.owner == owner:
                 number += 1
         return number
@@ -995,7 +1003,7 @@ class Galaxy:
 
     def ship_debug_draw(self):
         r = []
-        for n, ship in self.ships.iteritems():
+        for n, ship in self.ships.items():
             r.append(ship.debug_draw())
         return r
 
@@ -1010,7 +1018,7 @@ class Galaxy:
 
     def torp_debug_draw(self):
         r = []
-        for n, torp in self.torps.iteritems():
+        for n, torp in self.torps.items():
             r.append(torp.debug_draw())
         return r
 
@@ -1025,13 +1033,13 @@ class Galaxy:
 
     def phasers_undraw(self, colour):
         r = []
-        for n, phaser in self.phasers.iteritems():
+        for n, phaser in self.phasers.items():
             if phaser.have: r.append(phaser.undraw(colour))
         return r
 
     def phasers_draw(self):
         r = []
-        for n, phaser in self.phasers.iteritems():
+        for n, phaser in self.phasers.items():
             if phaser.want: r.append(phaser.draw())
         return r
 
@@ -1042,13 +1050,13 @@ class Galaxy:
 
     def tractors_undraw(self, colour):
         r = []
-        for n, tractor in self.tractors.iteritems():
+        for n, tractor in self.tractors.items():
             if tractor.have: r.append(tractor.undraw(colour))
         return r
 
     def tractors_draw(self):
         r = []
-        for n, tractor in self.tractors.iteritems():
+        for n, tractor in self.tractors.items():
             if tractor.want: r.append(tractor.draw())
         return r
 
@@ -1079,7 +1087,7 @@ class Galaxy:
         x, y = xy
         closest = me
         minimum = GWIDTH
-        for n, thing in things.iteritems():
+        for n, thing in things.items():
             if thing == me: continue
             disinterest = False
             for check in checks:
@@ -1570,7 +1578,7 @@ class Halos:
 
     def draw_planets(self, surface, threshold):
         # temporary highlight of my planets
-        for n, planet in galaxy.planets.iteritems():
+        for n, planet in galaxy.planets.items():
             if planet.owner != me.team: continue
             # colour depends on team
             colour = (0, 64, 0)
@@ -1586,7 +1594,7 @@ class Halos:
             radius = distance - threshold
             if radius < 100: continue
             # scale radius down to graphics
-            radius = radius / 20
+            radius = radius // 20
             # thickness relates to kills
             cx, cy = n2ts(me, planet.x, planet.y)
             width = 1
@@ -1598,7 +1606,7 @@ class Halos:
 
     def draw_ships(self, surface, threshold):
         # highlight of ships in game
-        for n, ship in galaxy.ships.iteritems():
+        for n, ship in galaxy.ships.items():
             if ship.status != PALIVE: continue
             if ship == me: continue
             # colour depends on team
@@ -1616,7 +1624,7 @@ class Halos:
             radius = distance - threshold
             if radius < 100: continue
             # scale radius down to graphics
-            radius = radius / 20
+            radius = radius // 20
             cx, cy = n2ts(me, ship.x, ship.y)
             width = 1
             # thickness relates to kills
@@ -1635,7 +1643,7 @@ class Halos:
         radius = distance - threshold
         if radius < 100: return
         # scale radius down to graphics
-        radius = radius / 20
+        radius = radius // 20
         cx, cy = n2ts(me, planet.x, planet.y)
         width = 4
         self.rect.append(self.arc(surface, colour, (cx, cy), radius,
@@ -1726,7 +1734,7 @@ class Borders(Lines):
         return self.rect
 
     def draw_debug_planet_proximity_boxes(self):
-        for n, planet in galaxy.planets.iteritems():
+        for n, planet in galaxy.planets.items():
             (x1, y1, w, h) = planet.box
             x2 = x1 + w
             y2 = y1 + h
@@ -1830,12 +1838,12 @@ class Subgalactic(Alerts):
         self.colour = (92, 92, 92)
         self.draw_box_thick(r_sg.left, r_sg.top, r_sg.right-1, r_sg.bottom-1)
         # planets
-        for n, planet in galaxy.planets.iteritems():
+        for n, planet in galaxy.planets.items():
             x, y = n2ss(planet.x, planet.y)
             self.colour = team_colour(planet.owner)
             draw_diamond(x, y, 4)
         # ships
-        for n, ship in galaxy.ships.iteritems():
+        for n, ship in galaxy.ships.items():
             if ship.status != PALIVE: continue
             if not ship.x or not ship.y:
                 continue
@@ -1896,7 +1904,7 @@ class DebugSprite(pygame.sprite.Sprite):
         x += 'avg %d ' % avg
         if galaxy.rps < fps:
             x += ' DISPLAY LAG'
-        print x
+        print(x)
 
         self.text = x
         self.image = self.font.render(self.text, 1, (255, 255, 255))
@@ -2284,7 +2292,7 @@ class MessageSprite(pygame.sprite.Sprite):
             self.indiv = me.n
             self.tail = me.mapchars + ' '
             return True
-        slot = slot_encode(event.unicode)
+        slot = slot_encode(event.str)
         if slot == -1:
             return False
         ship = galaxy.ship(slot)
@@ -2300,7 +2308,7 @@ class MessageSprite(pygame.sprite.Sprite):
     def typing(self, event):
         """ store characters as the message is typed """
         self.dirty = True
-        self.text = self.text + event.unicode
+        self.text = self.text + event.str
 
     def backspace(self):
         self.dirty = True
@@ -2398,6 +2406,12 @@ class MessageSprite(pygame.sprite.Sprite):
 
 cp_table = {}
 
+def _pb(x):
+    """Encode str or pass bytes through for struct 's' fields."""
+    if isinstance(x, str):
+        return x.encode('ascii', errors='replace')
+    return bytes(x)
+
 class ClientPacket(type):
     def __new__(cls, name, bases, dct):
         client_packet = type.__new__(cls, name, bases, dct)
@@ -2408,14 +2422,12 @@ class ClientPacket(type):
 
         return client_packet
 
-class CP:
-    __metaclass__ = ClientPacket
-
+class CP(metaclass=ClientPacket):
     code = -1
     format = ''
 
     def data(self, *args):
-        if opt.cp: print self.__class__.__name__, args
+        if opt.cp: print(self.__class__.__name__, args)
         return struct.pack(self.format, self.code, *args)
 
 class CP_SOCKET(CP):
@@ -2423,7 +2435,7 @@ class CP_SOCKET(CP):
     format = '!bbbxI'
 
     def data(self):
-        if opt.cp: print "CP_SOCKET"
+        if opt.cp: print("CP_SOCKET")
         return struct.pack(self.format, self.code, 4, 10, 0)
 
 class CP_BYE(CP):
@@ -2431,7 +2443,7 @@ class CP_BYE(CP):
     format = '!bxxx'
 
     def data(self):
-        if opt.cp: print "CP_BYE"
+        if opt.cp: print("CP_BYE")
         return struct.pack(self.format, self.code)
 
 class CP_LOGIN(CP):
@@ -2439,15 +2451,16 @@ class CP_LOGIN(CP):
     format = '!bbxx16s16s16s'
 
     def data(self, query, name, password, login):
-        if opt.cp: print "CP_LOGIN query=",query,"name=",name
-        return struct.pack(self.format, self.code, query, name, password, login)
+        if opt.cp: print("CP_LOGIN query=",query,"name=",name)
+        return struct.pack(self.format, self.code, query,
+                           _pb(name), _pb(password), _pb(login))
 
 class CP_OUTFIT(CP):
     code = 9
     format = '!bbbx'
 
     def data(self, race, ship=ASSAULT):
-        if opt.cp: print "CP_OUTFIT team=",race_decode(race),"ship=",ship
+        if opt.cp: print("CP_OUTFIT team=",race_decode(race),"ship=",ship)
         return struct.pack(self.format, self.code, race, ship)
 
 class CP_SPEED(CP):
@@ -2455,7 +2468,7 @@ class CP_SPEED(CP):
     format = '!bbxx'
 
     def data(self, speed):
-        if opt.cp: print "CP_SPEED speed=",speed
+        if opt.cp: print("CP_SPEED speed=",speed)
         return struct.pack(self.format, self.code, speed)
 
 class CP_DIRECTION(CP):
@@ -2463,7 +2476,7 @@ class CP_DIRECTION(CP):
     format = '!bBxx'
 
     def data(self, direction):
-        if opt.cp: print "CP_DIRECTION direction=",direction
+        if opt.cp: print("CP_DIRECTION direction=",direction)
         return struct.pack(self.format, self.code, direction & 255)
 
 class CP_PLANLOCK(CP):
@@ -2471,7 +2484,7 @@ class CP_PLANLOCK(CP):
     format = '!bbxx'
 
     def data(self, pnum):
-        if opt.cp: print "CP_PLANLOCK pnum=",pnum
+        if opt.cp: print("CP_PLANLOCK pnum=",pnum)
         return struct.pack(self.format, self.code, pnum)
 
 class CP_PLAYLOCK(CP):
@@ -2479,7 +2492,7 @@ class CP_PLAYLOCK(CP):
     format = '!bbxx'
 
     def data(self, pnum):
-        if opt.cp: print "CP_PLAYLOCK pnum=",pnum
+        if opt.cp: print("CP_PLAYLOCK pnum=",pnum)
         return struct.pack(self.format, self.code, pnum)
 
 class CP_UPDATES(CP):
@@ -2487,7 +2500,7 @@ class CP_UPDATES(CP):
     format = '!bxxxI'
 
     def data(self, usecs):
-        if opt.cp: print "CP_UPDATES usecs=",usecs
+        if opt.cp: print("CP_UPDATES usecs=",usecs)
         return struct.pack(self.format, self.code, usecs)
 
 class CP_BOMB(CP):
@@ -2495,7 +2508,7 @@ class CP_BOMB(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_BOMB state=",state
+        if opt.cp: print("CP_BOMB state=",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_BEAM(CP):
@@ -2503,7 +2516,7 @@ class CP_BEAM(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_BEAM state=",state
+        if opt.cp: print("CP_BEAM state=",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_CLOAK(CP):
@@ -2511,7 +2524,7 @@ class CP_CLOAK(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_CLOAK state=",state
+        if opt.cp: print("CP_CLOAK state=",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_REPAIR(CP):
@@ -2519,7 +2532,7 @@ class CP_REPAIR(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_REPAIR state=",state
+        if opt.cp: print("CP_REPAIR state=",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_SHIELD(CP):
@@ -2527,7 +2540,7 @@ class CP_SHIELD(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_SHIELD state=",state
+        if opt.cp: print("CP_SHIELD state=",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_MESSAGE(CP):
@@ -2535,15 +2548,15 @@ class CP_MESSAGE(CP):
     format = "!bBBx80s"
 
     def data(self, group, indiv, mesg):
-        if opt.cp: print "CP_MESSAGE group=",group,"indiv=",indiv,"mesg=",mesg
-        return struct.pack(self.format, self.code, group, indiv, mesg)
+        if opt.cp: print("CP_MESSAGE group=",group,"indiv=",indiv,"mesg=",mesg)
+        return struct.pack(self.format, self.code, group, indiv, _pb(mesg))
 
 class CP_PHASER(CP):
     code = 4
     format = '!bBxx'
 
     def data(self, direction):
-        if opt.cp: print "CP_PHASER direction=",direction
+        if opt.cp: print("CP_PHASER direction=",direction)
         return struct.pack(self.format, self.code, direction & 255)
 
 class CP_PLASMA(CP):
@@ -2551,7 +2564,7 @@ class CP_PLASMA(CP):
     format = '!bBxx'
 
     def data(self, direction):
-        if opt.cp: print "CP_PLASMA direction=",direction
+        if opt.cp: print("CP_PLASMA direction=",direction)
         return struct.pack(self.format, self.code, direction & 255)
 
 class CP_TORP(CP):
@@ -2559,7 +2572,7 @@ class CP_TORP(CP):
     format = '!bBxx'
 
     def data(self, direction):
-        if opt.cp: print "CP_TORP direction=",direction
+        if opt.cp: print("CP_TORP direction=",direction)
         return struct.pack(self.format, self.code, direction & 255)
 
 class CP_QUIT(CP):
@@ -2567,7 +2580,7 @@ class CP_QUIT(CP):
     format = '!bxxx'
 
     def data(self):
-        if opt.cp: print "CP_QUIT"
+        if opt.cp: print("CP_QUIT")
         return struct.pack(self.format, self.code)
 
 class CP_WAR(CP):
@@ -2575,7 +2588,7 @@ class CP_WAR(CP):
     format = '!bbxx'
 
     def data(self, newmask):
-        if opt.cp: print "CP_WAR newmask=",newmask
+        if opt.cp: print("CP_WAR newmask=",newmask)
         return struct.pack(self.format, self.code, newmask)
 
 class CP_PRACTR(CP):
@@ -2583,7 +2596,7 @@ class CP_PRACTR(CP):
     format = '!bxxx'
 
     def data(self):
-        if opt.cp: print "CP_PRACTR"
+        if opt.cp: print("CP_PRACTR")
         return struct.pack(self.format, self.code)
 
 class CP_ORBIT(CP):
@@ -2591,7 +2604,7 @@ class CP_ORBIT(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_ORBIT =",state
+        if opt.cp: print("CP_ORBIT =",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_DET_TORPS(CP):
@@ -2599,7 +2612,7 @@ class CP_DET_TORPS(CP):
     format = '!bxxx'
 
     def data(self):
-        if opt.cp: print "CP_DET_TORPS"
+        if opt.cp: print("CP_DET_TORPS")
         return struct.pack(self.format, self.code)
 
 class CP_DET_MYTORP(CP):
@@ -2607,7 +2620,7 @@ class CP_DET_MYTORP(CP):
     format = '!bxh'
 
     def data(self, tnum):
-        if opt.cp: print "CP_DET_MYTORP"
+        if opt.cp: print("CP_DET_MYTORP")
         return struct.pack(self.format, self.code, tnum)
 
 class CP_COPILOT(CP):
@@ -2615,7 +2628,7 @@ class CP_COPILOT(CP):
     format = '!bbxx'
 
     def data(self, state=1):
-        if opt.cp: print "CP_COPILOT"
+        if opt.cp: print("CP_COPILOT")
         return struct.pack(self.format, self.code, state)
 
 class CP_REFIT(CP):
@@ -2623,7 +2636,7 @@ class CP_REFIT(CP):
     format = '!bbxx'
 
     def data(self, ship):
-        if opt.cp: print "CP_REFIT ship=",ship
+        if opt.cp: print("CP_REFIT ship=",ship)
         return struct.pack(self.format, self.code, ship)
 
 class CP_TRACTOR(CP):
@@ -2631,7 +2644,7 @@ class CP_TRACTOR(CP):
     format = '!bbbx'
 
     def data(self, state, pnum):
-        if opt.cp: print "CP_TRACTOR state=",state,"pnum=",pnum
+        if opt.cp: print("CP_TRACTOR state=",state,"pnum=",pnum)
         return struct.pack(self.format, self.code, state, pnum)
 
 class CP_REPRESS(CP):
@@ -2639,7 +2652,7 @@ class CP_REPRESS(CP):
     format = '!bbbx'
 
     def data(self, state, pnum):
-        if opt.cp: print "CP_REPRESS state=",state,"pnum=",pnum
+        if opt.cp: print("CP_REPRESS state=",state,"pnum=",pnum)
         return struct.pack(self.format, self.code, state, pnum)
 
 class CP_COUP(CP):
@@ -2647,7 +2660,7 @@ class CP_COUP(CP):
     format = '!bxxx'
 
     def data(self):
-        if opt.cp: print "CP_COUP"
+        if opt.cp: print("CP_COUP")
         return struct.pack(self.format, self.code)
 
 class CP_OPTIONS(CP):
@@ -2655,15 +2668,15 @@ class CP_OPTIONS(CP):
     format = "!bxxxI96s"
 
     def data(self, flags, keymap):
-        if opt.cp: print "CP_OPTIONS flags=",flags,"keymap=",keymap
-        return struct.pack(self.format, self.code, flags, keymap)
+        if opt.cp: print("CP_OPTIONS flags=",flags,"keymap=",keymap)
+        return struct.pack(self.format, self.code, flags, _pb(keymap))
 
 class CP_DOCKPERM(CP):
     code = 30
     format = '!bbxx'
 
     def data(self, state):
-        if opt.cp: print "CP_DOCKPERM state=",state
+        if opt.cp: print("CP_DOCKPERM state=",state)
         return struct.pack(self.format, self.code, state)
 
 class CP_RESETSTATS(CP):
@@ -2671,7 +2684,7 @@ class CP_RESETSTATS(CP):
     format = '!bbxx'
 
     def data(self, verify):
-        if opt.cp: print "CP_RESETSTATS verify=",verify
+        if opt.cp: print("CP_RESETSTATS verify=",verify)
         return struct.pack(self.format, self.code, verify)
 
 class CP_RESERVED(CP):
@@ -2679,15 +2692,15 @@ class CP_RESERVED(CP):
     format = "!bxxx16s16s"
 
     def data(self, data, resp):
-        if opt.cp: print "CP_RESERVED"
-        return struct.pack(self.format, self.code, data, resp)
+        if opt.cp: print("CP_RESERVED")
+        return struct.pack(self.format, self.code, _pb(data), _pb(resp))
 
 class CP_SCAN(CP):
     code = 34
     format = '!bbxx'
 
     def data(self, pnum):
-        if opt.cp: print "CP_SCAN pnum=",pnum
+        if opt.cp: print("CP_SCAN pnum=",pnum)
         return struct.pack(self.format, self.code, pnum)
 
 class CP_UDP_REQ(CP):
@@ -2695,7 +2708,7 @@ class CP_UDP_REQ(CP):
     format = '!bbbxi'
 
     def data(self, request, connmode, port):
-        if opt.cp: print "CP_UDP_REQ request=%d connmode=%d port=%d" % (request, connmode, port)
+        if opt.cp: print("CP_UDP_REQ request=%d connmode=%d port=%d" % (request, connmode, port))
         return struct.pack(self.format, self.code, request, connmode, port)
 
 class CP_FEATURE(CP):
@@ -2703,15 +2716,15 @@ class CP_FEATURE(CP):
     format = "!bcbbi80s"
 
     def data(self, type, arg1, arg2, value, name):
-        if opt.cp: print "CP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name)
-        return struct.pack(self.format, self.code, type, arg1, arg2, value, name)
+        if opt.cp: print("CP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name))
+        return struct.pack(self.format, self.code, _pb(type), arg1, arg2, value, _pb(name))
 
 class CP_PING_RESPONSE(CP):
     code = 42
     format = "!bBbxll"
 
     def data(self, number, pingme, cp_sent, cp_recv):
-        if opt.cp: print "CP_PING_RESPONSE pingme=", pingme
+        if opt.cp: print("CP_PING_RESPONSE pingme=", pingme)
         return struct.pack(self.format, self.code, number, pingme, cp_sent, cp_recv)
         # FIXME: bug #1215317195 reported by Zach, pinging the player
         # using "!" results in O0 PING stats: Avg: 364 ms, Stdv: 19
@@ -2736,8 +2749,7 @@ class ServerPacket(type):
 
         return server_packet
 
-class SP:
-    __metaclass__ = ServerPacket
+class SP(metaclass=ServerPacket):
     code = -1
     format = ''
 
@@ -2760,7 +2772,7 @@ class SP_MOTD(SP):
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
         message = strnul(message)
-        if opt.sp: print "SP_MOTD message=", message
+        if opt.sp: print("SP_MOTD message=", message)
         galaxy.motd.add(message)
 
 class SP_YOU(SP):
@@ -2771,7 +2783,7 @@ class SP_YOU(SP):
         global opt
         (ignored, pnum, hostile, swar, armies, tractor, flags, damage,
          shield, fuel, etemp, wtemp, whydead, whodead) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_YOU pnum=",pnum,"hostile=",team_decode(hostile),"swar=",team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead
+        if opt.sp: print("SP_YOU pnum=",pnum,"hostile=",team_decode(hostile),"swar=",team_decode(swar),"armies=",armies,"tractor=",tractor,"flags=",flags,"damage=",damage,"shield=",shield,"fuel=",fuel,"etemp=",etemp,"wtemp=",wtemp,"whydead=",whydead,"whodead=",whodead)
         ship = galaxy.ship(pnum)
         ship.sp_you(hostile, swar, armies, flags, damage, shield, fuel, etemp, wtemp, whydead, whodead)
         trac = galaxy.tractor(pnum, ship)
@@ -2779,7 +2791,7 @@ class SP_YOU(SP):
         if nt.mode == COMM_TCP and ship.speed == 0:
             galaxy.pace()
         if opt.name:
-            nt.send(cp_updates.data(1000000/opt.updates))
+            nt.send(cp_updates.data(1000000//opt.updates))
             nt.send(cp_login.data(0, opt.name, opt.password, opt.login))
             opt.name = None
 
@@ -2789,7 +2801,7 @@ class SP_QUEUE(SP):
 
     def handler(self, data):
         (ignored, pos) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_QUEUE pos=",pos
+        if opt.sp: print("SP_QUEUE pos=",pos)
         galaxy.sp_queue(pos);
 
 class SP_PL_LOGIN(SP):
@@ -2799,7 +2811,7 @@ class SP_PL_LOGIN(SP):
     def handler(self, data):
         (ignored, pnum, rank, name, monitor,
          login) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PL_LOGIN pnum=",pnum,"rank=",rank,"name=",strnul(name),"monitor=",strnul(monitor),"login=",strnul(login)
+        if opt.sp: print("SP_PL_LOGIN pnum=",pnum,"rank=",rank,"name=",strnul(name),"monitor=",strnul(monitor),"login=",strnul(login))
         ship = galaxy.ship(pnum)
         ship.sp_pl_login(rank, name, monitor, login)
 
@@ -2809,7 +2821,7 @@ class SP_HOSTILE(SP):
 
     def handler(self, data):
         (ignored, pnum, war, hostile) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_HOSTILE pnum=",pnum,"war=",team_decode(war),"hostile=",team_decode(hostile)
+        if opt.sp: print("SP_HOSTILE pnum=",pnum,"war=",team_decode(war),"hostile=",team_decode(hostile))
         ship = galaxy.ship(pnum)
         ship.sp_hostile(war, hostile)
 
@@ -2819,7 +2831,7 @@ class SP_PLAYER_INFO(SP):
 
     def handler(self, data):
         (ignored, pnum, shiptype, team) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLAYER_INFO pnum=",pnum,"shiptype=",shiptype,"team=",team_decode(team)
+        if opt.sp: print("SP_PLAYER_INFO pnum=",pnum,"shiptype=",shiptype,"team=",team_decode(team))
         ship = galaxy.ship(pnum)
         ship.sp_player_info(shiptype, team)
 
@@ -2829,7 +2841,7 @@ class SP_KILLS(SP):
 
     def handler(self, data):
         (ignored, pnum, kills) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_KILLS pnum=",pnum,"kills=",kills
+        if opt.sp: print("SP_KILLS pnum=",pnum,"kills=",kills)
         ship = galaxy.ship(pnum)
         ship.sp_kills(kills)
 
@@ -2839,7 +2851,7 @@ class SP_PSTATUS(SP):
 
     def handler(self, data):
         (ignored, pnum, status) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PSTATUS pnum=",pnum,"status=",status
+        if opt.sp: print("SP_PSTATUS pnum=",pnum,"status=",status)
         ship = galaxy.ship(pnum)
         ship.sp_pstatus(status)
 
@@ -2849,7 +2861,7 @@ class SP_PLAYER(SP):
 
     def handler(self, data):
         (ignored, pnum, dir, speed, x, y) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLAYER pnum=",pnum,"dir=",dir,"speed=",speed,"x=",x,"y=",y
+        if opt.sp: print("SP_PLAYER pnum=",pnum,"dir=",dir,"speed=",speed,"x=",x,"y=",y)
         ship = galaxy.ship(pnum)
         ship.sp_player(dir, speed, x, y)
         if nt.mode == COMM_TCP and ship == me:
@@ -2861,7 +2873,7 @@ class SP_FLAGS(SP):
 
     def handler(self, data):
         (ignored, pnum, tractor, flags) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_FLAGS pnum=",pnum,"tractor=",tractor,"flags=",flags
+        if opt.sp: print("SP_FLAGS pnum=",pnum,"tractor=",tractor,"flags=",flags)
         ship = galaxy.ship(pnum)
         ship.sp_flags(flags)
         trac = galaxy.tractor(pnum, ship)
@@ -2873,7 +2885,7 @@ class SP_PLANET_LOC(SP):
 
     def handler(self, data):
         (ignored, pnum, x, y, name) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLANET_LOC pnum=",pnum,"x=",x,"y=",y,"name=",strnul(name)
+        if opt.sp: print("SP_PLANET_LOC pnum=",pnum,"x=",x,"y=",y,"name=",strnul(name))
         planet = galaxy.planet(pnum)
         planet.sp_planet_loc(x, y, name)
 
@@ -2890,7 +2902,7 @@ class SP_LOGIN(SP):
 
     def handler(self, data):
         (ignored, accept, flags, keymap) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_LOGIN accept=",accept,"flags=",flags
+        if opt.sp: print("SP_LOGIN accept=",accept,"flags=",flags)
         if self.callback:
             self.callback(accept, flags, keymap)
             self.uncatch()
@@ -2910,7 +2922,7 @@ class SP_MASK(SP):
 
     def handler(self, data):
         (ignored, mask) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_MASK mask=",team_decode(mask)
+        if opt.sp: print("SP_MASK mask=",team_decode(mask))
         if self.callback:
             self.callback(mask)
         # FIXME: #1187683470 update team selection icons in response to SP_MASK
@@ -2934,7 +2946,7 @@ class SP_PICKOK(SP):
 
     def handler(self, data):
         (ignored, state) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PICKOK state=", state
+        if opt.sp: print("SP_PICKOK state=", state)
         if state == 1:
             self.version()
         nt.sp_pickok()
@@ -2949,7 +2961,7 @@ class SP_RESERVED(SP):
     def handler(self, data):
         (ignored, data) = struct.unpack(self.format, data)
         text = struct.unpack('16b', data)
-        if opt.sp: print "SP_RESERVED data=",text
+        if opt.sp: print("SP_RESERVED data=",text)
         resp = data
         # FIXME: generate correct response data
         nt.send(cp_reserved.data(data, resp))
@@ -2960,7 +2972,7 @@ class SP_TORP_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, tnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_TORP_INFO war=%s status=%d tnum=%d" % (str(team_decode(war)), status, tnum)
+        if opt.sp: print("SP_TORP_INFO war=%s status=%d tnum=%d" % (str(team_decode(war)), status, tnum))
         torp = galaxy.torp(tnum)
         torp.sp_torp_info(war, status)
 
@@ -2970,7 +2982,7 @@ class SP_TORP(SP):
 
     def handler(self, data):
         (ignored, dir, tnum, x, y) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_TORP dir=%d tnum=%d x=%d y=%d" % (dir, tnum, x, y)
+        if opt.sp: print("SP_TORP dir=%d tnum=%d x=%d y=%d" % (dir, tnum, x, y))
         torp = galaxy.torp(tnum)
         torp.sp_torp(dir, x, y)
 
@@ -2980,7 +2992,7 @@ class SP_PLASMA_INFO(SP):
 
     def handler(self, data):
         (ignored, war, status, pnum) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLASMA_INFO war=",team_decode(war),"status=",status,"pnum=",pnum
+        if opt.sp: print("SP_PLASMA_INFO war=",team_decode(war),"status=",status,"pnum=",pnum)
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma_info(war, status)
 
@@ -2990,7 +3002,7 @@ class SP_PLASMA(SP):
 
     def handler(self, data):
         (ignored, pnum, x, y) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLASMA pnum=",pnum,"x=",x,"y=",y
+        if opt.sp: print("SP_PLASMA pnum=",pnum,"x=",x,"y=",y)
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma(x, y)
 
@@ -3000,7 +3012,7 @@ class SP_STATUS(SP):
 
     def handler(self, data):
         (ignored, tourn, armsbomb, planets, kills, losses, time, timeprod) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_STATUS tourn=",tourn,"armsbomb=",armsbomb,"planets=",planets,"kills=",kills,"losses=",losses,"time=",time,"timepro=",timeprod
+        if opt.sp: print("SP_STATUS tourn=",tourn,"armsbomb=",armsbomb,"planets=",planets,"kills=",kills,"losses=",losses,"time=",time,"timepro=",timeprod)
         # FIXME: display t-mode state, and hey, the other things might be fun
 
 class SP_PHASER(SP):
@@ -3009,7 +3021,7 @@ class SP_PHASER(SP):
 
     def handler(self, data):
         (ignored, pnum, status, dir, x, y, target) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PHASER pnum=",pnum,"status=",status,"dir=",dir,"x=",x,"y=",y,"target=",target
+        if opt.sp: print("SP_PHASER pnum=",pnum,"status=",status,"dir=",dir,"x=",x,"y=",y,"target=",target)
         phaser = galaxy.phaser(pnum)
         phaser.sp_phaser(status, dir, x, y, target)
 
@@ -3019,7 +3031,7 @@ class SP_PLANET(SP):
 
     def handler(self, data):
         (ignored, pnum, owner, info, flags, armies) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PLANET pnum=",pnum,"owner=",owner,"info=",info,"flags=",flags,"armies=",armies
+        if opt.sp: print("SP_PLANET pnum=",pnum,"owner=",owner,"info=",info,"flags=",flags,"armies=",armies)
         planet = galaxy.planet(pnum)
         planet.sp_planet(owner, info, flags, armies)
 
@@ -3029,7 +3041,7 @@ class SP_MESSAGE(SP):
 
     def handler(self, data):
         (ignored, m_flags, m_recpt, m_from, mesg) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",strnul(mesg)
+        if opt.sp: print("SP_MESSAGE m_flags=",m_flags,"m_recpt=",m_recpt,"m_from=",m_from,"mesg=",strnul(mesg))
         galaxy.sp_message(m_flags, m_recpt, m_from, mesg)
 
 class SP_STATS(SP):
@@ -3038,7 +3050,7 @@ class SP_STATS(SP):
 
     def handler(self, data):
         (ignored, pnum, tkills, tlosses, kills, losses, tticks, tplanets, tarmies, sbkills, sblosses, armies, planets, maxkills, sbmaxkills) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_STATS pnum=",pnum,"tkills=",tkills,"tlosses=",tlosses,"kills=",kills,"losses=",losses,"tticks=",tticks,"tplanets=",tplanets,"tarmies=",tarmies,"sbkills=",sbkills,"sblosses=",sblosses,"armies=",armies,"planets=",planets,"maxkills=",maxkills,"sbmaxkills=",sbmaxkills
+        if opt.sp: print("SP_STATS pnum=",pnum,"tkills=",tkills,"tlosses=",tlosses,"kills=",kills,"losses=",losses,"tticks=",tticks,"tplanets=",tplanets,"tarmies=",tarmies,"sbkills=",sbkills,"sblosses=",sblosses,"armies=",armies,"planets=",planets,"maxkills=",maxkills,"sbmaxkills=",sbmaxkills)
         ship = galaxy.ship(pnum)
         ship.sp_stats(armies+tarmies, planets+tplanets)
 
@@ -3050,7 +3062,7 @@ class SP_WARNING(SP):
 
     def handler(self, data):
         (ignored, message) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_WARNING message=", strnul(message)
+        if opt.sp: print("SP_WARNING message=", strnul(message))
         self.text = strnul(message)
         self.seen = False
 
@@ -3066,7 +3078,7 @@ class SP_FEATURE(SP):
         (ignored, type, arg1, arg2, value, name) = struct.unpack(self.format, data)
         name = strnul(name)
         if opt.sp:
-            print "SP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name)
+            print("SP_FEATURE type=%s arg1=%d arg2=%d value=%d name=%s" % (type, arg1, arg2, value, name))
         if (type, arg1, arg2, value, name) == ('S', 0, 0, 1, 'FEATURE_PACKETS'):
             # server says features packets are okay to send,
             # so send this client's features
@@ -3097,7 +3109,7 @@ class SP_PING(SP):
 
     def handler(self, data):
         (ignored, number, lag, tloss_sc, tloss_cs, iloss_sc, iloss_cs) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_PING"
+        if opt.sp: print("SP_PING")
         nt.send(cp_ping_response.data(0, 1, 0, 0))
 
 class SP_UDP_REPLY(SP):
@@ -3107,7 +3119,7 @@ class SP_UDP_REPLY(SP):
 
     def handler(self, data):
         (ignored, reply, port) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_UDP_REPLY reply=%d port=%d" % (reply, port)
+        if opt.sp: print("SP_UDP_REPLY reply=%d port=%d" % (reply, port))
         nt.sp_udp_reply(reply, port)
 
 class SP_SEQUENCE(SP):
@@ -3121,8 +3133,8 @@ class SP_SEQUENCE(SP):
         (ignored, flag, sequence) = struct.unpack(self.format, data)
         galaxy.pace()
         if opt.sp:
-            print # to make it clear on dump that a new update has commenced
-            print "SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence)
+            print()  # mark start of new update in dump
+            print("SP_SEQUENCE flag=%d sequence=%d" % (flag, sequence))
 
 class SP_SHIP_CAP(SP):
     """ only received if client sends CP_FEATURE feature packet SHIP_CAP """
@@ -3131,18 +3143,18 @@ class SP_SHIP_CAP(SP):
 
     def handler(self, data):
         (ignored, operation, s_type, s_torpspeed, s_phaserrange, s_maxspeed, s_maxfuel, s_maxshield, s_maxdamage, s_maxwpntemp, s_maxegntemp, s_width, s_height, s_maxarmies, s_letter, s_name, s_desig, s_bitmap) = struct.unpack(self.format, data)
-        if opt.sp: print "SP_SHIP_CAP operation=%d s_type=%d s_torpspeed=%d s_phaserrange=%d s_maxspeed=%d s_maxfuel=%d s_maxshield=%d s_maxdamage=%d s_maxwpntemp=%d s_maxegntemp=%d s_width=%d s_height=%d s_maxarmies=%d s_letter=%s s_name=%s s_desig=%s s_bitmap=%d" % (operation, s_type, s_torpspeed, s_phaserrange, s_maxspeed, s_maxfuel, s_maxshield, s_maxdamage, s_maxwpntemp, s_maxegntemp, s_width, s_height, s_maxarmies, s_letter, s_name, s_desig, s_bitmap)
+        if opt.sp: print("SP_SHIP_CAP operation=%d s_type=%d s_torpspeed=%d s_phaserrange=%d s_maxspeed=%d s_maxfuel=%d s_maxshield=%d s_maxdamage=%d s_maxwpntemp=%d s_maxegntemp=%d s_width=%d s_height=%d s_maxarmies=%d s_letter=%s s_name=%s s_desig=%s s_bitmap=%d" % (operation, s_type, s_torpspeed, s_phaserrange, s_maxspeed, s_maxfuel, s_maxshield, s_maxdamage, s_maxwpntemp, s_maxegntemp, s_width, s_height, s_maxarmies, s_letter, s_name, s_desig, s_bitmap))
         try:
             cap = galaxy.cap(s_type)
         except:
-            print "SP_SHIP_CAP s_type was invalid: %d" % s_type
+            print("SP_SHIP_CAP s_type was invalid: %d" % s_type)
             return
         # check operation, zero add or change, one remove
         if operation == 1:
             cap.reset(s_type)
             return
         if operation != 0:
-            print "SP_SHIP_CAP operation was invalid: %d" % operation
+            print("SP_SHIP_CAP operation was invalid: %d" % operation)
             return
         cap.seen = False
         cap.s_torpspeed = s_torpspeed
@@ -3170,8 +3182,7 @@ class SP_GENERIC_32(SP):
         (ignored, version) = struct.unpack(self.format, data)
         if version == 'a':
             (ignored, version, repair_time, pl_orbit) = struct.unpack("b1shh26x", data)
-            if opt.sp: print "SP_GENERIC_32 rt=%d or=%d" \
-               % (repair_time, pl_orbit)
+            if opt.sp: print("SP_GENERIC_32 rt=%d or=%d" % (repair_time, pl_orbit))
             if me:
                 me.sp_generic_32(repair_time, pl_orbit)
         elif version == 'b':
@@ -3179,11 +3190,12 @@ class SP_GENERIC_32(SP):
              tournament_teams, tournament_age, tournament_age_units, \
              tournament_remain, tournament_remain_units, starbase_remain, \
              team_remain) = struct.unpack("!b1sHbHBBsBsBB18x", data)
-            if opt.sp: print "SP_GENERIC_32 rt=%d or=%d gu=0x%x " \
-               "tt=%x ta=%d%s tr=%d%s sr=%d su=%d" % \
-               (repair_time, pl_orbit, gameup, tournament_teams, \
-                tournament_age, tournament_age_units, tournament_remain, \
-                tournament_remain_units, starbase_remain, team_remain)
+            if opt.sp: print(
+                "SP_GENERIC_32 rt=%d or=%d gu=0x%x "
+                "tt=%x ta=%d%s tr=%d%s sr=%d su=%d" % (
+                    repair_time, pl_orbit, gameup, tournament_teams,
+                    tournament_age, tournament_age_units, tournament_remain,
+                    tournament_remain_units, starbase_remain, team_remain))
             if me:
                 me.sp_generic_32(repair_time, pl_orbit)
             galaxy.sp_generic_32(gameup, tournament_teams, \
@@ -3217,10 +3229,14 @@ class Phase:
         if b.mm in self.eh_mm: self.eh_mm.remove(b.mm)
 
     def network_sink(self):
-        return nt.recv()
+        # Network I/O is handled by the background NetworkThread; nothing to
+        # do here.  PhaseServers overrides this to poll the metaserver.
+        pass
 
     def display_sink_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == NETWORK_DATA_READY:
+            pass  # data already processed by network thread
+        elif event.type == pygame.MOUSEBUTTONDOWN:
             self.md(event)
         elif event.type == pygame.KEYDOWN:
             self.kb(event)
@@ -3255,7 +3271,7 @@ class Phase:
 
     def ue_set(self, hz):
         self.ue_hz = hz
-        self.ue_delay = 1000 / hz
+        self.ue_delay = 1000 // hz
         pygame.time.set_timer(pygame.USEREVENT+1, self.ue_delay)
 
     def ue_clear(self):
@@ -3304,25 +3320,20 @@ class Phase:
         name = "gytha-%04d.jpeg" % self.screenshot
         try:
             pygame.image.save(screen, name)
-            print "snapshot taken,", name
+            print("snapshot taken,", name)
             self.screenshot += 1
         except:
             pass
 
     def cycle(self):
-        """ free wheeling cycle, use when it is acceptable to block on
-        either display or network events, without local user event
-        timers (a timer scheduled in this mode will not fire until
-        after a display or network event occurs) """
+        """ free-wheeling cycle; blocks in pygame.event.wait() until a
+        network, display, or timer event arrives. """
         while self.run:
-            self.network_sink()
-            self.display_sink()
+            self.display_sink_wait()
 
     def cycle_wait(self):
-        """ display waiting cycle, use when local user event timers
-        are needed """
+        """ display-waiting cycle for phases that use USEREVENT timers. """
         while self.run:
-            self.network_sink()
             self.display_sink_wait()
 
     def cycle_wait_display(self):
@@ -3453,7 +3464,7 @@ class PhaseNonFlight(Phase):
         r1 = screen.blit(text, self.warn_br)
         pygame.display.update(r1)
         self.warn_on = True
-        self.warn_fuse = ms / self.ue_delay
+        self.warn_fuse = ms // self.ue_delay
 
     def unwarn(self):
         if self.warn_on:
@@ -3497,7 +3508,7 @@ class PhaseSplash(PhaseNonFlight):
             pygame.image.save(screen, "gytha-splash.jpeg")
         if not opt.debug: ic.preload_early()
         self.ue_set(100)
-        self.fuse_max = self.fuse = opt.splashtime / self.ue_delay
+        self.fuse_max = self.fuse = opt.splashtime // self.ue_delay
         self.run = True
         self.cycle_wait_display() # returns after self.leave is called
         if not opt.debug: ic.preload_rest()
@@ -3632,8 +3643,8 @@ class PhaseServers(PhaseNonFlight):
         self.sent = pygame.time.get_ticks()
         self.lag = 0
         self.ue_set(100)
-        self.fuse_max = opt.metaserver_refresh_interval * 1000 / self.ue_delay
-        self.fuse = self.fuse_max / 2
+        self.fuse_max = opt.metaserver_refresh_interval * 1000 // self.ue_delay
+        self.fuse = self.fuse_max // 2
         self.warn('pick a server to connect to', 2500)
         self.cycle_wait() # returns after self.leave is called
         self.ue_clear()
@@ -3731,14 +3742,14 @@ class PhaseServers(PhaseNonFlight):
         pygame.display.update(redraw)
 
     def network_sink(self):
-        """ redefining the standard network_sink: while on this screen
-        in particular, check for replies from the metaserver that we
-        requested. """
+        """ Poll the metaserver socket (non-blocking); called from ue()
+        at 100 Hz so responses appear promptly without blocking the loop. """
         self.mc.recv()
 
     def ue(self, event):
         self.warn_ue()
         self.bouncer.update(self.fuse, self.fuse_max)
+        self.network_sink()  # non-blocking poll for metaserver replies
 
         self.fuse -= 1
         if self.fuse < 0:
@@ -3769,7 +3780,7 @@ class PhaseServers(PhaseNonFlight):
         y = event.pos[1]
         distance = self.dy
         chosen = None
-        for k, v in self.mc.servers.iteritems():
+        for k, v in self.mc.servers.items():
             dy = abs(v['y'] - y)
             if dy < distance:
                 distance = dy
@@ -3793,6 +3804,7 @@ class PhaseServers(PhaseNonFlight):
             self.warn('connection failure', 2000)
             pygame.display.update(self.b_quit.draw())
             return
+        nt_start_thread()
         self.leave()
 
     def tips(self, event):
@@ -3925,7 +3937,7 @@ class PhaseLogin(PhaseNonFlight):
 
     def chuck_cp_login(self):
         self.catch_sp_login()
-        nt.send(cp_updates.data(1000000/opt.updates))
+        nt.send(cp_updates.data(1000000//opt.updates))
         nt.send(cp_login.data(0, str(self.name.value),
                               str(self.password.value), 'gytha'))
 
@@ -3966,7 +3978,7 @@ class PhaseLogin(PhaseNonFlight):
         elif event.key == K_BACKSPACE:
             self.focused.backspace()
         elif event.key > 31 and event.key < 255 and not control:
-            self.focused.append(event.unicode)
+            self.focused.append(event.str)
         else:
             return Phase.kb(self, event)
 
@@ -4044,8 +4056,8 @@ class PhaseOutfit(PhaseNonFlight):
             (team, dx, dy) = row
             # box centre
             # FIXME: slide ships into race on race positions, omitting other races
-            x = (box_r - box_l) / 2 + box_l
-            y = (box_b - box_t) / 2 + box_t
+            x = (box_r - box_l) // 2 + box_l
+            y = (box_b - box_t) // 2 + box_t
             permit = [CRUISER, ASSAULT, SCOUT, BATTLESHIP, DESTROYER, STARBASE]
             if rounds < 50: permit = permit[:-1]
             if rounds < 20: permit = [CRUISER, ASSAULT, SCOUT]
@@ -4118,17 +4130,16 @@ class PhaseOutfit(PhaseNonFlight):
     def auto(self):
         # attempt auto-refit if command line arguments are supplied
         if opt.team != None and opt.ship != None:
-            while me == None:
-                nt.recv()
-                # FIXME: potential CPU loop at this point
-            for team, name in teams_long.iteritems():
+            while me is None:
+                time.sleep(0.01)  # network thread updates me
+            for team, name in teams_long.items():
                 if opt.team == name[:len(opt.team)]:
                     opt.team = None
-                    for ship, name in ships.iteritems():
+                    for ship, name in ships.items():
                         if opt.ship == name[:len(opt.ship)]:
                             self.team(teams_numeric[team], ship)
                             return
-                    for ship, name in ships_long.iteritems():
+                    for ship, name in ships_long.items():
                         if opt.ship == name[:len(opt.ship)]:
                             self.team(teams_numeric[team], ship)
                             return
@@ -4252,27 +4263,22 @@ class PhaseFlight(Phase):
         galaxy.frames += 1
         # loop until termination requested, or no longer flying
         while self.run:
-            # pause until a burst of network packets are received and
-            # processed, or display event occurs.
-            packets = self.network_sink()
-            # if a burst of network packets was processed, and one of
-            # them signified the start of a new update cycle, do a
-            # screen update.
-            if packets and galaxy.paced:
-                self.update()
-                galaxy.paced = False
-                galaxy.frames += 1
-                #if opt.sp: print "**"
-            # check for and process any display events, but don't wait
-            # around for more, it is critical that we get back to
-            # the head of this loop waiting for anything.
-            events = self.display_sink()
-            if events > 0:
+            # Block until any event arrives: NETWORK_DATA_READY (posted by
+            # the network thread), USEREVENT timer, or a UI event.
+            event = pygame.event.wait()
+            self.display_sink_event(event)
+            # drain any additional queued events without blocking
+            n = self.display_sink()
+            if n > 0:
                 galaxy.events += 1
                 if self.event_triggers_update:
                     self.update()
                     self.event_triggers_update = False
-                #if opt.sp: print "--"
+            # if a server update cycle completed, redraw
+            if galaxy.paced:
+                self.update()
+                galaxy.paced = False
+                galaxy.frames += 1
             if me.status == POUTFIT: break # no longer flying
 
     def update(self):
@@ -4554,15 +4560,15 @@ class PhaseFlight(Phase):
 
         tips = ['Netrek Keyboard Help', '']
         gap = '  '
-        for key, key_tuple in self.keys_normal.iteritems():
+        for key, key_tuple in self.keys_normal.items():
             if len(key_tuple) < 3: continue
             name = pygame.key.name(key)
             tips.append(name + gap + key_tuple[2])
-        for key, key_tuple in self.keys_shift.iteritems():
+        for key, key_tuple in self.keys_shift.items():
             if len(key_tuple) < 3: continue
             name = 'shift ' + pygame.key.name(key).upper()
             tips.append(name + gap + key_tuple[2])
-        for key, key_tuple in self.keys_control.iteritems():
+        for key, key_tuple in self.keys_control.items():
             if len(key_tuple) < 3: continue
             name = 'control ' + pygame.key.name(key)
             tips.append(name + gap + key_tuple[2])
@@ -4657,7 +4663,7 @@ class PhaseFlight(Phase):
             ac_done('Moving')
 
     def op_warp_half(self, event, arg):
-        if me: self.op_warp(event, me.cap.s_maxspeed / 2)
+        if me: self.op_warp(event, me.cap.s_maxspeed // 2)
 
     def op_warp_full(self, event, arg):
         if me: self.op_warp(event, me.cap.s_maxspeed)
@@ -4745,7 +4751,7 @@ class PhaseFlight(Phase):
         b_info.empty()
 
     def op_debug_dump(self, event, arg):
-        print galaxy
+        print(galaxy)
 
 
 class PhaseFlightGalactic(PhaseFlight):
@@ -5013,7 +5019,7 @@ class PhaseDisconnected(PhaseNonFlight):
         if sp_badversion.why == None:
             return ['Connection was closed by the server.',
                     '',
-                    'You may have been idle for too long.',
+                    'You may have been idle for too int.',
                     'You may have a network problem.',
                     'You may have been ejected by vote.',
                     'You may have been freed by the captain in a clue game.',
@@ -5113,86 +5119,11 @@ def nt_init():
     nt.cp_udp_req = cp_udp_req
     return nt
 
-def pg_fd():
-    """ lift the hood on pygame and find the file descriptor that it
-    expects graphics events to arrive from, so that it can be used in
-    select, contributed by coderanger on #pygame and #olpc-devel ...
-
-    SDL_VideoDevice -> SDL_PrivateVideoData (is a pointer, way deep in
-    the parent structure) -> X11_Display (is a pointer, offset after
-    one prior int) . member fd (is an int, offset after two prior
-    structure members, which are pointers).
-    """
-    try:
-        w = pygame.display.get_wm_info()
-        w = w['display']
-        n = int(str(w)[23:-1], 16)
-        n = ctypes.cast(n+8, ctypes.POINTER(ctypes.c_int)).contents.value
-        n = ctypes.cast(n+8, ctypes.POINTER(ctypes.c_int)).contents.value
-    except:
-        print "unable to identify file descriptor of X socket, slowing"
-
-        """
-
-        The effect of this is profound, but usually only noticed by
-        expert players firing bursts of torpedoes.
-
-        The effect is input lag.
-
-        Normally nt.recv will wake the process on either a network
-        event or a display event.  Without a call to nt.set_pg_fd,
-        nt.recv will stall until a packet arrives from the server,
-        or a 0.04 second timeout expires.
-
-        Therefore if the X socket descriptor cannot be identified, or
-        in the case of non-X SDL usage, such as on Mac OS X or
-        Microsoft Windows, the player will experience input lag, where
-        response to keyboard or mouse events will be delayed by up to
-        the 0.04 second timeout.
-
-        Consider the two timing diagrams that follow.  These are
-        timelines, with a scale of 0.002 seconds per character, with
-        characters representing different things:
-
-        External events:
-
-                |  server update boundary at 10 updates (0.1 sec)
-                <  packet from server (lagged by 6ms from server)
-                e  keyboard or mouse event (from the player)
-
-        Generated events:
-
-                d  display update based on packet received from server
-                >  packet to server based on keyboard or mouse event
-                =  the 0.04 second timeout on select in nt.recv
-
-        a.  Normal case, with X socket descriptor used by nt.recv
-
-        0.0 sec                                           0.1 sec
-        |                                                 |
-        |   <      e                                      |   <
-        |                                                 |
-        |    d      >                                     |    d
-        -------------------------------------------------------------
-
-        b.  Abnormal case, with X socket descriptor unknown
-
-        0.0 sec                                           0.1 sec
-        |                                                 |
-        |   <      e                                      |   <
-        |===  ==================== ==================== ==|===  =====
-        |    d                    >                       |    d
-        -------------------------------------------------------------
-
-        """
-        return
-
-    if n > 255:
-        print "the fd was too large, abondoning that line of reasoning, just guessing"
-        n = 5
-
-    nt.set_pg_fd(n)
-    if mc: mc.set_pg_fd(n)
+def nt_start_thread():
+    """Start the background network I/O thread for the game server connection.
+    Posts NETWORK_DATA_READY pygame events when packets arrive so the main
+    thread wakes from pygame.event.wait() without any X11 fd dependency."""
+    nt.start_network_thread(NETWORK_DATA_READY)
 
 # achievements
 import json
@@ -5324,7 +5255,7 @@ promises = []
 def ac_load():
     global achievements
     try:
-        text = file(AC_FILE, 'r').read()
+        text = open(AC_FILE, 'r').read()
         achievements = json.loads(text)
     except:
         achievements = {'Started': time.time()}
@@ -5334,7 +5265,7 @@ def ac_save():
         achievements[key] = time.time()
     text = json.dumps(achievements, sort_keys=True, ensure_ascii=False,
                       indent=0)
-    file(AC_FILE, 'w').write(text)
+    open(AC_FILE, 'w').write(text)
 
 def ac_done_now(key):
     global achievements
@@ -5441,21 +5372,7 @@ def pg_init():
 
     pygame.mixer.pre_init(44100, -16, 2, 1024)
 
-    fds = glob.glob('/proc/self/fd/*')
-    fds.sort()
-
     pygame.display.init()
-
-    fds_orig = fds
-    fds = glob.glob('/proc/self/fd/*')
-    fds.sort()
-    for fd in fds:
-        if fd not in fds_orig:
-            n = int(fd.split('/')[4])
-            print 'file descriptor opened by pygame.display.init was', n
-            nt.set_pg_fd(n)
-            if mc: mc.set_pg_fd(n)
-
     pygame.init()
     pygame.key.set_repeat(250, 100)
     size = width, height = 1000, 1000
@@ -5464,14 +5381,14 @@ def pg_init():
     ac_save()
 
     videoinfo = pygame.display.Info()
-    print "current display resolution is %d x %d pixels" % (videoinfo.current_w, videoinfo.current_h)
+    print("current display resolution is %d x %d pixels" % (videoinfo.current_w, videoinfo.current_h))
 
     screen = None
     undersize = (videoinfo.current_w < 1000 or videoinfo.current_h < 1000)
 
     # manual display size control using command line flags
     if opt.manual_width != None or opt.manual_height != None:
-        print "you gave manual override for display size"
+        print("you gave manual override for display size")
         manual_width = videoinfo.current_w
         if opt.manual_width != None:
             manual_width = opt.manual_width
@@ -5492,35 +5409,35 @@ def pg_init():
     # current resolution is undersize
 
     if not screen and undersize:
-        print "trying best resolution for game"
+        print("trying best resolution for game")
         try:
             screen = pygame.display.set_mode((1000, 1000), FULLSCREEN)
             undersize = False
         except:
-            print "could not switch display resolution"
+            print("could not switch display resolution")
 
     # 2. try the standard resolution just above our best resolution
     # for game design, but only if the current resolution is
     # undersize, and if the previous resolution failed.
 
     if not screen and undersize:
-        print "trying a standard resolution above best for game"
+        print("trying a standard resolution above best for game")
         try:
             screen = pygame.display.set_mode((1280, 1024), FULLSCREEN)
             undersize = False
         except:
-            print "could not switch display resolution"
+            print("could not switch display resolution")
 
     # 3. try the standard resolution just below our best resolution
     # for game design, but only if the current resolution is
     # undersize, and if the previous resolution failed.
 
     if not screen and undersize:
-        print "trying a standard resolution below best for game"
+        print("trying a standard resolution below best for game")
         try:
             screen = pygame.display.set_mode((1024, 768), FULLSCREEN)
         except:
-            print "could not switch display resolution"
+            print("could not switch display resolution")
 
     # 4. try the current resolution in full screen mode, but only if
     # the above didn't work, and only if the user asked for full
@@ -5528,7 +5445,7 @@ def pg_init():
 
     if not screen and opt.fullscreen:
         if videoinfo.current_w != -1 and videoinfo.current_h != -1:
-            print "trying current resolution in full screen mode"
+            print("trying current resolution in full screen mode")
             screen = pygame.display.set_mode((videoinfo.current_w,
                                               videoinfo.current_h), FULLSCREEN)
 
@@ -5542,7 +5459,7 @@ def pg_init():
     width = surface.get_width()
     height = surface.get_height()
     size = width, height
-    print "have a surface size %d x %d pixels" % (width, height)
+    print("have a surface size %d x %d pixels" % (width, height))
     r_main = Rect((0, 0), (width, height))
     r_us = r_main
     if width > 1000 and height > 1000:
@@ -5628,10 +5545,9 @@ def nt_play_a_slot():
         if ph_outfit.cancelled: break # quit or list chosen during outfit
         # at this point, team and ship choice is accepted by server
 
-        # FIXME: here we utterly rely on arriving network packets
-        # until ship status changes (SP_PSTATUS), and we don't do any
-        # screen updates, and we don't notice if the stream falters.
-        while me.status == POUTFIT: nt.recv()
+        # Wait for SP_PSTATUS to move status out of POUTFIT.
+        # The network thread updates me.status in the background.
+        while me.status == POUTFIT: time.sleep(0.01)
 
         ph_flight = ph_tactical
         if not ph_tactical.hint():
@@ -5649,7 +5565,7 @@ def nt_play_a_slot():
         try:
             ac_save()
         except:
-            print 'achievements were not saved due to an exception'
+            print('achievements were not saved due to an exception')
 
 def nt_play():
     """ keep playing, until user chooses a quit option """
@@ -5688,10 +5604,10 @@ def nt_play():
 def main(argv=sys.argv[1:]):
     global opt, screen, mc, nt
 
-    for line in WELCOME: print line
-    print
+    for line in WELCOME: print(line)
+    print()
 
-    opt, args = options.parser.parse_args(argv)
+    opt = options.parser.parse_args(argv)
     if opt.ubertweak:
         import getpass
         opt.name = opt.password = opt.login = getpass.getuser()
@@ -5699,13 +5615,15 @@ def main(argv=sys.argv[1:]):
     mc = None
     if opt.server == None: mc = mc_init()
     nt = nt_init()
-    if opt.server != None:
+    if opt.server is not None:
         opt.chosen = opt.server
         if not nt.connect(opt.chosen, opt.port):
-            print "connection failed"
+            print("connection failed")
             # server was requested on command line, but not available
             return 1
     screen = pg_init()
+    if opt.server is not None:
+        nt_start_thread()
 
     nt_play()
     if opt.debug:
