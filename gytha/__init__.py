@@ -337,7 +337,7 @@ class Planet(Local):
             self.x = x
             self.y = y
             self.set_box(x, y)
-        self.name = name.split('\0')[0]
+        self.name = strnul(name)
         if old != (self.x, self.y, self.name):
             self.op_info_update()
 
@@ -544,7 +544,7 @@ class Ship(Local):
 
     def sp_pl_login(self, rank, name, monitor, login):
         self.rank = rank
-        self.name = name.split('\0')[0]
+        self.name = strnul(name)
         self.monitor = monitor
         self.login = login
         # FIXME: display this data, on player list
@@ -2292,7 +2292,7 @@ class MessageSprite(pygame.sprite.Sprite):
             self.indiv = me.n
             self.tail = me.mapchars + ' '
             return True
-        slot = slot_encode(event.str)
+        slot = slot_encode(event.unicode)
         if slot == -1:
             return False
         ship = galaxy.ship(slot)
@@ -2308,7 +2308,7 @@ class MessageSprite(pygame.sprite.Sprite):
     def typing(self, event):
         """ store characters as the message is typed """
         self.dirty = True
-        self.text = self.text + event.str
+        self.text = self.text + event.unicode
 
     def backspace(self):
         self.dirty = True
@@ -3210,7 +3210,7 @@ class Phase:
     """ display phases common code """
     def __init__(self):
         self.ue_hz = 10
-        self.ue_delay = 1000 / self.ue_hz
+        self.ue_delay = 1000 // self.ue_hz
         self.screenshot = 0
         self.run = False
         self.eh_md = [] # event handlers, mouse down
@@ -3251,6 +3251,8 @@ class Phase:
             self.ue(event)
         elif event.type == pygame.MOUSEBUTTONUP:
             self.mu(event)
+        elif event.type == pygame.VIDEOEXPOSE:
+            pygame.display.flip()
 
     def display_sink(self):
         n = 0
@@ -3838,9 +3840,8 @@ class PhaseQueue(PhaseNonFlight):
         if opt.screenshots:
             pygame.image.save(screen, "gytha-queue.jpeg")
         while self.run:
-            packets = self.network_sink()
-            if packets > 0: self.data()
-            self.display_sink()
+            self.display_sink_wait()
+            self.data()
 
     def data(self):
         if me != None:
@@ -3978,7 +3979,7 @@ class PhaseLogin(PhaseNonFlight):
         elif event.key == K_BACKSPACE:
             self.focused.backspace()
         elif event.key > 31 and event.key < 255 and not control:
-            self.focused.append(event.str)
+            self.focused.append(event.unicode)
         else:
             return Phase.kb(self, event)
 
