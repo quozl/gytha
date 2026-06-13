@@ -1,4 +1,4 @@
-import sys, socket, select, errno, time, struct, array, threading
+import sys, socket, select, errno, time, struct, array, threading, traceback
 from .constants import *
 
 MSG_PEEK = socket.MSG_PEEK
@@ -38,6 +38,7 @@ class NetworkThread(threading.Thread):
                     pass
                 break
             except Exception:
+                traceback.print_exc()
                 self._stop.set()
                 break
             if data:
