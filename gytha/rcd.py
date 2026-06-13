@@ -165,10 +165,10 @@ class msg:
         return None
 
 def byte(value):
-    return value & 0xff | 0x80
+    return int(value) & 0xff | 0x80
 
 def norm(value, maximum):
-    x = 100 * value / maximum
+    x = int(100 * value / maximum)
     if x > 0x7f: x = 0x7f
     return x & 0xff | 0x80
 
