@@ -2862,7 +2862,7 @@ class SP_PLAYER(SP):
 
     def handler(self, data):
         (ignored, pnum, dir, speed, x, y) = struct.unpack(self.format, data)
-        if opt.sp: print(f"SP_PLAYER pnum={pnum} dir={dir} speed={speed}x={x}y={y}")
+        if opt.sp: print(f"SP_PLAYER pnum={pnum} dir={dir} speed={speed} x={x} y={y}")
         ship = galaxy.ship(pnum)
         ship.sp_player(dir, speed, x, y)
         if nt.mode == COMM_TCP and ship == me:
@@ -2886,7 +2886,7 @@ class SP_PLANET_LOC(SP):
 
     def handler(self, data):
         (ignored, pnum, x, y, name) = struct.unpack(self.format, data)
-        if opt.sp: print(f"SP_PLANET_LOC pnum={pnum}x={x}y={y} name={strnul(name)}")
+        if opt.sp: print(f"SP_PLANET_LOC pnum={pnum} x={x} y={y} name={strnul(name)}")
         planet = galaxy.planet(pnum)
         planet.sp_planet_loc(x, y, name)
 
@@ -3003,7 +3003,7 @@ class SP_PLASMA(SP):
 
     def handler(self, data):
         (ignored, pnum, x, y) = struct.unpack(self.format, data)
-        if opt.sp: print(f"SP_PLASMA pnum={pnum}x={x}y={y}")
+        if opt.sp: print(f"SP_PLASMA pnum={pnum} x={x} y={y}")
         plasma = galaxy.plasma(pnum)
         plasma.sp_plasma(x, y)
 
