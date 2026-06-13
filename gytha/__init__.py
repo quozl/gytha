@@ -5548,7 +5548,16 @@ def nt_play_a_slot():
 
         # Wait for SP_PSTATUS to move status out of POUTFIT.
         # The network thread updates me.status in the background.
-        while me.status == POUTFIT: time.sleep(0.01)
+        # Pump events so the window stays responsive during initial state dump.
+        while me.status == POUTFIT:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    nt.send(cp_bye.data())
+                    ac_save()
+                    sys.exit(0)
+                elif event.type == pygame.VIDEOEXPOSE:
+                    pygame.display.flip()
+            time.sleep(0.01)
 
         ph_flight = ph_tactical
         if not ph_tactical.hint():
