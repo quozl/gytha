@@ -673,7 +673,7 @@ class Torp(Local):
         Local.__init__(self, n)
         self.n = n
         self.galaxy = galaxy
-        self.ship = self.galaxy.ship(self.n / MAXTORP)
+        self.ship = self.galaxy.ship(self.n // MAXTORP)
         self.fuse = 0
         self.status = TFREE
         self.sp_torp_info(0, self.status)
@@ -943,6 +943,7 @@ class Galaxy:
         self.phasers = {}
         self.tractors = {}
         self.plasmas = {}
+        self._torp_objs = {}
         self.caps = {}
         for n in range(NUM_TYPES):
             self.caps[n] = Cap(n)
@@ -1008,9 +1009,9 @@ class Galaxy:
         return r
 
     def torp(self, n):
-        if n in self.torps:
-            return self.torps[n]
-        return Torp(n, self)
+        if n not in self._torp_objs:
+            self._torp_objs[n] = Torp(n, self)
+        return self._torp_objs[n]
 
     def torp_aging(self):
         for t in self.te:
