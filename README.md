@@ -413,10 +413,16 @@ request.
 
 ## Known issues
 
-- UDP path failure detection is not fully implemented (`FIXME` in `client.py`).
+- UDP path failure detection and fallback to TCP is not fully
+  implemented (`FIXME` in `client.py`), but with modern networks this
+  is now a rarity,
 - Approximately 30 `FIXME` comments in `__init__.py` mark incomplete features,
   including: speed display on tactical, player proximity edge pointers, unknown
   planet scanning, and moving/turning achievements on the galactic map.
+- The War window from other clients is missing, but as ships start out
+  hostile in servers these days, the only effect is losing the
+  capacity to declare Peace, use another client if you need to do
+  that,
 
 ## Licence
 
