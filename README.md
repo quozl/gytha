@@ -424,6 +424,8 @@ request.
   capacity to declare Peace, use another client if you need to do
   that,
 
+See bugs/ for a Ditz issue database.
+
 ## Licence
 
 GNU General Public Licence, version 2 or later.  See `COPYING`.
