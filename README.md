@@ -15,11 +15,20 @@ Netrek server over TCP/UDP.
 
 Netrek is a 16-player real-time space battle game.  Two teams of up to eight
 ships fight for control of planets across a 100,000 × 100,000 coordinate galaxy.
-Ships carry armies between planets to conquer them; the team that owns all planets
-wins.  Gameplay involves torpedoes, phasers, plasma torpedoes, cloaking, tractor
-beams, and structured team communication via distress calls.
 
-## Features of this client
+Your team starts with ten planets.  Each player flies a starship.  You shoot at
+enemy ships with torpedoes and phasers.  You fly to, scan, and bomb enemy planets
+to deny their use by the enemy team.  You protect your own planets by preventing
+the enemy from reaching them.
+
+Once you make a kill and don't die, you beam up armies from the planets you
+protected and drop them on enemy planets that have been bombed.
+
+Your team wins when all the enemy planets are taken.  Your team loses if all your
+planets are taken.  Strategies include escorting, controlling space, and
+coordinated attacks.
+
+## Features
 
 - Tactical view (your ship centred, 20,000-unit radius) and simultaneous galactic
   overview
@@ -34,6 +43,120 @@ beams, and structured team communication via distress calls.
 - Fullscreen and windowed modes; Scale2x for high-DPI displays
 - OGG sound effects (kills, death, phaser, shields, gains)
 - Screenshots via the Print Screen key
+
+---
+
+## Screenshots
+
+### Splash
+
+![Splash screen](screenshots/0.7-splash.jpg)
+
+A splash screen showing the game name, licence, and a rotating icon.  During
+this time the imagery pipeline is initialised and graphical assets are loaded.
+
+---
+
+### Server List
+
+![Server list](screenshots/0.7-servers.jpg)
+
+Available Netrek servers discovered via the metaserver.  Each server shows a
+row of squares indicating how many players are present.  Two orbiting objects
+signal a metaserver refresh.
+
+**What to do:** left-click a server to log in, or middle-click to join as a
+guest mercenary.
+
+---
+
+### Tips
+
+![Tips screen](screenshots/0.7-tips.jpg)
+
+Helpful hints for new players.
+
+**What to do:** read them, then click *Server List*.
+
+---
+
+### Login
+
+![Login screen](screenshots/0.7-login.jpg)
+
+Shows the server name, message of the day, and a name prompt.
+
+**What to do:** type `guest` and press Enter for an unrecorded session, or
+enter a name and password to track your statistics.
+
+---
+
+### Ship and Race Selection
+
+![Outfit screen](screenshots/0.7-outfit.jpg)
+
+Ship and team selection.  Each team's available ship classes are shown.
+
+**What to do:** click a ship to choose it and enter the game.  The ship
+closest to the centre is the Scout Cruiser (CA), the best general-purpose
+ship.  Other classes have specific strengths and weaknesses.  All ships of the
+same class are equal regardless of team.
+
+---
+
+### Tactical View
+
+![Tactical action](screenshots/0.5-action-0004.jpg)
+
+Your ship is centred.  The ring around your ship shows shields are up.
+
+On-screen elements:
+- Ship warnings in red at the top
+- Game messages blended into the upper half of the screen
+- An unscanned planet (team unknown) in the background
+- Your ship (number 8) with two torpedo explosions and phasers firing at
+  enemy ship 3
+- Your torpedoes that missed flying away
+- Status line: Speed, Fuel, Damage, Shields, Weapon Temperature, flags
+
+---
+
+### Galactic View
+
+![Galactic view](screenshots/0.5-galactic.jpg)
+
+Press Enter to switch to the full galaxy view.  Your ship is inside the small
+white box.  Boxed areas mark team territories; circles are planets.
+
+- Number above each planet = armies present
+- Planet name colour = owning team; bright = more than four armies (can be
+  bombed or used as an army source)
+- Other ships appear as small moving icons
+
+---
+
+### Combat and Death Sequence
+
+![Torpedo impact](screenshots/0.5-action-0010.jpg)
+
+The white burst is a torpedo that pushed your damage past 100%; your ship has
+begun to explode.  The coloured ring is the start of the explosion.  Green dots
+are incoming enemy torpedoes.
+
+![Explosion expanding](screenshots/0.5-action-0011.jpg)
+
+Moments later your explosion engulfs the nearby enemy ship, dealing damage
+(though not always fatally).  You will return to the outfit screen and can
+re-enter immediately with the spacebar.
+
+![Phaser miss](screenshots/0.5-action-0021.jpg)
+
+![Kill sequence](screenshots/0.5-action-0022.jpg)
+
+![Aftermath](screenshots/0.5-action-0023.jpg)
+
+You fired a phaser that missed; enemy ship 4 killed you simultaneously with a
+torpedo and a phaser.  The enemy ship is caught in the blast radius and damaged.
 
 ---
 
@@ -170,7 +293,7 @@ gytha/
   mercenary.py           Automatic team selection logic
 images/                  PNG/JPG sprite and background assets (180+)
 sounds/                  OGG audio files
-doc/                     Screenshots and HTML documentation
+screenshots/             Screenshots used in this README
 ```
 
 ### Coordinate systems
@@ -219,9 +342,78 @@ platform-specific socket introspection.
 
 ---
 
+## Building on Windows
+
+*Originally written by Zachary Uram; updated for Python 3.*
+
+### 1. Install Python 3
+
+Download and install Python 3.8 or later from
+[python.org](https://www.python.org/downloads/windows/).  During installation,
+tick **Add Python to PATH**.
+
+### 2. Install Pygame
+
+```
+pip install pygame
+```
+
+### 3. Get the source
+
+Download and unpack a source release, or clone the repository:
+
+```
+git clone <repository>
+cd netrek-client-pygame
+```
+
+### 4. Run
+
+```
+python gytha.py
+```
+
+### 5. Package a standalone executable (optional)
+
+[PyInstaller](https://pyinstaller.org/) can produce a self-contained `dist/`
+folder that runs without a Python installation:
+
+```
+pip install pyinstaller
+pyinstaller --onedir gytha.py
+```
+
+Copy the `images/`, `sounds/`, and `screenshots/` directories into `dist/gytha/`
+alongside the generated executable, then distribute the `dist/gytha/` folder or
+zip it for download.
+
+---
+
+## Contributing
+
+```bash
+# clone
+git clone <repository>
+cd netrek-client-pygame
+
+# make changes to gytha/__init__.py or other modules
+
+# see what changed
+git diff
+
+# commit and send a pull request
+git add -p
+git commit -m "describe the change"
+```
+
+Packaging for Linux distributions is welcome — please open an issue or pull
+request.
+
+---
+
 ## Known issues
 
-- UDP path failure detection is not fully implemented (`FIXME` at `client.py`).
+- UDP path failure detection is not fully implemented (`FIXME` in `client.py`).
 - Approximately 30 `FIXME` comments in `__init__.py` mark incomplete features,
   including: speed display on tactical, player proximity edge pointers, unknown
   planet scanning, and moving/turning achievements on the galactic map.
