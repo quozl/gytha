@@ -3236,7 +3236,8 @@ class Phase:
 
     def display_sink_event(self, event):
         if event.type == NETWORK_DATA_READY:
-            pass  # data already processed by network thread
+            if not nt.connected:
+                raise ServerDisconnectedError
         elif event.type == pygame.MOUSEBUTTONDOWN:
             self.md(event)
         elif event.type == pygame.KEYDOWN:
@@ -4993,6 +4994,11 @@ class PhaseFlightTactical(PhaseFlight):
         #pygame.display.update(r_debug)
 
 class PhaseDisconnected(PhaseNonFlight):
+    def display_sink_event(self, event):
+        if event.type == NETWORK_DATA_READY:
+            return
+        super().display_sink_event(event)
+
     def __init__(self, screen):
         PhaseNonFlight.__init__(self)
         self.background("hubble-helix.jpg")

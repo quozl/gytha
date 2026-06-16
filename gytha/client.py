@@ -68,6 +68,7 @@ class Client:
         self.tcp = self.udp = -1
         self.ct = self.cu = 0
         self._net_thread = None
+        self.connected = False
 
     def connect(self, host, port):
         """ connect via TCP to a game server, and prepare the UDP
@@ -119,6 +120,7 @@ class Client:
         self.udp_peerport = None
         self.ct = self.cu = 0
         self.has_quit = False
+        self.connected = True
         return True
 
     def start_network_thread(self, event_type):
@@ -130,7 +132,8 @@ class Client:
         """Signal and join the background network I/O thread."""
         if self._net_thread is not None:
             self._net_thread.stop()
-            self._net_thread.join(timeout=2.0)
+            if threading.current_thread() is not self._net_thread:
+                self._net_thread.join(timeout=2.0)
             self._net_thread = None
 
     def tcp_send(self, data):
@@ -337,6 +340,7 @@ class Client:
         print('network statistics: tcp game packets = %d, udp game packets = %d' % (self.ct, self.cu))
 
     def shutdown(self):
+        self.connected = False
         self.stop_network_thread()
         try:
             self.tcp.shutdown(socket.SHUT_RDWR)
