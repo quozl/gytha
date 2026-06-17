@@ -131,11 +131,16 @@ import os, sys, time, socket, errno, select, struct, pygame, math, glob
 
 from pygame.locals import *
 
-# Custom pygame event type: posted by the network thread when data arrives.
+# Custom pygame event types. pygame.event.custom_type() allocates from
+# USEREVENT+1 upward, so all three must be claimed here to avoid collision.
 # pygame.event.custom_type() is Pygame 2.0.1+; fall back for older builds.
 try:
-    NETWORK_DATA_READY = pygame.event.custom_type()
+    UE_TIMER = pygame.event.custom_type()          # phase update timer
+    UE_BOUNCER = pygame.event.custom_type()        # warn-fuse / bouncer timer
+    NETWORK_DATA_READY = pygame.event.custom_type()# network thread wakeup
 except AttributeError:
+    UE_TIMER = pygame.USEREVENT + 1
+    UE_BOUNCER = pygame.USEREVENT + 2
     NETWORK_DATA_READY = pygame.USEREVENT + 10
 
 # a global namespace until complexity grows too far
@@ -2030,10 +2035,10 @@ class WarningSprite(pygame.sprite.Sprite):
             length = len(text)
             if length > 32: self.time = 2500
             if length > 64: self.time = 5000
-        pygame.time.set_timer(pygame.USEREVENT+2, self.time)
+        pygame.time.set_timer(UE_BOUNCER, self.time)
 
     def ue(self, event):
-        pygame.time.set_timer(pygame.USEREVENT+2, 0)
+        pygame.time.set_timer(UE_BOUNCER, 0)
         self.pick('')
 
     def pick(self, text):
@@ -2914,16 +2919,20 @@ class SP_MASK(SP):
     code = 19
     format = "!bbxx"
     callback = None
+    last_mask = None
 
     def uncatch(self):
         self.callback = None
 
     def catch(self, callback):
         self.callback = callback
+        if self.last_mask is not None:
+            callback(self.last_mask)
 
     def handler(self, data):
         (ignored, mask) = struct.unpack(self.format, data)
         if opt.sp: print(f"SP_MASK mask={team_decode(mask)}")
+        self.last_mask = mask
         if self.callback:
             self.callback(mask)
         # FIXME: #1187683470 update team selection icons in response to SP_MASK
@@ -3276,10 +3285,10 @@ class Phase:
     def ue_set(self, hz):
         self.ue_hz = hz
         self.ue_delay = 1000 // hz
-        pygame.time.set_timer(pygame.USEREVENT+1, self.ue_delay)
+        pygame.time.set_timer(UE_TIMER, self.ue_delay)
 
     def ue_clear(self):
-        pygame.time.set_timer(pygame.USEREVENT+1, 0)
+        pygame.time.set_timer(UE_TIMER, 0)
 
     def mm(self, event):
         # FIXME: watch for MOUSEMOTION and update object information panes
@@ -4011,7 +4020,7 @@ class PhaseOutfit(PhaseNonFlight):
     # FIXME: add a BACK button that disconnects, reconnects, for login
     def display_sink_event(self, event):
         super().display_sink_event(event)
-        if event.type == NETWORK_DATA_READY:
+        if event.type > pygame.USEREVENT:
             pygame.display.flip()
 
     def __init__(self, screen):
@@ -4095,9 +4104,12 @@ class PhaseOutfit(PhaseNonFlight):
         # FIXME: show whydead
         if not nt.has_quit:
             self.warn("pick a ship")
-        pygame.display.update(r)
+        pygame.display.flip()
         sp_mask.catch(self.mask)
+        pygame.display.flip()
+        self.ue_set(10)
         self.cycle() # returns when choice accepted by server, or user cancels
+        self.ue_clear()
         sp_mask.uncatch()
         if self.join_enabled:
             self.del_join_button()
