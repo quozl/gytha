@@ -23,15 +23,15 @@ class NetworkThread(threading.Thread):
         super().__init__(daemon=True, name='network-io')
         self.client = client
         self.event_type = event_type
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
 
     def run(self):
         import pygame
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             try:
                 data = self.client.recv(timeout=0.5)
             except ServerDisconnectedError:
-                self._stop.set()
+                self._stop_event.set()
                 try:
                     pygame.event.post(pygame.event.Event(self.event_type))
                 except Exception:
@@ -39,7 +39,7 @@ class NetworkThread(threading.Thread):
                 break
             except Exception:
                 traceback.print_exc()
-                self._stop.set()
+                self._stop_event.set()
                 break
             if data:
                 try:
@@ -48,7 +48,7 @@ class NetworkThread(threading.Thread):
                     pass
 
     def stop(self):
-        self._stop.set()
+        self._stop_event.set()
 
 
 class Client:
