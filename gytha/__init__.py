@@ -4009,6 +4009,11 @@ class PhaseOutfit(PhaseNonFlight):
     # FIXME: add a become player button as above
     # FIXME: add a relinquish slot button, for rejoining end of queue
     # FIXME: add a BACK button that disconnects, reconnects, for login
+    def display_sink_event(self, event):
+        super().display_sink_event(event)
+        if event.type == NETWORK_DATA_READY:
+            pygame.display.flip()
+
     def __init__(self, screen):
         PhaseNonFlight.__init__(self)
         self.run = True
