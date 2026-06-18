@@ -3868,7 +3868,7 @@ class PhaseQueue(PhaseNonFlight):
     def list(self, event):
         self.cancelled = True
         nt.send(cp_bye.data())
-        nt.shutdown()
+        nt_shutdown()
         self.proceed()
 
     def quit(self, event):
@@ -3997,7 +3997,7 @@ class PhaseLogin(PhaseNonFlight):
     def list(self, event):
         self.cancelled = True
         nt.send(cp_bye.data())
-        nt.shutdown()
+        nt_shutdown()
         self.proceed()
 
     def quit(self, event):
@@ -4244,13 +4244,13 @@ class PhaseOutfit(PhaseNonFlight):
 
     def list(self, event):
         nt.send(cp_bye.data())
-        nt.shutdown()
+        nt_shutdown()
         self.cancelled = True
         self.proceed()
 
     def quit(self, event):
         nt.send(cp_bye.data())
-        nt.shutdown()
+        nt_shutdown()
         self.exit(0)
 
     def proceed(self):
@@ -5149,6 +5149,13 @@ def nt_start_thread():
     Posts NETWORK_DATA_READY pygame events when packets arrive so the main
     thread wakes from pygame.event.wait() without any X11 fd dependency."""
     nt.start_network_thread(NETWORK_DATA_READY)
+
+def nt_shutdown():
+    """Shut down the game server connection and drain any NETWORK_DATA_READY
+    events the network thread posted before it stopped, so they do not trigger
+    ServerDisconnectedError in the next phase."""
+    nt.shutdown()
+    pygame.event.clear(NETWORK_DATA_READY)
 
 # achievements
 import json
