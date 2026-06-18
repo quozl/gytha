@@ -3878,7 +3878,6 @@ class PhaseQueue(PhaseNonFlight):
     def proceed(self):
         self.b_quit.clear()
         self.b_list.clear()
-        pygame.display.flip()
         self.run = False
 
 class PhaseLogin(PhaseNonFlight):
@@ -4007,7 +4006,6 @@ class PhaseLogin(PhaseNonFlight):
     def proceed(self):
         self.b_quit.clear()
         self.b_list.clear()
-        pygame.display.flip()
         self.run = False
 
 class PhaseOutfit(PhaseNonFlight):
@@ -4257,7 +4255,6 @@ class PhaseOutfit(PhaseNonFlight):
         self.b_quit.clear()
         if not opt.server:
             self.b_list.clear()
-        pygame.display.flip()
         self.run = False
 
 
